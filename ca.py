@@ -3,7 +3,7 @@ from graphgallery.datasets import NPZDataset
 import random
 
 
-def test(target=1, subgraph_type='gcn', seed=124, p=0.5):
+def test(target=1, subgraph_type='gcn', seed=124, prob=0.5, p=2.0, q=0.25, sample_ratio=0.3, hops=2, hop_mode=False):
     verbose = 0
     ################### Surrogate model ############################
     trainer = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
@@ -14,7 +14,7 @@ def test(target=1, subgraph_type='gcn', seed=124, p=0.5):
 
     ################### Attacker model ############################
     attacker = SGA(graph, seed=seed).process(trainer)
-    attacker.attack(target, subgraph_type=subgraph_type, p=p)
+    attacker.attack(target, subgraph_type=subgraph_type, prob=prob, p=p, q=q, sample_ratio=sample_ratio, hops=hops, hop_mode=hop_mode)
     ################### Victim model ############################
     # Before attack
     trainer = gg.gallery.nodeclas.GCN(seed=seed).setup_graph(graph).build()
@@ -53,32 +53,24 @@ graph = data.graph
 splits = data.split_nodes(random_state=15)
 seeds = list(range(9999))
 
-times = 3
+times = 10
 used_seeds = random.sample(seeds, times)
-used_seeds = seeds[:1]
-us = []
 atks = []
 for seed in used_seeds:
     print('----------', seed)
     try:
-        diff1, model1 = test(seed=seed)
-        diff2, model2 = test(subgraph_type='spread_random', seed=seed, p=0.5)
+        effectOrigin, modelOrigin = test(seed=seed)
+        effectDW, modelDW = test(subgraph_type='dw', seed=seed, p=1.0, q=1.0)
+        effectN2V, modelN2V = test(subgraph_type='n2v', seed=seed, p=2.0, q=0.25)
+        effectSR, modelSR = test(subgraph_type='spread_random', seed=seed, prob=0.5)
     except AssertionError as e:
         print(e)
         continue
     except PermissionError as e:
         print(e)
         continue
-    atks.append([diff1, diff2, diff2 - diff1])
-    us.append(seed)
-    if atks[-1][2] > 0:
+    cur_effect = np.array([effectOrigin, effectDW, effectN2V, effectSR]) - effectOrigin
+    atks.append(cur_effect)
+    if any(cur_effect > 0):
         print('##########')
-        print('[SGA_ORI, SGA_RD]:', atks)
-        print('[Random seeds]:', us)
-    print('##########\nSGA_ORI:')
-    print('加边：', model1.added_edges)
-    print('减边', model1.non_added_edges)
-    print('##########')
-    print('SGA_RD:')
-    print('加边：', model2.added_edges)
-    print('减边', model2.non_added_edges)
+        print('[ORIGIN, DW, N2V, SR]:', cur_effect)

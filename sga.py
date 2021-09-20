@@ -1,15 +1,17 @@
 import torch
+import random
 from torch import Tensor
 import torch.nn as nn
 import numpy as np
 
 import graphgallery as gg
-from utils import ego_subgraph_spread_random
 from graphgallery import functional as gf
 from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
-from utils import *
+
+from sampler import Sampler
+from utils import normalize_GCN
 
 try:
     """It will be faster with torch_geometric"""
@@ -72,13 +74,14 @@ class SGA(TargetedAttacker):
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
         X = torch.tensor(self.graph.node_attr).to(self.device)
+
         self.b = b
         self.XW = X @ W.T
         self.SGC = SGConv(K).to(self.device)
         self.K = K
         self.logits = surrogate.predict(np.arange(self.num_nodes))
         self.loss_fn = nn.CrossEntropyLoss()
-        random.seed(self.seed)
+
         if reset:
             self.reset()
         return self
@@ -101,13 +104,26 @@ class SGA(TargetedAttacker):
                feature_attack=False,
                disable=False,
                subgraph_type='gcn',
-               p=0.5):
+               prob=0.5,
+               p=2.0,
+               q=0.25,
+               sample_ratio=0.3,
+               hops=2,
+               hop_mode=False):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
+        self.prob = prob
         self.p = p
+        self.q = q
+        self.sample_nums = int(sample_ratio * self.graph.adj_matrix.shape[0])
+        self.hops = hops
+        self.hop_mode = hop_mode
         self.added_edges = []
         self.non_added_edges = []
+        self.sampler = Sampler(self.graph.adj_matrix, self.p, self.q, self.seed)
+        self.subgraph_types = ['gcn', 'dw', 'n2v', 'spread_random']
+
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
@@ -150,12 +166,9 @@ class SGA(TargetedAttacker):
         wrong_label = self.wrong_label
         neighbors = self.graph.adj_matrix[target].indices  # target的邻居id
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
-        if subgraph_type == 'gcn':
-            sub_edges, sub_nodes = self.ego_subgraph()
-        elif subgraph_type == 'spread_random':
-            sub_edges, sub_nodes = self.ego_subgraph_spread_random()
+        sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
         sub_edges = sub_edges.T  # shape [2, M]
-        print(sub_edges.shape)
+        print(sub_edges.shape, sub_nodes.shape)
 
         if self.direct_attack or attacker_nodes is not None:
             influence_nodes = [target]
@@ -178,6 +191,19 @@ class SGA(TargetedAttacker):
 
             self.construct_sub_adj(influence_nodes, wrong_label_nodes,
                                    sub_nodes, sub_edges)
+
+    def get_subgraph(self, subgraph_type):
+        assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
+        if subgraph_type == 'gcn':
+            sub_edges, sub_nodes = self.ego_subgraph()
+        elif subgraph_type == 'dw':
+            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, True)
+        elif subgraph_type == 'n2v':
+            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, False)
+        elif subgraph_type == 'spread_random':
+            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode)
+
+        return sub_edges, sub_nodes
 
     def compute_gradient(self, eps=5.0):
 
@@ -204,9 +230,6 @@ class SGA(TargetedAttacker):
     #    nodes: shape [N], the nodes of the subgraph
     def ego_subgraph(self):
         return gf.ego_graph(self.graph.adj_matrix, self.target, self.K)
-
-    def ego_subgraph_spread_random(self):
-        return ego_subgraph_spread_random(self.graph.adj_matrix, self.target, self.p)
 
     def construct_sub_adj(self, influence_nodes, wrong_label_nodes, sub_nodes,
                           sub_edges):

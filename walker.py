@@ -1,122 +1,85 @@
 import random
 import numpy as np
-
-
-def deepwalk_walk_wrapper(class_instance, walk_length, start_node):
-    class_instance.deepwalk_walk(walk_length, start_node)
-
-
-class BasicWalker:
-    def __init__(self, G, workers):
-        self.G = G.G
-
-    def deepwalk_walk(self, walk_length, start_node):
-        '''
-        Simulate a random walk starting from start node.
-        '''
-        G = self.G
-
-        walk = [start_node]
-
-        while len(walk) < walk_length:
-            cur = walk[-1]
-            cur_nbrs = list(G.neighbors(cur))
-            if len(cur_nbrs) > 0:
-                walk.append(random.choice(cur_nbrs))
-            else:
-                break
-        return walk
-
-    def simulate_walks(self, start_nodes, walk_length, num_walks=None):
-        '''
-        Repeatedly simulate random walks from each node.
-        '''
-        walks = []
-        print('start_nodes iteration:')
-        for start_node in start_nodes:
-            # pool = multiprocessing.Pool(processes = 4)
-            print('start node:', start_node)
-            # walks.append(pool.apply_async(deepwalk_walk_wrapper, (self, walk_length, node, )))
-            walks.append(self.deepwalk_walk(walk_length=walk_length, start_node=start_node))
-            # pool.close()
-            # pool.join()
-        # print(len(walks))
-        return walks
+from graphgallery import functional as gf
 
 
 class Walker:
-    def __init__(self, G, p, q, workers):
-        self.G = G.G
+    def __init__(self, adj_matrix, p=1.0, q=1.0):
         self.p = p
         self.q = q
-        self.node_size = G.node_size
-        self.look_up_dict = G.look_up_dict
+        self.indices = adj_matrix.indices
+        self.indptr = adj_matrix.indptr
+        self.adj_matrix = adj_matrix.tolil() # weight默认为0/1
 
-    def node2vec_walk(self, walk_length, start_node):
-        '''
-        Simulate a random walk starting from start node.
-        '''
-        G = self.G
-        alias_nodes = self.alias_nodes
-        alias_edges = self.alias_edges
-        look_up_dict = self.look_up_dict
-        node_size = self.node_size
+    # 10^-3（p,q)初始化不影响deepwalk
+    def deepwalk_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
 
-        walk = [start_node]
-
-        while len(walk) < walk_length:
-            cur = walk[-1]
-            cur_nbrs = list(G.neighbors(cur))
-            if len(cur_nbrs) > 0:
-                if len(walk) == 1:
-                    walk.append(
-                        cur_nbrs[alias_draw(alias_nodes[cur][0], alias_nodes[cur][1])])
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                if len(nbrs) > 0:
+                    u = random.choice(nbrs)
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
                 else:
-                    prev = walk[-2]
-                    pos = (prev, cur)
-                    next = cur_nbrs[alias_draw(alias_edges[pos][0],
-                                               alias_edges[pos][1])]
-                    walk.append(next)
-            else:
-                break
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
-        return walk
-
-    def simulate_walks(self, num_walks, walk_length):
+    # 10^-3
+    def node2vec_sample(self, targets, sample_nums):
         '''
         Repeatedly simulate random walks from each node.
         '''
-        G = self.G
-        walks = []
-        nodes = list(G.nodes())
-        print('Walk iteration:')
-        # 随机游走次数
-        for walk_iter in range(num_walks):
-            print(str(walk_iter+1), '/', str(num_walks))
-            random.shuffle(nodes)
-            for node in nodes:
-                # 从start_node出发，游走walk_length个节点
-                walks.append(self.node2vec_walk(
-                    walk_length=walk_length, start_node=node))
+        alias_nodes = self.alias_nodes
+        alias_edges = self.alias_edges
 
-        return walks
+        edges = {}
+        nodes = []
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                if len(nbrs) > 0:
+                    if len(tmp_nodes) == 1:
+                        u = nbrs[alias_draw(alias_nodes[head][0], alias_nodes[head][1])]
+                        tmp_nodes.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = 1
+                    else:
+                        prev = tmp_nodes[-2]
+                        pos = (prev, head)
+                        next = nbrs[alias_draw(alias_edges[pos][0], alias_edges[pos][1])]
+                        tmp_nodes.append(next)
+                        if (next, head) not in edges:
+                            edges[(head, next)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
     def get_alias_edge(self, src, dst):
         '''
         Get the alias edge setup lists for a given edge.
         '''
-        G = self.G
         p = self.p
         q = self.q
 
         unnormalized_probs = []
-        for dst_nbr in G.neighbors(dst):
+        nbrs = self.indices[self.indptr[dst]:self.indptr[dst + 1]]
+        for dst_nbr in nbrs:
             if dst_nbr == src:
-                unnormalized_probs.append(G[dst][dst_nbr]['weight']/p)
-            elif G.has_edge(dst_nbr, src):
-                unnormalized_probs.append(G[dst][dst_nbr]['weight'])
+                unnormalized_probs.append(1/p)
+            elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                unnormalized_probs.append(1)
             else:
-                unnormalized_probs.append(G[dst][dst_nbr]['weight']/q)
+                unnormalized_probs.append(1/q)
         norm_const = sum(unnormalized_probs)
         normalized_probs = [
             float(u_prob)/norm_const for u_prob in unnormalized_probs]
@@ -127,24 +90,21 @@ class Walker:
         '''
         Preprocessing of transition probabilities for guiding the random walks.
         '''
-        G = self.G
+        N = self.adj_matrix.shape[0]
 
         alias_nodes = {}
-        for node in G.nodes():
-            unnormalized_probs = [G[node][nbr]['weight']
-                                  for nbr in G.neighbors(node)]
+        for node in range(N):
+            unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
             norm_const = sum(unnormalized_probs)
-            normalized_probs = [
-                float(u_prob)/norm_const for u_prob in unnormalized_probs]
+            normalized_probs = [float(u_prob)/norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)
 
         alias_edges = {}
-        triads = {}
-
-        look_up_dict = self.look_up_dict
-        node_size = self.node_size
-        for edge in G.edges():
-            alias_edges[edge] = self.get_alias_edge(edge[0], edge[1])
+        for node in range(N):
+            nbr = self.indices[self.indptr[node]:self.indptr[node + 1]]
+            for u in nbr:
+                alias_edges[(node, u)] = self.get_alias_edge(node, u)
+                alias_edges[(u, node)] = self.get_alias_edge(u, node)
 
         self.alias_nodes = alias_nodes
         self.alias_edges = alias_edges
