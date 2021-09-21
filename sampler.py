@@ -16,8 +16,8 @@ class Sampler:
         if self.p != 1.0 or self.q != 1.0:
             self.walker.preprocess_transition_probs()
         self.spreader = None
-        if reset:
-            self.reset()
+        # if reset:
+        #     self.reset()
 
     def reset(self):
         random.seed(self.seed)
