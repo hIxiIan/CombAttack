@@ -4,6 +4,7 @@ import random
 from utils import to_list
 from spreader import Spreader
 from walker import Walker
+from ppr import PPRer
 
 
 class Sampler:
@@ -15,7 +16,8 @@ class Sampler:
         self.walker = Walker(self.adj_matrix, self.p, self.q)
         if self.p != 1.0 or self.q != 1.0:
             self.walker.preprocess_transition_probs()
-        self.spreader = None
+        self.spreader = Spreader(self.adj_matrix)
+        self.PPRer = PPRer(self.adj_matrix)
         # if reset:
         #     self.reset()
 
@@ -44,7 +46,20 @@ class Sampler:
         targets = to_list(targets)
         if not hop_mode:
             hops = 2
-        spreader = Spreader(self.adj_matrix)
-        edges, nodes = spreader.spread_sample(targets, prob, hops, hop_mode)
+        edges, nodes = self.spreader.spread_sample(targets, prob, hops, hop_mode)
         return edges, nodes
 
+    def ppr_sample(self, targets, alpha, esp):
+        targets = to_list(targets)
+        edges, nodes = self.PPRer.ppr_sample(targets, alpha, esp)
+        return edges, nodes
+
+    def ppr_topk_sample(self, targets, alpha, esp, topk):
+        targets = to_list(targets)
+        edges, nodes = self.PPRer.ppr_topk_sample(targets, alpha, esp, topk)
+        return edges, nodes
+
+    # def ppr_topk_sample_parallel(self, targets, alpha, esp, topk):
+    #     targets = to_list(targets)
+    #     edges, nodes = self.PPRer.ppr_topk_sample_parallel(targets, alpha, esp, topk)
+    #     return edges, nodes
