@@ -24,7 +24,7 @@ class PPRer:
 
     def ppr_topk_sample(self, targets, alpha, epsilon, topk):
         edges, nodes, weights = calc_ppr_topk(self.indptr, self.indices, self.out_degree, alpha, epsilon, np.asarray(targets), topk)
-        # delete_edges(edges, del_nodes) # 好像有问题
+        # delete_edges(edges, del_nodes)
         # _edges = update_edges(edges)
         return edges, nodes
 

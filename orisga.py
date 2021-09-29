@@ -1,5 +1,4 @@
 import torch
-import random
 from torch import Tensor
 import torch.nn as nn
 import numpy as np
@@ -10,8 +9,6 @@ from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 
-from sampler import Sampler
-from utils import normalize_GCN
 
 try:
     """It will be faster with torch_geometric"""
@@ -60,7 +57,7 @@ except ImportError:
 
 
 @PyTorch.register()
-class SCA(TargetedAttacker):
+class SGA(TargetedAttacker):
     def process(self, surrogate, reset=True):
         assert isinstance(surrogate, gg.gallery.nodeclas.SGC), surrogate
 
@@ -74,14 +71,12 @@ class SCA(TargetedAttacker):
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
         X = torch.tensor(self.graph.node_attr).to(self.device)
-
         self.b = b
         self.XW = X @ W.T
         self.SGC = SGConv(K).to(self.device)
         self.K = K
         self.logits = surrogate.predict(np.arange(self.num_nodes))
         self.loss_fn = nn.CrossEntropyLoss()
-
         if reset:
             self.reset()
         return self
@@ -103,44 +98,22 @@ class SCA(TargetedAttacker):
                structure_attack=True,
                feature_attack=False,
                disable=False,
-               subgraph_type='dw',
-               prob=0.5,
-               p=2.0,
-               q=0.25,
-               sample_ratio=0.3,
-               hops=2,
-               hop_mode=False,
-               alpha=0.25,
-               esp=1e-4,
                w_label=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
-        self.prob = prob
-        self.p = p
-        self.q = q
-        self.sample_nums = int(sample_ratio * self.graph.adj_matrix.shape[0])
-        self.hops = hops
-        self.hop_mode = hop_mode
-        self.alpha = alpha
-        self.esp = esp
-        self.subgraph_type = subgraph_type
         self.added_edges = []
         self.non_added_edges = []
-        self.sampler = Sampler(self.graph.adj_matrix, self.p, self.q, self.seed)
-        # self.subgraph_types = ['gcn', 'dw', 'n2v', 'spread_random']
-
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
-        # wrong_label是次大概率的label
         wrong_label = idx[logit[idx].argmax()]
         if w_label is not None:
             wrong_label = w_label
         print('wrong_label is', wrong_label)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
-        self.subgraph_preprocessing(subgraph_type, attacker_nodes)
+        self.subgraph_preprocessing(attacker_nodes)
         offset = self.edge_weights.shape[0]
 
         # for indirect attack, the edges related to targeted node should not be considered
@@ -151,25 +124,21 @@ class SCA(TargetedAttacker):
             mask = 1.0
 
         for it in range(self.num_budgets):
-            #         for it in tqdm(range(self.num_budgets),
-            #                        desc='Peturbing Graph',
-            #                        disable=disable):
             edge_grad, non_edge_grad = self.compute_gradient()
 
-            with torch.no_grad():  # 不计算梯度
+            with torch.no_grad():
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
-                gradients = torch.cat([edge_grad, non_edge_grad], dim=0) # 删边和减边的梯度cat成一维数组
+                gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
 
-            index = torch.argmax(gradients) # 求梯度最大的值的索引
-            if index < offset: # 该索引属于删边部分
-                u, v = self.edge_index[:, index] # 取节点
+            index = torch.argmax(gradients)
+            if index < offset:
+                u, v = self.edge_index[:, index]
                 add = False
-            else: # 加边部分，直接将删边部分的索引offset减去
+            else:
                 index -= offset
                 u, v = self.non_edge_index[:, index]
                 add = True
-            # print((u, v))
             assert not self.is_modified(u, v)
             self.adj_flips[(u, v)] = it
             self.update_subgraph(u, v, index, add=add)
@@ -179,65 +148,42 @@ class SCA(TargetedAttacker):
                 self.non_added_edges.append((u, v))
         return self
 
-    def subgraph_preprocessing(self, subgraph_type, attacker_nodes=None):
-        wrong_label = self.wrong_label # 分类概率次大的label
-        wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
-        sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
+    def subgraph_preprocessing(self, attacker_nodes=None):
+        target = self.target
+        wrong_label = self.wrong_label
+        neighbors = self.graph.adj_matrix[target].indices
+        wrong_label_nodes = self.similar_nodes[wrong_label]
+        sub_edges, sub_nodes = self.ego_subgraph()
         sub_edges = sub_edges.T  # shape [2, M]
-        non_edges = self.get_non_edges(sub_nodes)
-
-        self._sub_nodes = sub_nodes
         self._sub_edges = sub_edges
-        self._sub_non_edges = non_edges
+        self._sub_nodes = sub_nodes
+        self._neighbors = neighbors
+        if self.direct_attack or attacker_nodes is not None:
+            influence_nodes = [target]
+            wrong_label_nodes = np.setdiff1d(wrong_label_nodes, neighbors)
+        else:
+            influence_nodes = neighbors
 
-        # 构造子图，这一步是为了top_k_wrong_labels_nodes中计算梯度的时候有indices可用
-        self.construct_sub_adj(sub_nodes, sub_edges, non_edges)
+        self.construct_sub_adj(influence_nodes, wrong_label_nodes, sub_nodes, sub_edges)
+        print('sub_non_edges:', self._sub_non_edges.shape)
 
+        if attacker_nodes is not None:
+            if self.direct_attack:
+                influence_nodes = [target]
+                wrong_label_nodes = self.top_k_wrong_labels_nodes(
+                    k=self.num_budgets + 1)
+                print(wrong_label_nodes)
+            else:
+                influence_nodes = neighbors
+                wrong_label_nodes = self.top_k_wrong_labels_nodes(
+                    k=attacker_nodes)
+                print(wrong_label_nodes)
+            self.construct_sub_adj(influence_nodes, wrong_label_nodes,
+                                   sub_nodes, sub_edges)
         print('sub_edges:', self._sub_edges.shape)
         print('sub_non_edges:', self._sub_non_edges.shape)
         print('sub_nodes:', self._sub_nodes.shape)
-        print(self._sub_nodes)
-        print(self._sub_edges)
         print(self._sub_non_edges)
-
-    def get_non_edges(self, sub_nodes):
-        target = self.target
-        neighbors = self.graph.adj_matrix[target].indices  # target的邻居id
-        # 直接攻击或者attacker_nodes不为None
-        if self.direct_attack:
-            influence_nodes = [target]  # 直接攻击，被影响的就是target
-            target_neighbors = []
-            target_neighbors.extend(influence_nodes)
-            target_neighbors.extend(neighbors)
-            non_nodes = np.setdiff1d(sub_nodes, target_neighbors)
-        else:
-            influence_nodes = neighbors  # 间接攻击，被影响的就是neighbors
-            non_nodes = sub_nodes
-            for infl in influence_nodes:
-                infl_neighbors = self.graph.adj_matrix[infl].indices
-                non_nodes = np.setdiff1d(non_nodes, infl_neighbors)
-
-        length = len(non_nodes)
-        non_edges = np.hstack([
-            np.row_stack([np.tile(infl, length), non_nodes])
-            for infl in influence_nodes
-        ])
-        return non_edges
-
-    def get_subgraph(self, subgraph_type):
-        # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
-        if subgraph_type == 'dw':
-            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, True)
-        elif subgraph_type == 'n2v':
-            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, False)
-        elif subgraph_type == 'spread_random':
-            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode)
-        elif subgraph_type == 'ppr':
-            sub_edges, sub_nodes = self.sampler.ppr_sample(self.target, self.alpha, self.esp)
-        else:
-            sub_edges, sub_nodes = [], []
-
-        return sub_edges, sub_nodes
 
     def compute_gradient(self, eps=5.0):
 
@@ -255,19 +201,33 @@ class SCA(TargetedAttacker):
         logit = output[self.target] + self.b
         # model calibration
         logit = logit.view(1, -1) / eps
-        # 最小化loss，即true_label的概率越小，wrong_label的概率越大
-        loss = self.loss_fn(logit, self.true_label) - self.loss_fn(logit, self.wrong_label)
+        loss = self.loss_fn(logit, self.true_label) - self.loss_fn(logit, self.wrong_label)  # nll_loss
         gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
         return gradients
 
-    def construct_sub_adj(self, sub_nodes, sub_edges, non_edges):
+    def ego_subgraph(self):
+        return gf.ego_graph(self.graph.adj_matrix, self.target, self.K)
 
-        edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx) # 边权重，初始化为1
+    def construct_sub_adj(self, influence_nodes, wrong_label_nodes, sub_nodes,
+                          sub_edges):
+        length = len(wrong_label_nodes)
+        non_edges = np.hstack([
+            np.row_stack([np.tile(infl, length), wrong_label_nodes])
+            for infl in influence_nodes
+        ])
+
+        if len(influence_nodes) > 1:
+            # TODO: considering self-loops
+            mask = self.graph.adj_matrix[non_edges[0],
+                                         non_edges[1]].A1 == 0
+            non_edges = non_edges[:, mask]
+        self._sub_non_edges = non_edges
+        nodes = np.union1d(sub_nodes, wrong_label_nodes)
+        edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx)
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
-        self_loop_weights = np.ones(sub_nodes.shape[0], dtype=self.floatx)
-        self_loop = np.row_stack([sub_nodes, sub_nodes])
+        self_loop_weights = np.ones(nodes.shape[0], dtype=self.floatx)
+        self_loop = np.row_stack([nodes, nodes])
 
-        # sub_edges, sub_edges[[1,0]]是方向相反的边
         indices = np.hstack([
             sub_edges, sub_edges[[1, 0]], non_edges,
             non_edges[[1, 0]], self_loop
@@ -298,3 +258,10 @@ class SCA(TargetedAttacker):
             self.edge_weights[index] = 0.0
             self.selfloop_degree[u] -= 1
             self.selfloop_degree[v] -= 1
+
+
+def normalize_GCN(indices, weights, degree):
+    row, col = indices
+    inv_degree = torch.pow(degree, -0.5)
+    normed_weights = weights * inv_degree[row] * inv_degree[col]
+    return normed_weights
