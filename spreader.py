@@ -4,13 +4,15 @@ from graphgallery import functional as gf
 
 
 class Spreader:
-    def __init__(self, adj_matrix):
+    def __init__(self, adj_matrix, labels, wrong_label):
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix
+        self.labels = labels
+        self.wrong_label = wrong_label
 
     # 10^-3
-    def spread_sample(self, targets, prob, hops, hop_mode):
+    def spread_sample(self, targets, prob, hops, hop_mode, with_wrong_label):
         indices = self.indices
         indptr = self.indptr
 
@@ -26,6 +28,13 @@ class Spreader:
             while start < end:
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
+
+                if with_wrong_label:
+                    nbrs_labels = self.labels[nbrs]
+                    wrong_label_idx = nbrs_labels == self.wrong_label
+                    if any(wrong_label_idx):
+                        nbrs = nbrs[wrong_label_idx]
+
                 for u in nbrs:
                     # rd有可能导致edges为空，需要考虑如何避免这个问题
                     # 与SGA比较的时候，需要固定随机种子比较

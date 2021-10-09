@@ -10,11 +10,12 @@ from numba.core import types
 
 
 class PPRer:
-    def __init__(self, adj_matrix):
+    def __init__(self, adj_matrix, labels):
         self.adj_matrix = adj_matrix
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.out_degree = np.sum(adj_matrix > 0, axis=1).A1
+        self.labels = labels
 
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors

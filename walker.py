@@ -1,17 +1,28 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
+from utils import get_purity, stochastic_accept, get_purity_martix
 
 
 class Walker:
-    def __init__(self, adj_matrix, p=1.0, q=1.0):
+    def __init__(self, adj_matrix, labels, wrong_label, p=1.0, q=1.0, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix.tolil() # weight默认为0/1
+        self.labels = labels
+        self.is_purity_matrix = False
+        self.purity = get_purity(adj_matrix, labels)
+        self.purity_r = 1 - self.purity + eps
+        self.purity += eps
 
-    # 10^-3（p,q)初始化不影响deepwalk
+        self.purity_matrix = get_purity_martix(self.purity, self.purity_r, labels) + eps
+        # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
+
+        self.wrong_label = wrong_label
+        self.eps = eps
+
     def deepwalk_sample(self, targets, sample_nums):
         edges = {}
         nodes = []
@@ -20,7 +31,9 @@ class Walker:
             tmp_nodes = [target]
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
+                # head = random.choice(tmp_nodes)
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
                 if len(nbrs) > 0:
                     u = random.choice(nbrs)
                     tmp_nodes.append(u)
@@ -31,7 +44,40 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
-    # 10^-3
+    def deepwalk_purity_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_purity = self.purity_r[nbrs]
+
+                    nbrs_labels = self.labels[nbrs]
+                    wrong_label_idx = nbrs_labels == self.wrong_label
+                    # different_label_idx = nbrs_labels != self.labels[target]
+                    # wrong_label_idx = nbrs_labels != self.labels[target]
+                    # print(wrong_label_idx)
+                    # print(nbrs_labels != self.labels[target])
+
+                    if any(wrong_label_idx):
+                        nbrs = nbrs[wrong_label_idx]
+                        nbrs_purity = self.purity[nbrs]
+
+                    u = nbrs[stochastic_accept(nbrs_purity)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+
     def node2vec_sample(self, targets, sample_nums):
         '''
         Repeatedly simulate random walks from each node.
@@ -74,15 +120,22 @@ class Walker:
         unnormalized_probs = []
         nbrs = self.indices[self.indptr[dst]:self.indptr[dst + 1]]
         for dst_nbr in nbrs:
-            if dst_nbr == src:
-                unnormalized_probs.append(1/p)
-            elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                unnormalized_probs.append(1)
+            if self.is_purity_matrix:
+                if dst_nbr == src:
+                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr] / p)
+                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr])
+                else:
+                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr]/q)
             else:
-                unnormalized_probs.append(1/q)
+                if dst_nbr == src:
+                    unnormalized_probs.append(1/p)
+                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                    unnormalized_probs.append(1)
+                else:
+                    unnormalized_probs.append(1/q)
         norm_const = sum(unnormalized_probs)
-        normalized_probs = [
-            float(u_prob)/norm_const for u_prob in unnormalized_probs]
+        normalized_probs = [float(u_prob)/norm_const for u_prob in unnormalized_probs]
 
         return alias_setup(normalized_probs)
 
@@ -94,7 +147,10 @@ class Walker:
 
         alias_nodes = {}
         for node in range(N):
-            unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
+            if self.is_purity_matrix:
+                unnormalized_probs = [self.purity_matrix[node][nbr] for nbr in self.indices[self.indptr[node]:self.indptr[node + 1]]]
+            else:
+                unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
             norm_const = sum(unnormalized_probs)
             normalized_probs = [float(u_prob)/norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)

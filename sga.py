@@ -11,7 +11,7 @@ from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 
 from sampler import Sampler
-from utils import normalize_GCN
+from utils import normalize_GCN, get_hop_neighbors, get_hop_rate
 
 try:
     """It will be faster with torch_geometric"""
@@ -112,7 +112,9 @@ class SCA(TargetedAttacker):
                hop_mode=False,
                alpha=0.25,
                esp=1e-4,
-               w_label=None):
+               w_label=None,
+               verbose_us=True,
+               with_w_label=False):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
@@ -127,7 +129,8 @@ class SCA(TargetedAttacker):
         self.subgraph_type = subgraph_type
         self.added_edges = []
         self.non_added_edges = []
-        self.sampler = Sampler(self.graph.adj_matrix, self.p, self.q, self.seed)
+        self.verbose_us = verbose_us
+        self.with_w_label = with_w_label
         # self.subgraph_types = ['gcn', 'dw', 'n2v', 'spread_random']
 
         if logit is None:
@@ -137,7 +140,8 @@ class SCA(TargetedAttacker):
         wrong_label = idx[logit[idx].argmax()]
         if w_label is not None:
             wrong_label = w_label
-        print('wrong_label is', wrong_label)
+        # print('wrong_label is', wrong_label)
+        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, self.p, self.q, self.seed)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         self.subgraph_preprocessing(subgraph_type, attacker_nodes)
@@ -162,14 +166,18 @@ class SCA(TargetedAttacker):
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0) # 删边和减边的梯度cat成一维数组
 
             index = torch.argmax(gradients) # 求梯度最大的值的索引
+
             if index < offset: # 该索引属于删边部分
                 u, v = self.edge_index[:, index] # 取节点
+                if self.verbose_us:
+                    print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
                 add = False
             else: # 加边部分，直接将删边部分的索引offset减去
                 index -= offset
                 u, v = self.non_edge_index[:, index]
+                if self.verbose_us:
+                    print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                 add = True
-            # print((u, v))
             assert not self.is_modified(u, v)
             self.adj_flips[(u, v)] = it
             self.update_subgraph(u, v, index, add=add)
@@ -184,7 +192,14 @@ class SCA(TargetedAttacker):
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
         sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
         sub_edges = sub_edges.T  # shape [2, M]
-        non_edges = self.get_non_edges(sub_nodes)
+        if not self.with_w_label:
+            wrong_label_nodes = []
+        non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
+
+        hop_nodes = get_hop_neighbors(self.graph.adj_matrix, self.target)
+        # print(hop_nodes.shape, hop_nodes)
+        # print(sub_nodes.shape, sub_nodes)
+        self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
 
         self._sub_nodes = sub_nodes
         self._sub_edges = sub_edges
@@ -193,14 +208,15 @@ class SCA(TargetedAttacker):
         # 构造子图，这一步是为了top_k_wrong_labels_nodes中计算梯度的时候有indices可用
         self.construct_sub_adj(sub_nodes, sub_edges, non_edges)
 
-        print('sub_edges:', self._sub_edges.shape)
-        print('sub_non_edges:', self._sub_non_edges.shape)
-        print('sub_nodes:', self._sub_nodes.shape)
-        print(self._sub_nodes)
-        print(self._sub_edges)
-        print(self._sub_non_edges)
+        if self.verbose_us:
+            print('sub_edges:', self._sub_edges.shape)
+            print('sub_non_edges:', self._sub_non_edges.shape)
+            print('sub_nodes:', self._sub_nodes.shape)
+            print('sub_nodes:', self._sub_nodes)
+            print('sub_edges:', self._sub_edges)
+            print('sub_non_edges:', self._sub_non_edges)
 
-    def get_non_edges(self, sub_nodes):
+    def get_non_edges(self, sub_nodes, wrong_label_nodes=[]):
         target = self.target
         neighbors = self.graph.adj_matrix[target].indices  # target的邻居id
         # 直接攻击或者attacker_nodes不为None
@@ -216,6 +232,16 @@ class SCA(TargetedAttacker):
             for infl in influence_nodes:
                 infl_neighbors = self.graph.adj_matrix[infl].indices
                 non_nodes = np.setdiff1d(non_nodes, infl_neighbors)
+        if self.verbose_us:
+            print('before non_nodes.shape:{}, non_nodes:{}'.format(non_nodes.shape, non_nodes))
+
+        if len(wrong_label_nodes) > 0:
+            wrong_label_nodes = np.setdiff1d(wrong_label_nodes, neighbors)
+            if self.verbose_us:
+                print('wrong_label_nodes.shape:{}, intersection:{}'.format(wrong_label_nodes.shape, np.intersect1d(non_nodes, wrong_label_nodes)))
+            non_nodes = np.union1d(non_nodes, wrong_label_nodes)
+        if self.verbose_us:
+            print('after non_nodes.shape:{}, non_nodes:{}'.format(non_nodes.shape, non_nodes))
 
         length = len(non_nodes)
         non_edges = np.hstack([
@@ -227,17 +253,25 @@ class SCA(TargetedAttacker):
     def get_subgraph(self, subgraph_type):
         # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
         if subgraph_type == 'dw':
-            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, True)
+            sub_edges, sub_nodes = self.sampler.deepwalk_sample(self.target, self.sample_nums)
+        elif subgraph_type == 'dw_purity':
+            sub_edges, sub_nodes = self.sampler.deepwalk_purity_sample(self.target, self.sample_nums)
         elif subgraph_type == 'n2v':
-            sub_edges, sub_nodes = self.sampler.random_sample(self.target, self.sample_nums, False)
+            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
+        elif subgraph_type == 'n2v_purity':
+            self.sampler.walker.is_purity_matrix = True
+            self.sampler.walker.preprocess_transition_probs()
+            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
         elif subgraph_type == 'spread_random':
             sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode)
+        elif subgraph_type == 'spread_wl_random':
+            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode, True)
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.sampler.ppr_sample(self.target, self.alpha, self.esp)
         else:
             sub_edges, sub_nodes = [], []
 
-        return sub_edges, sub_nodes
+        return sub_edges, np.unique(sub_nodes)
 
     def compute_gradient(self, eps=5.0):
 

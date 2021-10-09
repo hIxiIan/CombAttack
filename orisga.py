@@ -98,10 +98,12 @@ class SGA(TargetedAttacker):
                structure_attack=True,
                feature_attack=False,
                disable=False,
-               w_label=None):
+               w_label=None,
+               verbose_us=True):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
+        self.verbose_us = verbose_us
         self.added_edges = []
         self.non_added_edges = []
         if logit is None:
@@ -110,7 +112,6 @@ class SGA(TargetedAttacker):
         wrong_label = idx[logit[idx].argmax()]
         if w_label is not None:
             wrong_label = w_label
-        print('wrong_label is', wrong_label)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         self.subgraph_preprocessing(attacker_nodes)
@@ -132,12 +133,16 @@ class SGA(TargetedAttacker):
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
 
             index = torch.argmax(gradients)
-            if index < offset:
-                u, v = self.edge_index[:, index]
+            if index < offset:  # 该索引属于删边部分
+                u, v = self.edge_index[:, index]  # 取节点
+                if self.verbose_us:
+                    print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
                 add = False
-            else:
+            else:  # 加边部分，直接将删边部分的索引offset减去
                 index -= offset
                 u, v = self.non_edge_index[:, index]
+                if self.verbose_us:
+                    print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                 add = True
             assert not self.is_modified(u, v)
             self.adj_flips[(u, v)] = it
@@ -165,7 +170,8 @@ class SGA(TargetedAttacker):
             influence_nodes = neighbors
 
         self.construct_sub_adj(influence_nodes, wrong_label_nodes, sub_nodes, sub_edges)
-        print('sub_non_edges:', self._sub_non_edges.shape)
+        if self.verbose_us:
+            print('sub_non_edges:', self._sub_non_edges.shape)
 
         if attacker_nodes is not None:
             if self.direct_attack:
@@ -180,10 +186,13 @@ class SGA(TargetedAttacker):
                 print(wrong_label_nodes)
             self.construct_sub_adj(influence_nodes, wrong_label_nodes,
                                    sub_nodes, sub_edges)
-        print('sub_edges:', self._sub_edges.shape)
-        print('sub_non_edges:', self._sub_non_edges.shape)
-        print('sub_nodes:', self._sub_nodes.shape)
-        print(self._sub_non_edges)
+        if self.verbose_us:
+            print('sub_edges:', self._sub_edges.shape)
+            print('sub_non_edges:', self._sub_non_edges.shape)
+            print('sub_nodes:', self._sub_nodes.shape)
+            print('sub_nodes:', self._sub_nodes)
+            print('sub_edges:', self._sub_edges)
+            print('sub_non_edges:', self._sub_non_edges)
 
     def compute_gradient(self, eps=5.0):
 
@@ -223,6 +232,7 @@ class SGA(TargetedAttacker):
             non_edges = non_edges[:, mask]
         self._sub_non_edges = non_edges
         nodes = np.union1d(sub_nodes, wrong_label_nodes)
+        self._sub_nodes = nodes
         edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx)
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
         self_loop_weights = np.ones(nodes.shape[0], dtype=self.floatx)
