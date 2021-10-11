@@ -173,6 +173,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
             print('###################')
             print('iter: {}, attack target node {}, cost: {} min'.format(i, target, (end_i - start_i) / 60))
             print('hop_ratio:{}, hop_length:{}, walk_length:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+            print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
             print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
             print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predict[true_label]))
@@ -232,7 +233,8 @@ if __name__ == '__main__':
     random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    args.subgraph_type = "dw"
+    args.subgraph_type = "n2v_wl"
+    # args.with_w_label = True
     surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,

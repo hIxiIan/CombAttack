@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_purity_martix
+from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix
 
 
 class Walker:
@@ -13,12 +13,16 @@ class Walker:
         self.adj_matrix = adj_matrix.tolil() # weight默认为0/1
         self.labels = labels
         self.is_purity_matrix = False
-        self.purity = get_purity(adj_matrix, labels)
-        self.purity_r = 1 - self.purity + eps
+        self.is_wl_matrix = False
+        self.purity = get_purity(adj_matrix, labels) # 纯度
+        self.purity_r = 1 - self.purity + eps # 杂度
         self.purity += eps
 
         self.purity_matrix = get_purity_martix(self.purity, self.purity_r, labels) + eps
         # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
+
+        self.wl = get_wl(adj_matrix, labels, wrong_label) + eps # wrong_label占比
+        self.wl_matrix = get_wl_matrix(self.wl)
 
         self.wrong_label = wrong_label
         self.eps = eps
@@ -77,6 +81,32 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    def deepwalk_wl_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_wl = self.wl[nbrs]
+
+                    one_wl_idx = nbrs_wl == 1.0
+                    if any(one_wl_idx):
+                        nbrs = nbrs[one_wl_idx]
+                        nbrs_wl = self.wl[nbrs]
+
+                    u = nbrs[stochastic_accept(nbrs_wl)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
     def node2vec_sample(self, targets, sample_nums):
         '''
@@ -127,6 +157,13 @@ class Walker:
                     unnormalized_probs.append(self.purity_matrix[dst][dst_nbr])
                 else:
                     unnormalized_probs.append(self.purity_matrix[dst][dst_nbr]/q)
+            elif self.is_wl_matrix:
+                if dst_nbr == src:
+                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / p)
+                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr])
+                else:
+                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr]/q)
             else:
                 if dst_nbr == src:
                     unnormalized_probs.append(1/p)
@@ -148,7 +185,11 @@ class Walker:
         alias_nodes = {}
         for node in range(N):
             if self.is_purity_matrix:
-                unnormalized_probs = [self.purity_matrix[node][nbr] for nbr in self.indices[self.indptr[node]:self.indptr[node + 1]]]
+                unnormalized_probs = [self.purity_matrix[node][nbr] for nbr in
+                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
+            elif self.is_wl_matrix:
+                unnormalized_probs = [self.wl_matrix[node][nbr] for nbr in
+                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
             else:
                 unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
             norm_const = sum(unnormalized_probs)

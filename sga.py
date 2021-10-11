@@ -11,7 +11,7 @@ from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 
 from sampler import Sampler
-from utils import normalize_GCN, get_hop_neighbors, get_hop_rate
+from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate
 
 try:
     """It will be faster with torch_geometric"""
@@ -192,6 +192,7 @@ class SCA(TargetedAttacker):
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
         sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
         sub_edges = sub_edges.T  # shape [2, M]
+        self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         if not self.with_w_label:
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
@@ -256,10 +257,16 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.sampler.deepwalk_sample(self.target, self.sample_nums)
         elif subgraph_type == 'dw_purity':
             sub_edges, sub_nodes = self.sampler.deepwalk_purity_sample(self.target, self.sample_nums)
+        elif subgraph_type == 'dw_wl':
+            sub_edges, sub_nodes = self.sampler.deepwalk_wl_sample(self.target, self.sample_nums)
         elif subgraph_type == 'n2v':
             sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
             self.sampler.walker.is_purity_matrix = True
+            self.sampler.walker.preprocess_transition_probs()
+            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
+        elif subgraph_type == 'n2v_wl':
+            self.sampler.walker.is_wl_matrix = True
             self.sampler.walker.preprocess_transition_probs()
             sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
         elif subgraph_type == 'spread_random':

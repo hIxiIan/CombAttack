@@ -49,6 +49,23 @@ def get_purity_martix(purity, purity_r, labels):
     return purity_matrix
 
 
+def get_wl(adj, labels, wrong_label):
+    indices = adj.indices
+    indptr = adj.indptr
+    N = adj.shape[0]
+    wl = []
+    for node_i in range(N):
+        nbrs = indices[indptr[node_i]:indptr[node_i + 1]]
+        nbrs_label = labels[nbrs]
+        cnt = (nbrs_label == wrong_label).mean()
+        wl.append(cnt)
+    return np.array(wl)
+
+
+def get_wl_matrix(wl):
+    N = len(wl)
+    return np.array([wl[i] * wl[j] for i in range(N) for j in range(N)]).reshape((N, N))
+
 def roulette_wheel_selection(purity):
     '''
         Input: a list of N fitness values (list or tuple)
@@ -109,3 +126,8 @@ def get_hop_rate(walk_nodes, hop_nodes):
     intersection = np.intersect1d(hop_nodes, walk_nodes)
     # print(intersection.shape, intersection)
     return len(intersection) / len(hop_nodes), len(hop_nodes), len(walk_nodes)
+
+
+def get_wrong_rate(nodes, wrong_label_nodes):
+    intersection = np.intersect1d(nodes, wrong_label_nodes)
+    return len(intersection) / len(wrong_label_nodes), len(intersection)

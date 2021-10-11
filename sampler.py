@@ -43,6 +43,11 @@ class Sampler:
         edges, nodes = self.walker.deepwalk_purity_sample(targets, sample_nums)
         return edges, nodes
 
+    def deepwalk_wl_sample(self, targets, sample_nums):
+        targets = to_list(targets)
+        edges, nodes = self.walker.deepwalk_wl_sample(targets, sample_nums)
+        return edges, nodes
+
     def node2vec_sample(self, targets, sample_nums):
         targets = to_list(targets)
         edges, nodes = self.walker.node2vec_sample(targets, sample_nums)
