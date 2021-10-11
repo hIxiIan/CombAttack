@@ -109,7 +109,7 @@ class SCA(TargetedAttacker):
                q=0.25,
                sample_ratio=0.3,
                hops=2,
-               hop_mode=False,
+               keep_hops=False,
                alpha=0.25,
                esp=1e-4,
                w_label=None,
@@ -118,12 +118,9 @@ class SCA(TargetedAttacker):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
-        self.prob = prob
-        self.p = p
-        self.q = q
         self.sample_nums = int(sample_ratio * self.graph.adj_matrix.shape[0])
         self.hops = hops
-        self.hop_mode = hop_mode
+        self.keep_hops = keep_hops
         self.alpha = alpha
         self.esp = esp
         self.subgraph_type = subgraph_type
@@ -141,7 +138,7 @@ class SCA(TargetedAttacker):
         if w_label is not None:
             wrong_label = w_label
         # print('wrong_label is', wrong_label)
-        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, self.p, self.q, self.seed)
+        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         self.subgraph_preprocessing(subgraph_type, attacker_nodes)
@@ -269,10 +266,10 @@ class SCA(TargetedAttacker):
             self.sampler.walker.is_wl_matrix = True
             self.sampler.walker.preprocess_transition_probs()
             sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
-        elif subgraph_type == 'spread_random':
-            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode)
-        elif subgraph_type == 'spread_wl_random':
-            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.prob, self.hops, self.hop_mode, True)
+        elif subgraph_type == 'spread_random_wl':
+            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.hops, False, self.sample_nums)
+        elif subgraph_type == 'spread_random_wl_keep_hops':
+            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.hops, True, self.sample_nums)
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.sampler.ppr_sample(self.target, self.alpha, self.esp)
         else:

@@ -8,7 +8,7 @@ from ppr import PPRer
 
 
 class Sampler:
-    def __init__(self, adj_matrix, labels, wrong_label, p=1.0, q=1.0, seed=123, reset=True):
+    def __init__(self, adj_matrix, labels, wrong_label, prob, p=1.0, q=1.0, seed=123, reset=True):
         self.seed = seed
         self.adj_matrix = adj_matrix
         self.labels = labels
@@ -17,7 +17,7 @@ class Sampler:
         self.walker = Walker(self.adj_matrix, labels, wrong_label, self.p, self.q)
         if self.p != 1.0 or self.q != 1.0:
             self.walker.preprocess_transition_probs()
-        self.spreader = Spreader(self.adj_matrix, labels, wrong_label)
+        self.spreader = Spreader(self.adj_matrix, labels, wrong_label, prob)
         self.PPRer = PPRer(self.adj_matrix, labels)
         # if reset:
         #     self.reset()
@@ -53,11 +53,11 @@ class Sampler:
         edges, nodes = self.walker.node2vec_sample(targets, sample_nums)
         return edges, nodes
 
-    def spread_sample(self, targets, prob, hops=2, hop_mode=False, with_wrong_label=False):
+    def spread_sample(self, targets, hops, keep_hops, sample_nums):
         targets = to_list(targets)
-        if not hop_mode:
+        if not keep_hops:
             hops = 2
-        edges, nodes = self.spreader.spread_sample(targets, prob, hops, hop_mode, with_wrong_label)
+        edges, nodes = self.spreader.spread_sample(targets, hops, keep_hops, sample_nums)
         return edges, nodes
 
     # def spread_purity_sample(self, targets, prob, hops=2, hop_mode=False, with_wrong_label=False):

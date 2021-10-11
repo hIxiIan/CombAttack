@@ -11,22 +11,22 @@ from time import time
 
 
 
-def testSGA(target=1, w_label=None, seed=124):
+def testSGA(target=1, w_label=None, device="cpu", seed=124):
     verbose = 0
     ################### Surrogate model ############################
-    trainer = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
+    trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
                       epochs=100)
 
     ################### Attacker model ############################
-    attacker = SGA(graph, seed=seed).process(trainer)
+    attacker = SGA(graph, device=device, seed=seed).process(trainer)
     attacker.attack(target, direct_attack=True, w_label=w_label)
     attacker.name = "ori"
     ################### Victim model ############################
     # Before attack
-    trainer = gg.gallery.nodeclas.GCN(seed=seed).setup_graph(graph).build()
+    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(graph).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
@@ -34,7 +34,7 @@ def testSGA(target=1, w_label=None, seed=124):
     original_predict = trainer.predict(target, transform="softmax")
 
     # After attack
-    trainer = gg.gallery.nodeclas.GCN(seed=seed).setup_graph(attacker.g).build()
+    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(attacker.g).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
@@ -59,22 +59,22 @@ def testSGA(target=1, w_label=None, seed=124):
     return attacker
 
 
-def testSCA(target=1, w_label=None, subgraph_type='dw', seed=124, prob=0.5, p=2.0, q=0.25, sample_ratio=0.3, hops=2, hop_mode=False):
+def testSCA(target=1, w_label=None, subgraph_type='dw', device="cpu", seed=124, prob=0.5, p=2.0, q=0.25, sample_ratio=0.3, hops=2, keep_hops=False):
     verbose = 0
     ################### Surrogate model ############################
-    trainer = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
+    trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
                       epochs=100)
 
     ################### Attacker model ############################
-    attacker = SCA(graph, seed=seed).process(trainer)
+    attacker = SCA(graph, device=device, seed=seed).process(trainer)
     attacker.name = subgraph_type
-    attacker.attack(target, direct_attack=True, w_label=w_label, subgraph_type=subgraph_type, prob=prob, p=p, q=q, sample_ratio=sample_ratio, hops=hops, hop_mode=hop_mode)
+    attacker.attack(target, direct_attack=True, w_label=w_label, subgraph_type=subgraph_type, prob=prob, p=p, q=q, sample_ratio=sample_ratio, hops=hops, keep_hops=keep_hops)
     ################### Victim model ############################
     # Before attack
-    trainer = gg.gallery.nodeclas.GCN(seed=seed).setup_graph(graph).build()
+    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(graph).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
@@ -82,7 +82,7 @@ def testSCA(target=1, w_label=None, subgraph_type='dw', seed=124, prob=0.5, p=2.
     original_predict = trainer.predict(target, transform="softmax")
 
     # After attack
-    trainer = gg.gallery.nodeclas.GCN(seed=seed).setup_graph(attacker.g).build()
+    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(attacker.g).build()
     his = trainer.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=verbose,
@@ -154,7 +154,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
 
         end_i = time()
         # After attack
-        trainer = gg.gallery.nodeclas.GCN(seed=args.seed).setup_graph(attacker.g).build()
+        trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
         his = trainer.fit(splits.train_nodes,
                           splits.val_nodes,
                           verbose=args.verbose,
@@ -233,16 +233,17 @@ if __name__ == '__main__':
     random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    args.subgraph_type = "n2v_wl"
+    args.subgraph_type = "spread_random_wl"
+    # args.subgraph_type = "spread_random_wl_keep_hops"
     # args.with_w_label = True
-    surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
+    surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=args.verbose,
                       epochs=100)
 
     # Before attack
-    gcn_model = gg.gallery.nodeclas.GCN(seed=args.seed).setup_graph(graph).build()
+    gcn_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     his = gcn_model.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=args.verbose,
