@@ -5,7 +5,7 @@ from utils import get_wl, get_wl_matrix
 
 
 class Spreader:
-    def __init__(self, adj_matrix, labels, wrong_label, prob, wl_limit=0.5, eps=1e-4):
+    def __init__(self, adj_matrix, labels, wrong_label, prob, wl_limit=0.8, eps=1e-4):
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix
@@ -52,6 +52,7 @@ class Spreader:
                                 edges[(head, u)] = level + 1
                         else:
                             rd = random.random()
+                            keep = False
                             if seen[u] < 0:
                                 seen[u] = level + 1
                                 if rd < self.prob:

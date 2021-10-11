@@ -233,8 +233,8 @@ if __name__ == '__main__':
     random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    args.subgraph_type = "spread_random_wl"
-    # args.subgraph_type = "spread_random_wl_keep_hops"
+    # args.subgraph_type = "spread_random_wl"
+    args.subgraph_type = "spread_random_wl_keep_hops"
     # args.with_w_label = True
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
