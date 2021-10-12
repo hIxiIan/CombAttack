@@ -138,7 +138,7 @@ class SCA(TargetedAttacker):
         if w_label is not None:
             wrong_label = w_label
         # print('wrong_label is', wrong_label)
-        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed)
+        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         self.subgraph_preprocessing(subgraph_type, attacker_nodes)
@@ -175,6 +175,7 @@ class SCA(TargetedAttacker):
                 if self.verbose_us:
                     print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                 add = True
+            # print(self.adj_flips)
             assert not self.is_modified(u, v)
             self.adj_flips[(u, v)] = it
             self.update_subgraph(u, v, index, add=add)
@@ -190,11 +191,12 @@ class SCA(TargetedAttacker):
         sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
         sub_edges = sub_edges.T  # shape [2, M]
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
-        if not self.with_w_label:
+        # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
+        if len(sub_nodes) > 10 and not self.with_w_label:
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
 
-        hop_nodes = get_hop_neighbors(self.graph.adj_matrix, self.target)
+        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix, self.target)
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
         self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
@@ -256,6 +258,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.sampler.deepwalk_purity_sample(self.target, self.sample_nums)
         elif subgraph_type == 'dw_wl':
             sub_edges, sub_nodes = self.sampler.deepwalk_wl_sample(self.target, self.sample_nums)
+        elif subgraph_type == 'dw_kh':
+            sub_edges, sub_nodes = self.sampler.deepwalk_sample_keep_hops(self.target, self.sample_nums)
         elif subgraph_type == 'n2v':
             sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
@@ -272,6 +276,16 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.hops, True, self.sample_nums)
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.sampler.ppr_sample(self.target, self.alpha, self.esp)
+        elif subgraph_type == 'ppr_':
+            sub_edges, sub_nodes = self.sampler.ppr_sample_wl(self.target, self.alpha, self.esp)
+        elif subgraph_type == 'ppr_topk_des':
+            sub_edges, sub_nodes = self.sampler.ppr_topk_sample(self.target, self.alpha, self.esp, self.sample_nums, True)
+        elif subgraph_type == 'ppr_topk_asc':
+            sub_edges, sub_nodes = self.sampler.ppr_topk_sample(self.target, self.alpha, self.esp, self.sample_nums, False)
+        elif subgraph_type == 'ppr_wl':
+            sub_edges, sub_nodes = self.sampler.ppr_wl_sample(self.target, self.alpha, self.esp)
+        elif subgraph_type == 'ppr_wl_':
+            sub_edges, sub_nodes = self.sampler.ppr_wl_sample_wl(self.target, self.alpha, self.esp)
         else:
             sub_edges, sub_nodes = [], []
 

@@ -143,14 +143,14 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
         attacker = attacker.reset()
         try:
             if us:
-                attacker.attack(target, p=args.p, q=args.q, with_w_label=args.with_w_label, verbose_us=False, direct_attack=args.direct_attack,
+                attacker.attack(target, alpha=args.alpha, p=args.p, q=args.q, with_w_label=args.with_w_label, verbose_us=False, direct_attack=args.direct_attack,
                                 subgraph_type=args.subgraph_type, sample_ratio=args.sample_ratio)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
-            print('iter: {}. ###############, error: {}'.format(i, e))
+            print('iter: {}. AssertionError###############, error: {}'.format(i, e))
         except PermissionError as e:
-            print('iter: {}. ###############, error: {}'.format(i, e))
+            print('iter: {}. PermissionError###############, error: {}'.format(i, e))
 
         end_i = time()
         # After attack
@@ -233,8 +233,8 @@ if __name__ == '__main__':
     random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    # args.subgraph_type = "spread_random_wl"
-    args.subgraph_type = "spread_random_wl_keep_hops"
+    args.subgraph_type = "ppr_wl_"
+    # args.subgraph_type = "spread_random_wl_keep_hops"
     # args.with_w_label = True
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,

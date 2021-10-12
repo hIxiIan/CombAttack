@@ -8,17 +8,17 @@ from ppr import PPRer
 
 
 class Sampler:
-    def __init__(self, adj_matrix, labels, wrong_label, prob, p=1.0, q=1.0, seed=123, reset=True):
+    def __init__(self, adj_matrix, labels, wrong_label, prob, p=1.0, q=1.0, seed=123, logits=None, reset=True):
         self.seed = seed
         self.adj_matrix = adj_matrix
         self.labels = labels
         self.p = p
         self.q = q
-        self.walker = Walker(self.adj_matrix, labels, wrong_label, self.p, self.q)
+        self.walker = Walker(self.adj_matrix, labels, wrong_label, self.p, self.q, logits)
         if self.p != 1.0 or self.q != 1.0:
             self.walker.preprocess_transition_probs()
-        self.spreader = Spreader(self.adj_matrix, labels, wrong_label, prob)
-        self.PPRer = PPRer(self.adj_matrix, labels)
+        self.spreader = Spreader(self.adj_matrix, labels, wrong_label, prob, logits)
+        self.PPRer = PPRer(self.adj_matrix, labels, wrong_label, logits)
         # if reset:
         #     self.reset()
 
@@ -36,6 +36,11 @@ class Sampler:
     def deepwalk_sample(self, targets, sample_nums):
         targets = to_list(targets)
         edges, nodes = self.walker.deepwalk_sample(targets, sample_nums)
+        return edges, nodes
+
+    def deepwalk_sample_keep_hops(self, targets, sample_nums):
+        targets = to_list(targets)
+        edges, nodes = self.walker.deepwalk_sample_keep_hops(targets, sample_nums)
         return edges, nodes
 
     def deepwalk_purity_sample(self, targets, sample_nums):
@@ -72,11 +77,25 @@ class Sampler:
         edges, nodes = self.PPRer.ppr_sample(targets, alpha, esp)
         return edges, nodes
 
-    def ppr_topk_sample(self, targets, alpha, esp, topk):
+    def ppr_sample_wl(self, targets, alpha, esp):
         targets = to_list(targets)
-        edges, nodes = self.PPRer.ppr_topk_sample(targets, alpha, esp, topk)
+        edges, nodes = self.PPRer.ppr_sample_wl(targets, alpha, esp)
         return edges, nodes
 
+    def ppr_topk_sample(self, targets, alpha, esp, topk, descending):
+        targets = to_list(targets)
+        edges, nodes = self.PPRer.ppr_topk_sample(targets, alpha, esp, topk, descending)
+        return edges, nodes
+
+    def ppr_wl_sample(self, targets, alpha, esp):
+        targets = to_list(targets)
+        edges, nodes = self.PPRer.ppr_wl_sample(targets, alpha, esp)
+        return edges, nodes
+
+    def ppr_wl_sample_wl(self, targets, alpha, esp):
+        targets = to_list(targets)
+        edges, nodes = self.PPRer.ppr_sample_wl_wl(targets, alpha, esp)
+        return edges, nodes
     # def ppr_topk_sample_parallel(self, targets, alpha, esp, topk):
     #     targets = to_list(targets)
     #     edges, nodes = self.PPRer.ppr_topk_sample_parallel(targets, alpha, esp, topk)

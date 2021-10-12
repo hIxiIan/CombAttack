@@ -1,11 +1,11 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix
+from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix, get_hop_neighbors, get_cross_entropy_matrix
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, wrong_label, p=1.0, q=1.0, eps=1e-4):
+    def __init__(self, adj_matrix, labels, wrong_label, p=1.0, q=1.0, logits=None, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
@@ -21,11 +21,37 @@ class Walker:
         self.purity_matrix = get_purity_martix(self.purity, self.purity_r, labels) + eps
         # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
 
-        self.wl = get_wl(adj_matrix, labels, wrong_label) + eps # wrong_label占比
+        self.wl, self.wl_cnt = get_wl(adj_matrix, labels, wrong_label, eps) # wrong_label占比
         self.wl_matrix = get_wl_matrix(self.wl)
+
+        self.ce_matrix = get_cross_entropy_matrix(logits)
 
         self.wrong_label = wrong_label
         self.eps = eps
+
+
+    def deepwalk_sample_keep_hops(self, targets, sample_nums):
+        nodes, edges = get_hop_neighbors(self.adj_matrix.tocsr(), targets[0], hops=2)
+        nodes = list(nodes)
+        while len(nodes) < sample_nums:
+            head = random.choice(nodes)
+            nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+            if len(nbrs) > 0:
+                nbrs_wl = self.wl[nbrs]
+                one_wl_idx = nbrs_wl > 0.8
+                if any(one_wl_idx):
+                    nbrs = nbrs[one_wl_idx]
+                    nbrs_wl = self.wl[nbrs]
+
+                u = nbrs[stochastic_accept(nbrs_wl)]
+                nodes.append(u)
+                if (u, head) not in edges:
+                    edges[(head, u)] = 1
+            else:
+                break
+
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
 
     def deepwalk_sample(self, targets, sample_nums):
         edges = {}
@@ -94,7 +120,7 @@ class Walker:
                 if len(nbrs) > 0:
                     nbrs_wl = self.wl[nbrs]
 
-                    one_wl_idx = nbrs_wl == 1.0
+                    one_wl_idx = nbrs_wl > 0.8
                     if any(one_wl_idx):
                         nbrs = nbrs[one_wl_idx]
                         nbrs_wl = self.wl[nbrs]
