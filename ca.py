@@ -8,6 +8,9 @@ import networkx as nx
 from args import ARGS
 from time import time
 
+from spreader import Spreader
+from walker import Walker
+from ppr import PPRer
 
 
 
@@ -133,7 +136,23 @@ def print_sp(model, sp):
     print('')
 
 
+def init_sampler(attacker, args):
+    walker = None
+    spreader = None
+    pprer = None
+
+    if args.subgraph_type[:2] == "dw" or args.subgraph_type[:3] == "n2v":
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits)
+    elif args.subgraph_type[:6] == "spread":
+        spreader = Spreader(attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
+    elif args.subgraph_type[:3] == "ppr":
+        pprer = PPRer(attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, args.eps)
+
+    return walker, spreader, pprer
+
+
 def testACC(gcn_model, attacker, args, us=True, verbose=True):
+    walker, spreader, pprer = init_sampler(attacker, args)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     res2 = np.zeros(len(args.targets)).astype('bool')
@@ -143,7 +162,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
         attacker = attacker.reset()
         try:
             if us:
-                attacker.attack(target, alpha=args.alpha, p=args.p, q=args.q, with_w_label=args.with_w_label, verbose_us=False, direct_attack=args.direct_attack,
+                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer, with_w_label=args.with_w_label, verbose_us=False, direct_attack=args.direct_attack,
                                 subgraph_type=args.subgraph_type, sample_ratio=args.sample_ratio)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
@@ -231,9 +250,9 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     seed = 2022
     random.seed(seed)
-    targets = random.sample(list(splits.test_nodes), 50)
+    targets = random.sample(list(splits.test_nodes), 1)
     args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    args.subgraph_type = "ppr_wl_"
+    args.subgraph_type = "ppr"
     # args.subgraph_type = "spread_random_wl_keep_hops"
     # args.with_w_label = True
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

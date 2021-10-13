@@ -5,23 +5,36 @@ from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
 class Spreader:
-    def __init__(self, adj_matrix, labels, wrong_label, prob, logits=None, wl_limit=0.8, eps=1e-4):
+    def __init__(self, adj_matrix, labels, prob, hops, keep_hops, logits=None, wl_limit=0.8, eps=1e-4):
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix
         self.labels = labels
-        self.wrong_label = wrong_label
 
         self.prob = prob
         self.wl_limit = wl_limit
-        self.wl, self.wl_cnt = get_wl(adj_matrix, labels, wrong_label, eps)
-        self.wl_matrix = get_wl_matrix(self.wl)
 
-        self.ce_matrix = get_cross_entropy_matrix(logits)
+        if logits is not None:
+            self.ce_matrix = get_cross_entropy_matrix(logits)
+
+        self.hops = hops
+        self.keep_hops = keep_hops
+        self.wrong_label = None
+        self.wl = None
+        self.wl_cnt = None
+        self.wl_matrix = None
+        self.eps = eps
+
+    def set_wrong_label(self, wrong_label):
+        self.wrong_label = wrong_label
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix, self.labels, wrong_label, self.eps)
+        self.wl_matrix = get_wl_matrix(self.wl)
 
     # 10^-3
     # todo:可能扩散不出去，措施直接与wrong_label相连？
-    def spread_sample(self, targets, hops, keep_hops, sample_nums):
+    def spread_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
         indices = self.indices
         indptr = self.indptr
 

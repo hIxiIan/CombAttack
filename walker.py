@@ -5,30 +5,37 @@ from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, wrong_label, p=1.0, q=1.0, logits=None, eps=1e-4):
+    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
-        self.adj_matrix = adj_matrix.tolil() # weight默认为0/1
+        self.adj_matrix = adj_matrix.tolil()  # weight默认为0/1
+        self.adj_matrix_csr = adj_matrix
         self.labels = labels
         self.is_purity_matrix = False
         self.is_wl_matrix = False
-        self.purity = get_purity(adj_matrix, labels) # 纯度
-        self.purity_r = 1 - self.purity + eps # 杂度
+        self.purity = get_purity(adj_matrix, labels)  # 纯度
+        self.purity_r = 1 - self.purity + eps  # 杂度
         self.purity += eps
 
         self.purity_matrix = get_purity_martix(self.purity, self.purity_r, labels) + eps
         # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
+        if logits is not None:
+            self.ce_matrix = get_cross_entropy_matrix(logits)
 
-        self.wl, self.wl_cnt = get_wl(adj_matrix, labels, wrong_label, eps) # wrong_label占比
-        self.wl_matrix = get_wl_matrix(self.wl)
-
-        self.ce_matrix = get_cross_entropy_matrix(logits)
-
-        self.wrong_label = wrong_label
+        if self.p != 1.0 or self.q != 1.0:
+            self.preprocess_transition_probs()
+        self.wrong_label = None
+        self.wl = None
+        self.wl_cnt = None
+        self.wl_matrix = None
         self.eps = eps
 
+    def set_wrong_label(self, wrong_label):
+        self.wrong_label = wrong_label
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr, self.labels, wrong_label, self.eps)
+        self.wl_matrix = get_wl_matrix(self.wl)
 
     def deepwalk_sample_keep_hops(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix.tocsr(), targets[0], hops=2)
@@ -51,7 +58,6 @@ class Walker:
                 break
 
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
 
     def deepwalk_sample(self, targets, sample_nums):
         edges = {}
@@ -182,23 +188,23 @@ class Walker:
                 elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
                     unnormalized_probs.append(self.purity_matrix[dst][dst_nbr])
                 else:
-                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr]/q)
+                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr] / q)
             elif self.is_wl_matrix:
                 if dst_nbr == src:
                     unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / p)
                 elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
                     unnormalized_probs.append(self.wl_matrix[dst][dst_nbr])
                 else:
-                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr]/q)
+                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / q)
             else:
                 if dst_nbr == src:
-                    unnormalized_probs.append(1/p)
+                    unnormalized_probs.append(1 / p)
                 elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
                     unnormalized_probs.append(1)
                 else:
-                    unnormalized_probs.append(1/q)
+                    unnormalized_probs.append(1 / q)
         norm_const = sum(unnormalized_probs)
-        normalized_probs = [float(u_prob)/norm_const for u_prob in unnormalized_probs]
+        normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
 
         return alias_setup(normalized_probs)
 
@@ -219,7 +225,7 @@ class Walker:
             else:
                 unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
             norm_const = sum(unnormalized_probs)
-            normalized_probs = [float(u_prob)/norm_const for u_prob in unnormalized_probs]
+            normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)
 
         alias_edges = {}
@@ -248,7 +254,7 @@ def alias_setup(probs):
     smaller = []
     larger = []
     for kk, prob in enumerate(probs):
-        q[kk] = K*prob
+        q[kk] = K * prob
         if q[kk] < 1.0:
             smaller.append(kk)
         else:
@@ -274,7 +280,7 @@ def alias_draw(J, q):
     '''
     K = len(J)
 
-    kk = int(np.floor(np.random.rand()*K))
+    kk = int(np.floor(np.random.rand() * K))
     if np.random.rand() < q[kk]:
         return kk
     else:

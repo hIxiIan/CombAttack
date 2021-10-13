@@ -11,7 +11,7 @@ from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 
 from sampler import Sampler
-from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate
+from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_list
 
 try:
     """It will be faster with torch_geometric"""
@@ -94,6 +94,17 @@ class SCA(TargetedAttacker):
         self.wrong_label = None
         return self
 
+    def init_sampler(self, wrong_label, walker=None, spreader=None, pprer=None):
+        if walker is not None:
+            self.walker = walker
+            self.walker.set_wrong_label(wrong_label)
+        if spreader is not None:
+            self.spreader = spreader
+            self.spreader.set_wrong_label(wrong_label)
+        if pprer is not None:
+            self.PPRer = pprer
+            self.PPRer.set_wrong_label(wrong_label)
+
     def attack(self,
                target,
                num_budgets=None,
@@ -104,31 +115,22 @@ class SCA(TargetedAttacker):
                feature_attack=False,
                disable=False,
                subgraph_type='dw',
-               prob=0.5,
-               p=2.0,
-               q=0.25,
                sample_ratio=0.3,
-               hops=2,
-               keep_hops=False,
-               alpha=0.25,
-               esp=1e-4,
                w_label=None,
                verbose_us=True,
-               with_w_label=False):
+               with_w_label=False,
+               walker=None,
+               spreader=None,
+               pprer=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
         self.sample_nums = int(sample_ratio * self.graph.adj_matrix.shape[0])
-        self.hops = hops
-        self.keep_hops = keep_hops
-        self.alpha = alpha
-        self.esp = esp
         self.subgraph_type = subgraph_type
         self.added_edges = []
         self.non_added_edges = []
         self.verbose_us = verbose_us
         self.with_w_label = with_w_label
-        # self.subgraph_types = ['gcn', 'dw', 'n2v', 'spread_random']
 
         if logit is None:
             logit = self.logits[target]
@@ -138,7 +140,9 @@ class SCA(TargetedAttacker):
         if w_label is not None:
             wrong_label = w_label
         # print('wrong_label is', wrong_label)
-        self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
+
+        self.init_sampler(wrong_label, walker, spreader, pprer)
+        # self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         self.subgraph_preprocessing(subgraph_type, attacker_nodes)
@@ -252,40 +256,43 @@ class SCA(TargetedAttacker):
 
     def get_subgraph(self, subgraph_type):
         # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
+        targets = to_list(self.target)
         if subgraph_type == 'dw':
-            sub_edges, sub_nodes = self.sampler.deepwalk_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.deepwalk_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_purity':
-            sub_edges, sub_nodes = self.sampler.deepwalk_purity_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_wl':
-            sub_edges, sub_nodes = self.sampler.deepwalk_wl_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.deepwalk_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_kh':
-            sub_edges, sub_nodes = self.sampler.deepwalk_sample_keep_hops(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.deepwalk_sample_keep_hops(targets, self.sample_nums)
         elif subgraph_type == 'n2v':
-            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
             self.sampler.walker.is_purity_matrix = True
             self.sampler.walker.preprocess_transition_probs()
-            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_wl':
             self.sampler.walker.is_wl_matrix = True
             self.sampler.walker.preprocess_transition_probs()
-            sub_edges, sub_nodes = self.sampler.node2vec_sample(self.target, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_random_wl':
-            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.hops, False, self.sample_nums)
+            self.spreader.keep_hops = False
+            sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_random_wl_keep_hops':
-            sub_edges, sub_nodes = self.sampler.spread_sample(self.target, self.hops, True, self.sample_nums)
+            self.spreader.keep_hops = True
+            sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
         elif subgraph_type == 'ppr':
-            sub_edges, sub_nodes = self.sampler.ppr_sample(self.target, self.alpha, self.esp)
+            sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)
         elif subgraph_type == 'ppr_':
-            sub_edges, sub_nodes = self.sampler.ppr_sample_wl(self.target, self.alpha, self.esp)
+            sub_edges, sub_nodes = self.PPRer.ppr_sample_wl(targets)
         elif subgraph_type == 'ppr_topk_des':
-            sub_edges, sub_nodes = self.sampler.ppr_topk_sample(self.target, self.alpha, self.esp, self.sample_nums, True)
+            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, True)
         elif subgraph_type == 'ppr_topk_asc':
-            sub_edges, sub_nodes = self.sampler.ppr_topk_sample(self.target, self.alpha, self.esp, self.sample_nums, False)
+            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, False)
         elif subgraph_type == 'ppr_wl':
-            sub_edges, sub_nodes = self.sampler.ppr_wl_sample(self.target, self.alpha, self.esp)
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_sample(targets)
         elif subgraph_type == 'ppr_wl_':
-            sub_edges, sub_nodes = self.sampler.ppr_wl_sample_wl(self.target, self.alpha, self.esp)
+            sub_edges, sub_nodes = self.PPRer.ppr_sample_wl_wl(targets)
         else:
             sub_edges, sub_nodes = [], []
 

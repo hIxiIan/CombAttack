@@ -11,43 +11,53 @@ from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
 class PPRer:
-    def __init__(self, adj_matrix, labels, wrong_label, logits=None, eps=1e-4):
+    def __init__(self, adj_matrix, labels, alpha=0.25, logits=None, eps=1e-4):
         self.adj_matrix = adj_matrix
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.out_degree = np.sum(adj_matrix > 0, axis=1).A1
         self.labels = labels
-        self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(adj_matrix, labels, wrong_label, eps)  # wrong_label占比
-        self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
 
-        self.ce_matrix = get_cross_entropy_matrix(logits)
+        if logits is not None:
+            self.ce_matrix = get_cross_entropy_matrix(logits)
+
+        self.wrong_label = None
+        self.wl = None
+        self.wl_cnt = None
+        self.wl_cnt_matrix = None
+        self.eps = eps
+        self.alpha = alpha
+
+    def set_wrong_label(self, wrong_label):
+        self.wrong_label = wrong_label
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix, self.labels, wrong_label, self.eps)
+        self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
 
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors， 节点也更多
-    def ppr_sample(self, targets, alpha, epsilon):
-        edges, nodes, weights = calc_ppr(self.indptr, self.indices, self.out_degree, alpha, epsilon, np.asarray(targets))
+    def ppr_sample(self, targets):
+        edges, nodes, weights = calc_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets))
         return edges, nodes
 
-    def ppr_topk_sample(self, targets, alpha, epsilon, topk, descending):
-        edges, nodes, weights = calc_ppr_topk(self.indptr, self.indices, self.out_degree, alpha, epsilon, np.asarray(targets), topk, descending)
+    def ppr_topk_sample(self, targets, topk, descending):
+        edges, nodes, weights = calc_ppr_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets), topk, descending)
         return edges, nodes
 
-    def ppr_wl_sample(self, targets, alpha, epsilon):
-        edges, nodes, weights = calc_wl_ppr(self.indptr, self.indices, self.out_degree, alpha, epsilon, np.asarray(targets), self.labels, self.wrong_label, self.wl)
+    def ppr_wl_sample(self, targets):
+        edges, nodes, weights = calc_wl_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets), self.labels, self.wrong_label, self.wl)
         return edges, nodes
 
     # todo
-    def ppr_wl_topk_sample(self, targets, alpha, epsilon, topk):
+    def ppr_wl_topk_sample(self, targets, topk):
         pass
 
     # 传wl 或 wl_cnt
-    def ppr_sample_wl(self, targets, alpha, epsilon):
-        edges, nodes, weights = calc_ppr_(self.indptr, self.indices, self.out_degree, alpha, epsilon, np.asarray(targets), self.wl_cnt)
+    def ppr_sample_wl(self, targets):
+        edges, nodes, weights = calc_ppr_(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets), self.wl_cnt)
         return edges, nodes
 
-    def ppr_sample_wl_wl(self, targets, alpha, epsilon):
-        edges, nodes, weights = calc_wl_ppr_(self.indptr, self.indices, self.out_degree, alpha, epsilon,
+    def ppr_sample_wl_wl(self, targets):
+        edges, nodes, weights = calc_wl_ppr_(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                             np.asarray(targets), self.labels, self.wrong_label, self.wl, self.wl_cnt)
         return edges, nodes
 
