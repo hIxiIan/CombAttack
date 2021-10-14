@@ -15,7 +15,7 @@ class Walker:
         self.labels = labels
         self.is_purity_matrix = False
         self.is_wl_matrix = False
-        self.purity = get_purity(adj_matrix, labels)  # 纯度
+        self.purity = get_purity(adj_matrix.indices, adj_matrix.indptr, labels)  # 纯度
         self.purity_r = 1 - self.purity + eps  # 杂度
         self.purity += eps
 
