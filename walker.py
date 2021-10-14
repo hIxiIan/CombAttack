@@ -34,11 +34,11 @@ class Walker:
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr, self.labels, wrong_label, self.eps)
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, self.labels, wrong_label, self.eps)
         self.wl_matrix = get_wl_matrix(self.wl)
 
     def deepwalk_sample_keep_hops(self, targets, sample_nums):
-        nodes, edges = get_hop_neighbors(self.adj_matrix.tocsr(), targets[0], hops=2)
+        nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0], hops=2)
         nodes = list(nodes)
         while len(nodes) < sample_nums:
             head = random.choice(nodes)
@@ -72,6 +72,27 @@ class Walker:
 
                 if len(nbrs) > 0:
                     u = random.choice(nbrs)
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    def deepwalk_ce_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_ce = self.ce_matrix[target, nbrs]
+                    u = nbrs[nbrs_ce.argmax()]
                     tmp_nodes.append(u)
                     if (u, head) not in edges:
                         edges[(head, u)] = 1

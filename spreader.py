@@ -27,7 +27,7 @@ class Spreader:
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.adj_matrix, self.labels, wrong_label, self.eps)
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
         self.wl_matrix = get_wl_matrix(self.wl)
 
     # 10^-3

@@ -200,7 +200,7 @@ class SCA(TargetedAttacker):
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
 
-        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix, self.target)
+        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
         self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
@@ -265,6 +265,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_kh':
             sub_edges, sub_nodes = self.walker.deepwalk_sample_keep_hops(targets, self.sample_nums)
+        elif subgraph_type == 'dw_ce':
+            sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v':
             sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
@@ -295,7 +297,6 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.PPRer.ppr_sample_wl_wl(targets)
         else:
             sub_edges, sub_nodes = [], []
-
         return sub_edges, np.unique(sub_nodes)
 
     def compute_gradient(self, eps=5.0):

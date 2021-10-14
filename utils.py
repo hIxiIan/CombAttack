@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from bisect import bisect_left
 from graphgallery import functional as gf
-from numba import njit
+from numba import njit, int32, int64
 
 
 def normalize_GCN(indices, weights, degree):
@@ -25,10 +25,9 @@ def to_list(targets):
     return targets
 
 
-def get_purity(adj, labels):
-    indices = adj.indices
-    indptr = adj.indptr
-    N = adj.shape[0]
+@njit
+def get_purity(indices, indptr, labels):
+    N = len(labels)
     purity = []
     for node_i in range(N):
         node_i_label = labels[node_i]
@@ -39,6 +38,7 @@ def get_purity(adj, labels):
     return np.array(purity)
 
 
+@njit
 def get_purity_martix(purity, purity_r, labels):
     N = len(purity)
     purity_matrix = np.zeros((N, N))
@@ -51,10 +51,9 @@ def get_purity_martix(purity, purity_r, labels):
     return purity_matrix
 
 
-def get_wl(adj, labels, wrong_label, eps):
-    indices = adj.indices
-    indptr = adj.indptr
-    N = adj.shape[0]
+@njit
+def get_wl(indices, indptr, labels, wrong_label, eps):
+    N = len(labels)
     wl = []
     wl_cnt = []
     for node_i in range(N):
@@ -66,9 +65,11 @@ def get_wl(adj, labels, wrong_label, eps):
     return np.array(wl) + eps, np.log10((np.array(wl_cnt) + 10))
 
 
+@njit
 def get_wl_matrix(wl):
     N = len(wl)
     return np.array([wl[i] * wl[j] for i in range(N) for j in range(N)]).reshape((N, N))
+
 
 def roulette_wheel_selection(purity):
     '''
@@ -108,34 +109,38 @@ def stochastic_accept(purity):
             return ind
 
 
-def get_hop_neighbors(adj_matrix, target, hops=2):
-    indices = adj_matrix.indices
-    indptr = adj_matrix.indptr
+def get_hop_neighbors(indices, indptr, target, hops=2):
+    nodes, edges = get_hop_neighbors_njit(indices, indptr, target, hops)
+    return np.unique(nodes), edges
 
+
+@njit
+def get_hop_neighbors_njit(indices, indptr, target, hops):
     edges = {}
-    nodes = [target]
+    nodes = [np.int64(target)]
     start = 0
     for level in range(hops):
         length = len(nodes)
         for i in range(start, length):
             cur_node = nodes[i]
-            # print(cur_node)
-            nbrs = indices[indptr[cur_node]:indptr[cur_node + 1]]
+            nbrs = indices[indptr[cur_node]:indptr[cur_node + 1]].astype(np.int64)
             nodes.extend(nbrs)
             for nbr in nbrs:
                 if (nbr, cur_node) not in edges:
                     edges[(cur_node, nbr)] = level
         start += length
+    # nodes = np.unique(nodes)
+    return nodes, edges
 
-    return np.unique(nodes), edges
 
-
+@njit
 def get_hop_rate(walk_nodes, hop_nodes):
     intersection = np.intersect1d(hop_nodes, walk_nodes)
     # print(intersection.shape, intersection)
     return len(intersection) / len(hop_nodes), len(hop_nodes), len(walk_nodes)
 
 
+@njit
 def get_wrong_rate(nodes, wrong_label_nodes):
     intersection = np.intersect1d(nodes, wrong_label_nodes)
     return len(intersection) / len(wrong_label_nodes), len(intersection)

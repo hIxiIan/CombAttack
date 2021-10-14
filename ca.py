@@ -148,6 +148,7 @@ def init_sampler(attacker, args):
     elif args.subgraph_type[:3] == "ppr":
         pprer = PPRer(attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, args.eps)
 
+    print('init_sampler end...')
     return walker, spreader, pprer
 
 
@@ -250,9 +251,9 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     seed = 2022
     random.seed(seed)
-    targets = random.sample(list(splits.test_nodes), 1)
-    args = ARGS(seed=seed, targets=targets, sample_ratio=0.05)
-    args.subgraph_type = "ppr"
+    targets = random.sample(list(splits.test_nodes), 50)
+    args = ARGS(seed=seed, targets=targets)
+    args.subgraph_type = "dw_ce"
     # args.subgraph_type = "spread_random_wl_keep_hops"
     # args.with_w_label = True
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
