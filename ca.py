@@ -141,12 +141,26 @@ def init_sampler(attacker, args):
     spreader = None
     pprer = None
 
-    if args.subgraph_type[:2] == "dw" or args.subgraph_type[:3] == "n2v":
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits)
+    if args.subgraph_type[:2] == "dw":
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, level_limit=args.level_limit)
+    elif args.subgraph_type[:3] == "n2v":
+        if args.subgraph_type == "n2v_purity":
+            args.is_purity_matrix = True
+        elif args.subgraph_type == "n2v_wl":
+            args.is_wl_matrix = True
+        elif args.subgraph_type == "n2v_ce":
+            args.is_ce_matrix = True
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, args.is_purity_matrix, args.is_wl_matrix, args.is_ce_matrix)
     elif args.subgraph_type[:6] == "spread":
+        if args.subgraph_type == "spread_random_wl_keep_hops":
+            args.keep_hops = True
+        if args.subgraph_type == "spread_random_ce_keep_hops":
+            args.keep_hops = True
+        if args.subgraph_type == "spread_ce_keep_hops":
+            args.keep_hops = True
         spreader = Spreader(attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
     elif args.subgraph_type[:3] == "ppr":
-        pprer = PPRer(attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, args.eps)
+        pprer = PPRer(attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.eps)
 
     print('init_sampler end...')
     return walker, spreader, pprer
@@ -168,9 +182,9 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
-            print('iter: {}. AssertionError###############, error: {}'.format(i, e))
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         except PermissionError as e:
-            print('iter: {}. PermissionError###############, error: {}'.format(i, e))
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
 
         end_i = time()
         # After attack
@@ -211,6 +225,44 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
     if verbose:
         print('testACC end, cost time: {} min'.format((end - start) / 60))
 
+
+def run(subgraph_type, with_w_label, sample_ratio, p, q, alpha=0.25, level_limit=0):
+    gg.set_backend("th")
+    data = NPZDataset('cora',
+                      root="~/GraphData/datasets/",
+                      verbose=False,
+                      transform="standardize")
+
+    graph = data.graph
+    splits = data.split_nodes(random_state=15)
+    seed = 2022
+    random.seed(seed)
+    targets = random.sample(list(splits.test_nodes), 50)
+    args = ARGS(seed=seed, targets=targets, sample_ratio=sample_ratio)
+    args.subgraph_type = subgraph_type
+    args.with_w_label = with_w_label
+    args.p = p
+    args.q = q
+    args.alpha = alpha
+    args.level_limit = level_limit
+#     args.surrogate_model = surrogate_model
+    surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
+    his = surrogate_model.fit(splits.train_nodes,
+                      splits.val_nodes,
+                      verbose=args.verbose,
+                      epochs=100)
+    args.surrogate_model = surrogate_model
+    # Before attack
+    gcn_model = gg.gallery.nodeclas.GCN(seed=args.seed).setup_graph(graph).build()
+    his = gcn_model.fit(splits.train_nodes,
+                      splits.val_nodes,
+                      verbose=args.verbose,
+                      epochs=100)
+
+
+    # attacker
+    attacker = SCA(graph, seed=args.seed).process(surrogate_model)
+    testACC(gcn_model, attacker, args, us=True)
 
 # if __name__ == '__main__':
 #     gg.set_backend("th")

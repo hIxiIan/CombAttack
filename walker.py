@@ -1,11 +1,11 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix, get_hop_neighbors, get_cross_entropy_matrix
+from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix, get_hop_neighbors, get_cross_entropy_matrix, get_target_subgraph_level
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, eps=1e-4):
+    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
@@ -13,8 +13,9 @@ class Walker:
         self.adj_matrix = adj_matrix.tolil()  # weight默认为0/1
         self.adj_matrix_csr = adj_matrix
         self.labels = labels
-        self.is_purity_matrix = False
-        self.is_wl_matrix = False
+        self.is_purity_matrix = is_purity_matrix
+        self.is_wl_matrix = is_wl_matrix
+        self.is_ce_matrix = is_ce_matrix
         self.purity = get_purity(adj_matrix.indices, adj_matrix.indptr, labels)  # 纯度
         self.purity_r = 1 - self.purity + eps  # 杂度
         self.purity += eps
@@ -23,6 +24,8 @@ class Walker:
         # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
         if logits is not None:
             self.ce_matrix = get_cross_entropy_matrix(logits)
+
+        self.level_limit = level_limit
 
         if self.p != 1.0 or self.q != 1.0:
             self.preprocess_transition_probs()
@@ -37,7 +40,7 @@ class Walker:
         self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, self.labels, wrong_label, self.eps)
         self.wl_matrix = get_wl_matrix(self.wl)
 
-    def deepwalk_sample_keep_hops(self, targets, sample_nums):
+    def deepwalk_sample_wl_keep_hops(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0], hops=2)
         nodes = list(nodes)
         while len(nodes) < sample_nums:
@@ -85,14 +88,24 @@ class Walker:
         nodes = []
 
         for target in targets:
+            level = get_target_subgraph_level(target, self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, len(self.labels))
             tmp_nodes = [target]
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-
                 if len(nbrs) > 0:
-                    nbrs_ce = self.ce_matrix[target, nbrs]
-                    u = nbrs[nbrs_ce.argmax()]
+                    # nbrs_ce = self.ce_matrix[target, nbrs]
+                    if level[nbrs].min() > self.level_limit:
+                        nbrs_ce = self.ce_matrix[target, nbrs]
+                    else:
+                        nbrs_ce = self.ce_matrix[head, nbrs]
+                    ce_limit = np.percentile(nbrs_ce, 50)
+                    idx_ce = nbrs_ce > ce_limit
+                    if any(idx_ce):
+                        nbrs = nbrs[idx_ce]
+                        nbrs_ce = nbrs_ce[idx_ce]
+
+                    u = nbrs[stochastic_accept(nbrs_ce)]
                     tmp_nodes.append(u)
                     if (u, head) not in edges:
                         edges[(head, u)] = 1
@@ -217,6 +230,13 @@ class Walker:
                     unnormalized_probs.append(self.wl_matrix[dst][dst_nbr])
                 else:
                     unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / q)
+            elif self.is_ce_matrix:
+                if dst_nbr == src:
+                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr] / p)
+                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr])
+                else:
+                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr] / q)
             else:
                 if dst_nbr == src:
                     unnormalized_probs.append(1 / p)

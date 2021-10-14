@@ -10,7 +10,6 @@ from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 
-from sampler import Sampler
 from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_list
 
 try:
@@ -80,6 +79,7 @@ class SCA(TargetedAttacker):
         self.SGC = SGConv(K).to(self.device)
         self.K = K
         self.logits = surrogate.predict(np.arange(self.num_nodes))
+        self.softmax_logits = surrogate.predict(np.arange(self.num_nodes), transform="softmax")
         self.loss_fn = nn.CrossEntropyLoss()
 
         if reset:
@@ -180,7 +180,7 @@ class SCA(TargetedAttacker):
                     print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                 add = True
             # print(self.adj_flips)
-            assert not self.is_modified(u, v)
+            assert not self.is_modified(u, v), '({},{}) is modified'.format(u, v)
             self.adj_flips[(u, v)] = it
             self.update_subgraph(u, v, index, add=add)
             if add:
@@ -204,7 +204,7 @@ class SCA(TargetedAttacker):
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
         self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
-
+        # print(self._hop_ratio, self._hop_length)
         self._sub_nodes = sub_nodes
         self._sub_edges = sub_edges
         self._sub_non_edges = non_edges
@@ -264,24 +264,26 @@ class SCA(TargetedAttacker):
         elif subgraph_type == 'dw_wl':
             sub_edges, sub_nodes = self.walker.deepwalk_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_kh':
-            sub_edges, sub_nodes = self.walker.deepwalk_sample_keep_hops(targets, self.sample_nums)
+            sub_edges, sub_nodes = self.walker.deepwalk_sample_wl_keep_hops(targets, self.sample_nums)
         elif subgraph_type == 'dw_ce':
             sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v':
             sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
-            self.sampler.walker.is_purity_matrix = True
-            self.sampler.walker.preprocess_transition_probs()
             sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_wl':
-            self.sampler.walker.is_wl_matrix = True
-            self.sampler.walker.preprocess_transition_probs()
+            sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
+        elif subgraph_type == 'n2v_ce':
             sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_random_wl':
-            self.spreader.keep_hops = False
-            sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
+            sub_edges, sub_nodes = self.spreader.spread_random_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_random_wl_keep_hops':
-            self.spreader.keep_hops = True
+            sub_edges, sub_nodes = self.spreader.spread_random_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_random_ce':
+            sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_random_ce_keep_hops':
+            sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_ce':
             sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)

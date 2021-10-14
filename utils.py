@@ -154,11 +154,28 @@ def cross_entropy(hi, hj):
 @njit
 def get_cross_entropy_matrix(logits):
     N = len(logits)
-    cem = []
-    for i in range(N):
-        ces = []
-        for j in range(N):
-            ce = cross_entropy(logits[i], logits[j])
-            ces.append(ce)
-        cem.append(ces)
-    return np.array(cem)
+    return np.array([cross_entropy(logits[i], logits[j]) for i in range(N) for j in range(N)]).reshape((N, N))
+
+
+@njit
+def get_target_subgraph_level(target, indices, indptr, N):
+    start = 0
+    seen = np.zeros(N) - 1
+    seen[target] = 0
+    targets = [target]
+    level = 0
+    while True:
+        end = len(targets)
+        while start < end:
+            head = targets[start]
+            nbrs = indices[indptr[head]:indptr[head + 1]]
+            for u in nbrs:
+                if seen[u] < 0:
+                    targets.append(u)
+                    seen[u] = level + 1
+            start += 1
+        level += 1
+        if end == len(targets):
+            break
+
+    return seen

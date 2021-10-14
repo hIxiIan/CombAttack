@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
+from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix, get_hop_neighbors
 
 
 class Spreader:
@@ -32,7 +32,7 @@ class Spreader:
 
     # 10^-3
     # todo:可能扩散不出去，措施直接与wrong_label相连？
-    def spread_sample(self, targets, sample_nums):
+    def spread_random_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops
         indices = self.indices
@@ -72,8 +72,6 @@ class Spreader:
                         else:
                             rd = random.random()
                             uu = u
-                            # print((head, uu), rd, self.prob)
-                            # print(seen[uu])
                             if seen[uu] < 0:
                                 seen[uu] = level + 1
                                 if rd < self.prob:
@@ -109,4 +107,138 @@ class Spreader:
         if len(edges) == 0:
             print('sample 0 edges')
             assert False, 'sample 0 edge'
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+
+    # todo 可能有问题
+    def spread_random_ce_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
+        indices = self.indices
+        indptr = self.indptr
+
+        edges = {}
+        start = 0
+        N = self.adj_matrix.shape[0]
+        # N个节点，全部初始化为-1
+        seen = np.zeros(N) - 1
+        seen[targets] = 0
+        level = 0
+        root = targets[0]
+        while True:
+            end = len(targets)
+
+            while start < end:
+                head = targets[start]
+                nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
+                ce_limit = self.ce_matrix[root][nbrs].mean()
+
+                for i, u in enumerate(nbrs):
+                    if sample_nums <= len(targets):
+                        break
+                    if keep_hops and level < hops:
+                        if seen[u] < 0:
+                            seen[u] = level + 1
+                            targets.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = level + 1
+                    else:
+                        if self.ce_matrix[root][u] > ce_limit:
+                            if seen[u] < 0:
+                                seen[u] = level + 1
+                                targets.append(u)
+                            if (u, head) not in edges:
+                                edges[(head, u)] = level + 1
+                        else:
+                            rd = random.random()
+                            uu = u
+                            # print((head, uu), rd, self.prob)
+                            # print(seen[uu])
+                            if seen[uu] < 0:
+                                seen[uu] = level + 1
+                                if rd < self.prob:
+                                    targets.append(uu)
+                                if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
+                                    # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
+                                    while uu == head and len(nbrs) > 1:
+                                        uu = random.choice(nbrs)
+                                    targets.append(uu)
+                            elif seen[uu] >= 0 and rd >= self.prob: # todo 有问题
+                                # print('---')
+                                if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
+                                    # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
+                                    # print(uu)
+                                    if uu in targets and len(nbrs) > 1:
+                                        uu = random.choice(nbrs[nbrs != uu])
+                                        # print(uu)
+                                    targets.append(uu)
+                            if ((rd < self.prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
+                                edges[(head, uu)] = level + 1
+
+
+                start += 1
+
+                if sample_nums <= len(targets):
+                    break
+
+            level = level + 1
+            # 达到所需节点数量 或者 没有新节点加入
+            if sample_nums <= len(targets) or end == len(targets):
+                break
+
+        if len(edges) == 0:
+            print('sample 0 edges')
+            assert False, 'sample 0 edge'
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+
+    def spread_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
+        indices = self.indices
+        indptr = self.indptr
+
+        edges = {}
+        start = 0
+        N = self.adj_matrix.shape[0]
+        # N个节点，全部初始化为-1
+        seen = np.zeros(N) - 1
+        seen[targets] = 0
+        level = 0
+        root = targets[0]
+        while sample_nums > len(targets):
+            end = len(targets)
+
+            while start < end and sample_nums > len(targets):
+                head = targets[start]
+                nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
+                if keep_hops and level < hops:
+                    for i, u in enumerate(nbrs):
+                        if sample_nums <= len(targets):
+                            break
+                        if seen[u] < 0:
+                            seen[u] = level + 1
+                            targets.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = level + 1
+                    start += 1
+                    continue
+                nbrs_ce = self.ce_matrix[root][nbrs]
+                ce_limit = np.percentile(nbrs_ce, 50)
+                idx_ce = nbrs_ce > ce_limit
+                if any(idx_ce):
+                    nbrs = nbrs[idx_ce]
+
+                if sample_nums < len(targets) + len(nbrs):
+                    topk = sample_nums - len(targets)
+                    nbrs = np.sort(nbrs)[-topk:]
+
+                for i, u in enumerate(nbrs):
+                    if seen[u] < 0:
+                        seen[u] = level + 1
+                        targets.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = level + 1
+                start += 1
+
+            level = level + 1
+
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
