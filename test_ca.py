@@ -268,32 +268,6 @@ def run(subgraph_type, with_w_label, sample_ratio, p, q, alpha=0.25, level_limit
     acc, wlacc = testACC(gcn_model, attacker, args, us=True)
     return acc, wlacc
 
-# if __name__ == '__main__':
-#     gg.set_backend("th")
-#     data = NPZDataset('cora',
-#                       root="~/GraphData/datasets/",
-#                       verbose=False,
-#                       transform="standardize")
-#
-#     graph = data.graph
-#     splits = data.split_nodes(random_state=15)
-#     seeds = list(range(9999))
-#     adj_matrix = graph.adj_matrix
-#     attr_matrix = graph.node_attr
-#     labels = graph.node_label
-#     g = nx.DiGraph(adj_matrix)
-#
-#     seed = 0
-#     target = 1235
-#     model_ori = testSGA(target=target, seed=seed)
-#     model_n2v = testSCA(target=target, subgraph_type="dw", seed=seed, sample_ratio=0.1)
-#     print_(model_ori, labels)
-#     print_(model_n2v, labels)
-#
-#     sp = nx.shortest_path(g, source=target)
-#     print_sp(model_ori, sp)
-#     print_sp(model_n2v, sp)
-
 
 
 if __name__ == '__main__':
@@ -305,33 +279,76 @@ if __name__ == '__main__':
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
-    seed = 2022
-    random.seed(seed)
-    targets = random.sample(list(splits.test_nodes), 50)
-    args = ARGS(seed=seed, targets=targets)
-    args.subgraph_type = "dw_ce"
-    # args.subgraph_type = "spread_random_wl_keep_hops"
-    # args.with_w_label = True
-    surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
-    his = surrogate_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
+    res = pd.DataFrame(columns=['acc', 'wlacc'])
 
-    # Before attack
-    gcn_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    his = gcn_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
+    for subgraph_type in ['dw_ce']:
+        for with_w_label in [False, True]:
+            for sample_r in [0.05]:
+                p = 1.0
+                q = 1.0
+                for level_limit in [0, 1, 2]:
+                    key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(level_limit)])
+                    try:
+                        acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q, level_limit)
+                        res.loc[key] = [acc, wlacc]
+                    except Exception as e:
+                        res.loc[key] = [-1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}, level_limit:{}'.format(
+                        subgraph_type, with_w_label, sample_r, p, q, level_limit))
+    res.to_csv('result.csv')
 
+    for subgraph_type in ['spread_ce']:
+        for with_w_label in [False, True]:
+            for sample_r in [0.05]:
+                p = 1.0
+                q = 1.0
+                key = '_'.join([subgraph_type, str(with_w_label), str(sample_r)])
+                try:
+                    acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q)
+                    res.loc[key] = [acc, wlacc]
+                except Exception as e:
+                    res.loc[key] = [-1, -1]
+                    print('##################################error', repr(e))
+                print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}'.format(subgraph_type, with_w_label,
+                                                                                            sample_r, p, q))
+    res.to_csv('result.csv')
 
-    # attacker
-    attacker = SCA(graph, seed=args.seed).process(surrogate_model)
-    testACC(gcn_model, attacker, args, us=True)
+    for subgraph_type in ['n2v_ce']:
+        for with_w_label in [False, True]:
+            for sample_r in [0.05]:
+                for p in [0.5, 2.0]:
+                    for q in [0.25, 2.0]:
+                        key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(p), str(q)])
+                        try:
+                            acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q)
+                            res.loc[key] = [acc, wlacc]
+                        except Exception as e:
+                            res.loc[key] = [-1, -1]
+                            print('##################################error', repr(e))
+                        print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}'.format(subgraph_type,
+                                                                                                    with_w_label,
+                                                                                                    sample_r, p, q))
+    res.to_csv('result.csv')
 
-    # attacker = SGA(graph, seed=seed).process(surrogate_model)
-    # testACC(gcn_model, attacker, args, us=False)
+    for subgraph_type in ['ppr_wl', 'ppr_topk_des', 'ppr_topk_asc']:
+        for with_w_label in [False]:
+            for sample_r in [0.05]:
+                p = 1.0
+                q = 1.0
+                for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+                    key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(alpha)])
+                    try:
+                        acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q, alpha)
+                        res.loc[key] = [acc, wlacc]
+                    except Exception as e:
+                        res.loc[key] = [-1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}, alpha:{}'.format(subgraph_type,
+                                                                                                          with_w_label,
+                                                                                                          sample_r, p,
+                                                                                                          q, alpha))
+    res.to_csv('result.csv')
 
 
 
