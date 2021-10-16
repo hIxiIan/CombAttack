@@ -27,8 +27,6 @@ class Walker:
 
         self.level_limit = level_limit
 
-        if self.p != 1.0 or self.q != 1.0:
-            self.preprocess_transition_probs()
         self.wrong_label = None
         self.wl = None
         self.wl_cnt = None
