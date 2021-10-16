@@ -168,7 +168,7 @@ def init_sampler(attacker, args):
     return walker, spreader, pprer
 
 
-def testACC(gcn_model, attacker, args, us=True, verbose=True):
+def testACC(gcn_model, attacker, args, splits, us=True, verbose=True):
     if us:
         walker, spreader, pprer = init_sampler(attacker, args)
     start = time()
@@ -269,7 +269,7 @@ def run(subgraph_type, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alp
         attacker = SCA(graph, seed=args.seed).process(surrogate_model)
     else:
         attacker = SGA(graph, seed=args.seed).process(surrogate_model)
-    acc, wlacc = testACC(gcn_model, attacker, args, us=us)
+    acc, wlacc = testACC(gcn_model, attacker, args, splits, us=us)
     return acc, wlacc
 
 
@@ -287,21 +287,15 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
-    random.seed(cmd.seed)
     gg.set_backend("th")
-    data = NPZDataset(cmd.dataset,
-                      root="~/GraphData/datasets/",
-                      verbose=False,
-                      transform="standardize")
-
-    graph = data.graph
-    splits = data.split_nodes(random_state=15)
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
     rootdir = "result" + os.sep
     prefix = cmd.dataset + ""
     times = 10
+    seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
+        cmd.seed = seeds[i]
         # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
         filename = rootdir + prefix + str(i) + '.csv'
 
