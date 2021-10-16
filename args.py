@@ -5,7 +5,7 @@ class ARGS:
 
                  subgraph_type="dw", sample_ratio=0.05, direct_attack=True, with_w_label=False,
 
-                 p=2.0, q=0.25, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0,
+                 p=2.0, q=0.25, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, wl_limit=1.0,
 
                  hops=2, keep_hops=False, prob=0.5,
 
@@ -31,6 +31,7 @@ class ARGS:
         self.is_wl_matrix = is_wl_matrix
         self.is_ce_matrix = is_ce_matrix
         self.level_limit = level_limit
+        self.wl_limit = wl_limit
 
         # spreader
         self.hops = hops

@@ -143,7 +143,7 @@ def init_sampler(attacker, args):
     pprer = None
 
     if args.subgraph_type[:2] == "dw":
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, level_limit=args.level_limit)
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, level_limit=args.level_limit, wl_limit=args.wl_limit)
     elif args.subgraph_type[:3] == "n2v":
         if args.subgraph_type == "n2v_purity":
             args.is_purity_matrix = True
@@ -151,7 +151,7 @@ def init_sampler(attacker, args):
             args.is_wl_matrix = True
         elif args.subgraph_type == "n2v_ce":
             args.is_ce_matrix = True
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, args.is_purity_matrix, args.is_wl_matrix, args.is_ce_matrix)
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, args.is_purity_matrix, args.is_wl_matrix, args.is_ce_matrix, wl_limit=args.wl_limit)
     elif args.subgraph_type[:6] == "spread":
         if args.subgraph_type == "spread_random_wl_keep_hops":
             args.keep_hops = True

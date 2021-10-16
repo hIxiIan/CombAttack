@@ -5,7 +5,7 @@ from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, eps=1e-4):
+    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, wl_limit=1.0, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
@@ -33,6 +33,7 @@ class Walker:
         self.wl = None
         self.wl_cnt = None
         self.wl_matrix = None
+        self.wl_limit = wl_limit
         self.eps = eps
 
     def set_wrong_label(self, wrong_label):
@@ -48,7 +49,7 @@ class Walker:
             nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
             if len(nbrs) > 0:
                 nbrs_wl = self.wl[nbrs]
-                one_wl_idx = nbrs_wl > 0.8
+                one_wl_idx = nbrs_wl >= self.wl_limit
                 if any(one_wl_idx):
                     nbrs = nbrs[one_wl_idx]
                     nbrs_wl = self.wl[nbrs]
@@ -160,7 +161,7 @@ class Walker:
                 if len(nbrs) > 0:
                     nbrs_wl = self.wl[nbrs]
 
-                    one_wl_idx = nbrs_wl > 0.8
+                    one_wl_idx = nbrs_wl >= self.wl_limit
                     if any(one_wl_idx):
                         nbrs = nbrs[one_wl_idx]
                         nbrs_wl = self.wl[nbrs]
