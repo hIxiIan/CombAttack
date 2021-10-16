@@ -287,15 +287,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
-    # random.seed(cmd.seed)
-    # gg.set_backend("th")
-    # data = NPZDataset(cmd.dataset,
-    #                   root="~/GraphData/datasets/",
-    #                   verbose=False,
-    #                   transform="standardize")
-    #
-    # graph = data.graph
-    # splits = data.split_nodes(random_state=15)
+    gg.set_backend("th")
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
     rootdir = "result" + os.sep
