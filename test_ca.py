@@ -1,3 +1,4 @@
+import os
 import random
 import graphgallery as gg
 import numpy as np
@@ -297,10 +298,12 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
+    rootdir = "result" + os.sep
+    prefix = cmd.dataset + "_no_wrong_label_"
     times = 10
     for i in range(times):
         # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
-        filename = "result/r_no_wl" + str(i) + '.csv'
+        filename = rootdir + prefix + str(i) + '.csv'
 
         # sga
         acc, wlacc = run("dw", us=False)
@@ -373,14 +376,14 @@ if __name__ == '__main__':
                 res.to_csv(filename)
     tdf = None
     for i in range(times):
-        filename = "result/r_no_wl" + str(i) + ".csv"
+        filename = rootdir + prefix + str(i) + '.csv'
         df = pd.read_csv(filename, index_col=0)
         if i == 0:
             tdf = df
         else:
             tdf += df
     tdf /= times
-    tdf.to_csv('result/rnowltotal.csv')
+    tdf.to_csv(rootdir + prefix + '_total.csv')
 
 
 
