@@ -325,6 +325,7 @@ if __name__ == '__main__':
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd)
     args.targets = targets
+    args.subgraph_type = "n2v_wl"
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

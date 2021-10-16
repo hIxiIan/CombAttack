@@ -27,8 +27,6 @@ class Walker:
 
         self.level_limit = level_limit
 
-        if self.p != 1.0 or self.q != 1.0:
-            self.preprocess_transition_probs()
         self.wrong_label = None
         self.wl = None
         self.wl_cnt = None
@@ -40,6 +38,8 @@ class Walker:
         self.wrong_label = wrong_label
         self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, self.labels, wrong_label, self.eps)
         self.wl_matrix = get_wl_matrix(self.wl)
+        if self.p != 1.0 or self.q != 1.0:
+            self.preprocess_transition_probs()
 
     def deepwalk_sample_wl_keep_hops(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0], hops=2)

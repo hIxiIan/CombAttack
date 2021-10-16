@@ -85,10 +85,10 @@ class Spreader:
                                 # print('---')
                                 if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
                                     # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
-                                    print(uu)
+                                    # print(uu)
                                     if uu in targets and len(nbrs) > 1:
                                         uu = random.choice(nbrs[nbrs != uu])
-                                        print(uu)
+                                        # print(uu)
                                     targets.append(uu)
                             if ((rd < self.prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
                                 edges[(head, uu)] = level + 1
