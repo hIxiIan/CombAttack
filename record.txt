@@ -1,0 +1,68 @@
+for subgraph_type in ['dw_ce']:
+    for with_w_label in [False, True]:
+        for sample_r in [0.05]:
+            p = 1.0
+            q = 1.0
+            for level_limit in [0, 1, 2]:
+                key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(level_limit)])
+                try:
+                    acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q, level_limit)
+                    res.loc[key] = [acc, wlacc]
+                except Exception as e:
+                    res.loc[key] = [-1, -1]
+                    print('##################################error', repr(e))
+                print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}, level_limit:{}'.format(
+                    subgraph_type, with_w_label, sample_r, p, q, level_limit))
+res.to_csv(filename)
+
+for subgraph_type in ['spread_ce']:
+    for with_w_label in [False, True]:
+        for sample_r in [0.05]:
+            p = 1.0
+            q = 1.0
+            key = '_'.join([subgraph_type, str(with_w_label), str(sample_r)])
+            try:
+                acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q)
+                res.loc[key] = [acc, wlacc]
+            except Exception as e:
+                res.loc[key] = [-1, -1]
+                print('##################################error', repr(e))
+            print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}'.format(subgraph_type, with_w_label,
+                                                                                        sample_r, p, q))
+res.to_csv(filename)
+
+for subgraph_type in ['n2v_ce']:
+    for with_w_label in [False, True]:
+        for sample_r in [0.05]:
+            for p in [0.5, 2.0]:
+                for q in [0.25, 2.0]:
+                    key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(p), str(q)])
+                    try:
+                        acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q)
+                        res.loc[key] = [acc, wlacc]
+                    except Exception as e:
+                        res.loc[key] = [-1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}'.format(subgraph_type,
+                                                                                                with_w_label,
+                                                                                                sample_r, p, q))
+res.to_csv(filename)
+
+for subgraph_type in ['ppr_wl', 'ppr_topk_des', 'ppr_topk_asc']:
+    for with_w_label in [False]:
+        for sample_r in [0.05]:
+            p = 1.0
+            q = 1.0
+            for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+                key = '_'.join([subgraph_type, str(with_w_label), str(sample_r), str(alpha)])
+                try:
+                    acc, wlacc = run(subgraph_type, with_w_label, sample_r, p, q, alpha)
+                    res.loc[key] = [acc, wlacc]
+                except Exception as e:
+                    res.loc[key] = [-1, -1]
+                    print('##################################error', repr(e))
+                print('-------subgraph:{}, with_w_label:{}, sample_r:{}, p:{}, q:{}, alpha:{}'.format(subgraph_type,
+                                                                                                      with_w_label,
+                                                                                                      sample_r, p,
+                                                                                                      q, alpha))
+res.to_csv(filename)

@@ -1,5 +1,5 @@
 class ARGS:
-    def __init__(self, targets,
+    def __init__(self, cmd, targets=None,
 
                  seed=0, verbose=0, device="cpu",
 
@@ -11,15 +11,17 @@ class ARGS:
 
                  alpha=0.25, eps=1e-4):
         # 通用
-        self.seed = seed
-        self.verbose = verbose
-        self.device = device
+        self.seed = cmd.seed
+        self.verbose = cmd.verbose
+        self.device = cmd.device
+        self.dataset = cmd.dataset
+        self.us = not cmd.n_us
 
         # attack
-        self.subgraph_type = subgraph_type
-        self.sample_ratio = sample_ratio
+        self.subgraph_type = cmd.subgraph_type
+        self.sample_ratio = cmd.sample_ratio
         self.targets = targets
-        self.direct_attack = direct_attack
+        self.direct_attack = not cmd.indirect_attack
         self.with_w_label = with_w_label
 
         # dw

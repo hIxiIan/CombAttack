@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 
 import graphgallery as gg
+from utils import get_wrong_rate, get_hop_neighbors, get_hop_rate
 from graphgallery import functional as gf
 from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
@@ -160,6 +161,7 @@ class SGA(TargetedAttacker):
         wrong_label_nodes = self.similar_nodes[wrong_label]
         sub_edges, sub_nodes = self.ego_subgraph()
         sub_edges = sub_edges.T  # shape [2, M]
+        self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         self._sub_edges = sub_edges
         self._sub_nodes = sub_nodes
         self._neighbors = neighbors
@@ -169,6 +171,10 @@ class SGA(TargetedAttacker):
         else:
             influence_nodes = neighbors
 
+        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
+        # print(hop_nodes.shape, hop_nodes)
+        # print(sub_nodes.shape, sub_nodes)
+        self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
         self.construct_sub_adj(influence_nodes, wrong_label_nodes, sub_nodes, sub_edges)
         if self.verbose_us:
             print('sub_non_edges:', self._sub_non_edges.shape)
@@ -178,12 +184,12 @@ class SGA(TargetedAttacker):
                 influence_nodes = [target]
                 wrong_label_nodes = self.top_k_wrong_labels_nodes(
                     k=self.num_budgets + 1)
-                print(wrong_label_nodes)
+                # print(wrong_label_nodes)
             else:
                 influence_nodes = neighbors
                 wrong_label_nodes = self.top_k_wrong_labels_nodes(
                     k=attacker_nodes)
-                print(wrong_label_nodes)
+                # print(wrong_label_nodes)
             self.construct_sub_adj(influence_nodes, wrong_label_nodes,
                                    sub_nodes, sub_edges)
         if self.verbose_us:

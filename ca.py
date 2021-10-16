@@ -1,17 +1,18 @@
-from sga import SCA
-from orisga import SGA
-from graphgallery.datasets import NPZDataset
 import random
 import graphgallery as gg
 import numpy as np
 import networkx as nx
-from args import ARGS
-from time import time
+import pandas as pd
+import argparse
 
+from graphgallery.datasets import NPZDataset
+from sga import SCA
+from orisga import SGA
+from time import time
+from args import ARGS
 from spreader import Spreader
 from walker import Walker
 from ppr import PPRer
-import pandas as pd
 
 
 def testSGA(target=1, w_label=None, device="cpu", seed=124):
@@ -167,7 +168,8 @@ def init_sampler(attacker, args):
 
 
 def testACC(gcn_model, attacker, args, us=True, verbose=True):
-    walker, spreader, pprer = init_sampler(attacker, args)
+    if us:
+        walker, spreader, pprer = init_sampler(attacker, args)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     res2 = np.zeros(len(args.targets)).astype('bool')
@@ -229,26 +231,25 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
     return acc, wlacc
 
 
-def run(subgraph_type, with_w_label, sample_ratio, p, q, alpha=0.25, level_limit=0):
-    gg.set_backend("th")
-    data = NPZDataset('cora',
+def run(subgraph_type, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, level_limit=0, us=True):
+    data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
-    seed = 2022
-    random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
-    args = ARGS(seed=seed, targets=targets, sample_ratio=sample_ratio)
+    args = ARGS(cmd=cmd)
+    args.targets = targets
+    random.seed(args.seed)
+
     args.subgraph_type = subgraph_type
     args.with_w_label = with_w_label
     args.p = p
     args.q = q
     args.alpha = alpha
     args.level_limit = level_limit
-#     args.surrogate_model = surrogate_model
     surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
@@ -264,8 +265,11 @@ def run(subgraph_type, with_w_label, sample_ratio, p, q, alpha=0.25, level_limit
 
 
     # attacker
-    attacker = SCA(graph, seed=args.seed).process(surrogate_model)
-    acc, wlacc = testACC(gcn_model, attacker, args, us=True)
+    if us:
+        attacker = SCA(graph, seed=args.seed).process(surrogate_model)
+    else:
+        attacker = SGA(graph, seed=args.seed).process(surrogate_model)
+    acc, wlacc = testACC(gcn_model, attacker, args, us=us)
     return acc, wlacc
 
 # if __name__ == '__main__':
@@ -297,21 +301,32 @@ def run(subgraph_type, with_w_label, sample_ratio, p, q, alpha=0.25, level_limit
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", default=2022, type=int, help="random seed")
+    parser.add_argument("--verbose", default=0, type=int, help="print details")
+    parser.add_argument("--device", default="cpu", type=str, choices=["cpu", "gpu"], help="code environment")
+
+    parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
+    parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
+    parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+
+    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
+    parser.add_argument("--n_us", action="store_true", help="run sga model")
+    cmd = parser.parse_args()
+    random.seed(cmd.seed)
     gg.set_backend("th")
-    data = NPZDataset('cora',
+    data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
-    seed = 2022
-    random.seed(seed)
     targets = random.sample(list(splits.test_nodes), 50)
-    args = ARGS(seed=seed, targets=targets)
-    args.subgraph_type = "dw_ce"
-    # args.subgraph_type = "spread_random_wl_keep_hops"
-    # args.with_w_label = True
+    args = ARGS(cmd=cmd)
+    args.targets = targets
+    # args.subgraph_type = "dw_wl"
+
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
@@ -325,10 +340,12 @@ if __name__ == '__main__':
                       verbose=args.verbose,
                       epochs=100)
 
-
     # attacker
-    attacker = SCA(graph, seed=args.seed).process(surrogate_model)
-    testACC(gcn_model, attacker, args, us=True)
+    if args.us:
+        attacker = SCA(graph, seed=args.seed).process(surrogate_model)
+    else:
+        attacker = SGA(graph, seed=args.seed).process(surrogate_model)
+    acc, wlacc = testACC(gcn_model, attacker, args, us=args.us)
 
     # attacker = SGA(graph, seed=seed).process(surrogate_model)
     # testACC(gcn_model, attacker, args, us=False)
