@@ -288,7 +288,7 @@ if __name__ == '__main__':
     cmd = parser.parse_args()
     random.seed(cmd.seed)
     gg.set_backend("th")
-    data = NPZDataset('cora',
+    data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
@@ -297,23 +297,88 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
-    filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
-    subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce',
-                      'spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce',
-                      'spread_random_ce_keep_hops', 'spread_ce', 'ppr', 'ppr_', 'ppr_topk_des', 'ppr_topk_asc',
-                      'ppr_wl', 'ppr_wl_']
-    subgraph_types = ['n2v_wl']
-    for subgraph_type in subgraph_types:
-        key = '_'.join([subgraph_type])
-        try:
-            acc, wlacc = run(subgraph_type)
-            res.loc[key] = [acc, wlacc]
-        except Exception as e:
-            res.loc[key] = [-1, -1]
-            print('##################################error', repr(e))
-        print('-------subgraph:{}'.format(subgraph_type))
+    times = 10
+    for i in range(times):
+        # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
+        filename = "result/r" + str(i) + '.csv'
+
+        # sga
+        acc, wlacc = run("dw", us=False)
+        res.loc['sga'] = [acc, wlacc]
+        print('-------sga')
         res.to_csv(filename)
 
+        # us
+        subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce',
+                          'spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce',
+                          'spread_random_ce_keep_hops', 'spread_ce', 'ppr', 'ppr_', 'ppr_topk_des', 'ppr_topk_asc',
+                          'ppr_wl', 'ppr_wl_']
 
+        # dw
+        for subgraph_type in subgraph_types[:5]:
+            for level_limit in [0, 1, 2]:
+                key = '_'.join([subgraph_type, str(level_limit)])
+                p = 1.0
+                q = 1.0
+                try:
+                    acc, wlacc = run(subgraph_type, p=p, q=q, level_limit=level_limit)
+                    res.loc[key] = [acc, wlacc]
+                except Exception as e:
+                    res.loc[key] = [-1, -1]
+                    print('##################################error', repr(e))
+                print('-------subgraph:{}'.format(subgraph_type))
+                res.to_csv(filename)
 
+        # n2v
+        for subgraph_type in subgraph_types[5:9]:
+            for p in [0.5, 2.0]:
+                for q in [0.25, 2.0]:
+                    key = '_'.join([subgraph_type, str(p), str(q)])
+                    try:
+                        acc, wlacc = run(subgraph_type, p=p, q=q)
+                        res.loc[key] = [acc, wlacc]
+                    except Exception as e:
+                        res.loc[key] = [-1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}'.format(subgraph_type))
+                    res.to_csv(filename)
+
+        # spread
+        for subgraph_type in subgraph_types[14:]:
+            key = '_'.join([subgraph_type])
+            p = 1.0
+            q = 1.0
+            try:
+                acc, wlacc = run(subgraph_type, p=p, q=q)
+                res.loc[key] = [acc, wlacc]
+            except Exception as e:
+                res.loc[key] = [-1, -1]
+                print('##################################error', repr(e))
+            print('-------subgraph:{}'.format(subgraph_type))
+            res.to_csv(filename)
+
+        # ppr
+        for subgraph_type in subgraph_types[9:14]:
+            p = 1.0
+            q = 1.0
+            for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+                key = '_'.join([subgraph_type, str(alpha)])
+                try:
+                    acc, wlacc = run(subgraph_type, p=p, q=q, alpha=alpha)
+                    res.loc[key] = [acc, wlacc]
+                except Exception as e:
+                    res.loc[key] = [-1, -1]
+                    print('##################################error', repr(e))
+                print('-------subgraph:{}'.format(subgraph_type))
+                res.to_csv(filename)
+    tdf = None
+    for i in range(times):
+        filename = "result/r" + str(i) + ".csv"
+        df = pd.read_csv(filename, index_col=0)
+        if i == 0:
+            tdf = df
+        else:
+            tdf += df
+    tdf /= times
+    tdf.to_csv('result/rtotal.csv')
 
