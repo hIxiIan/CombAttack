@@ -1,3 +1,16 @@
+subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce', 'spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce', 'spread_random_ce_keep_hops', 'spread_ce', 'ppr', 'ppr_', 'ppr_topk_des', 'ppr_topk_asc', 'ppr_wl', 'ppr_wl_']
+
+for subgraph_type in subgraph_types:
+    key = '_'.join([subgraph_type])
+    try:
+        acc, wlacc = run(subgraph_type)
+        res.loc[key] = [acc, wlacc]
+    except Exception as e:
+        res.loc[key] = [-1, -1]
+        print('##################################error', repr(e))
+    print('-------subgraph:{}'.format(subgraph_type))
+    res.to_csv(filename)
+
 for subgraph_type in ['dw_ce']:
     for with_w_label in [False, True]:
         for sample_r in [0.05]:
