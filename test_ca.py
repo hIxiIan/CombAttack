@@ -1,3 +1,4 @@
+import os
 import random
 import graphgallery as gg
 import numpy as np
@@ -298,7 +299,7 @@ if __name__ == '__main__':
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
     rootdir = "result" + os.sep
-    prefix = cmd.dataset + "_no_wrong_label_"
+    prefix = cmd.dataset + ""
     times = 10
     for i in range(times):
         # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
