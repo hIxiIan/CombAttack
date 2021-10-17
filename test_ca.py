@@ -323,7 +323,7 @@ if __name__ == '__main__':
                 except Exception as e:
                     res.loc[key] = [-1, -1]
                     print('##################################error', repr(e))
-                print('-------subgraph:{}'.format(subgraph_type))
+                print('-------subgraph:{}, level_limit:{}'.format(subgraph_type, level_limit))
                 res.to_csv(filename)
 
         # n2v
@@ -337,7 +337,7 @@ if __name__ == '__main__':
                     except Exception as e:
                         res.loc[key] = [-1, -1]
                         print('##################################error', repr(e))
-                    print('-------subgraph:{}'.format(subgraph_type))
+                    print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                     res.to_csv(filename)
 
         # spread
@@ -366,7 +366,7 @@ if __name__ == '__main__':
                 except Exception as e:
                     res.loc[key] = [-1, -1]
                     print('##################################error', repr(e))
-                print('-------subgraph:{}'.format(subgraph_type))
+                print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
     tdf = None
     for i in range(times):
