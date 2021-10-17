@@ -105,6 +105,7 @@ class SGA(TargetedAttacker):
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
         self.verbose_us = verbose_us
+        self.with_w_label = False
         self.added_edges = []
         self.non_added_edges = []
         if logit is None:
