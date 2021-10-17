@@ -24,6 +24,7 @@ class ARGS:
         self.splits = splits
         self.direct_attack = not cmd.indirect_attack
         self.with_w_label = with_w_label
+        self.add_wl = cmd.add_wl
 
         # dw
         self.p = p

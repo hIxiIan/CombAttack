@@ -206,16 +206,17 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
         if perturbed_label == wrong_label:
             res2[i] = True
 
-        if attacker.with_w_label:
-            print('iter: {}, attack target node {}, add all of wrong label nodes to subgraph'.format(i, target))
-        else:
-            if attacker._walk_length <= 10:
-                print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
-                if args.add_wl:
-                    print('add all of wrong label nodes to subgraph')
+        if args.subgraph_type != "sga":
+            if attacker.with_w_label:
+                print('iter: {}, attack target node {}, add all of wrong label nodes to subgraph'.format(i, target))
             else:
-                pass
-                # print('not add other nodes to subgraph')
+                if attacker._walk_length <= 10:
+                    print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
+                    if args.add_wl:
+                        print('add all of wrong label nodes to subgraph')
+                else:
+                    pass
+                    # print('not add other nodes to subgraph')
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, cost: {} min'.format(i, target, (end_i - start_i) / 60))

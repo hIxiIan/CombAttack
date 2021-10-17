@@ -32,7 +32,7 @@ if __name__ == '__main__':
         filename = rootdir + prefix + str(i) + '.csv'
         print(filename)
         # sga
-        acc, wlacc, cost = run("dw", cmd=cmd, us=False, verbose=False)
+        acc, wlacc, cost = run("sga", cmd=cmd, us=False, verbose=False)
         res.loc['sga'] = [acc, wlacc, cost]
         print('-------sga')
         res.to_csv(filename)
