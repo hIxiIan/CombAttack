@@ -300,7 +300,7 @@ if __name__ == '__main__':
         filename = rootdir + prefix + str(i) + '.csv'
 
         # sga
-        acc, wlacc = run("dw", us=False)
+        acc, wlacc = run("dw", us=False, verbose=False)
         res.loc['sga'] = [acc, wlacc]
         print('-------sga')
         res.to_csv(filename)
