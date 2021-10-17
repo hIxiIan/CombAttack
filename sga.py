@@ -206,7 +206,7 @@ class SCA(TargetedAttacker):
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
 
-        if len(sub_nodes) > 10 and not self.with_w_label:
+        if not self.with_w_label:
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
 
