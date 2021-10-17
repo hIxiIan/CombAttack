@@ -9,7 +9,7 @@ from graphgallery import functional as gf
 from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
-
+from copy import deepcopy
 from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_list
 
 try:
@@ -165,28 +165,37 @@ class SCA(TargetedAttacker):
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0) # 删边和减边的梯度cat成一维数组
+            # 有可能选出来的边已经被攻击了，则选择次大的
+            potential_times = len(gradients)
+            while potential_times > 0:
+                index = torch.argmax(gradients) # 求梯度最大的值的索引
+                ori_index = index.item()
+                if index < offset: # 该索引属于删边部分
+                    u, v = self.edge_index[:, index] # 取节点
+                    if self.verbose_us:
+                        print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
+                    add = False
+                else: # 加边部分，直接将删边部分的索引offset减去
+                    index -= offset
+                    u, v = self.non_edge_index[:, index]
+                    if self.verbose_us:
+                        print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
+                    add = True
 
-            index = torch.argmax(gradients) # 求梯度最大的值的索引
-
-            if index < offset: # 该索引属于删边部分
-                u, v = self.edge_index[:, index] # 取节点
-                if self.verbose_us:
-                    print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
-                add = False
-            else: # 加边部分，直接将删边部分的索引offset减去
-                index -= offset
-                u, v = self.non_edge_index[:, index]
-                if self.verbose_us:
-                    print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
-                add = True
-            # print(self.adj_flips)
-            assert not self.is_modified(u, v), '({},{}) is modified'.format(u, v)
-            self.adj_flips[(u, v)] = it
-            self.update_subgraph(u, v, index, add=add)
-            if add:
-                self.added_edges.append((u, v))
-            else:
-                self.non_added_edges.append((u, v))
+                if self.is_modified(u, v):
+                    gradients[ori_index] = 0.0
+                    potential_times -= 1
+                    continue
+                else:
+                    self.adj_flips[(u, v)] = it
+                    self.update_subgraph(u, v, index, add=add)
+                    if add:
+                        self.added_edges.append((u, v))
+                    else:
+                        self.non_added_edges.append((u, v))
+                    break
+            if potential_times == 0:
+                assert False, 'all of the potential edges are modified, no more edges to attack'
         return self
 
     def subgraph_preprocessing(self, subgraph_type, attacker_nodes=None):
@@ -196,6 +205,7 @@ class SCA(TargetedAttacker):
         sub_edges = sub_edges.T  # shape [2, M]
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
+
         if len(sub_nodes) > 10 and not self.with_w_label:
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)

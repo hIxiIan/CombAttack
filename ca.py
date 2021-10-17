@@ -167,7 +167,7 @@ def init_sampler(attacker, args):
     return walker, spreader, pprer
 
 
-def testACC(gcn_model, attacker, args, us=True, verbose=True):
+def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     if us:
         walker, spreader, pprer = init_sampler(attacker, args)
     start = time()
@@ -179,7 +179,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
         attacker = attacker.reset()
         try:
             if us:
-                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer, with_w_label=args.with_w_label, verbose_us=False, direct_attack=args.direct_attack,
+                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer, with_w_label=args.with_w_label, verbose_us=verbose_us, direct_attack=args.direct_attack,
                                 subgraph_type=args.subgraph_type, sample_ratio=args.sample_ratio)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
@@ -191,8 +191,8 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
         end_i = time()
         # After attack
         trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
-        his = trainer.fit(splits.train_nodes,
-                          splits.val_nodes,
+        his = trainer.fit(args.splits.train_nodes,
+                          args.splits.val_nodes,
                           verbose=args.verbose,
                           epochs=100)
         perturbed_predict = trainer.predict(target, transform="softmax")
@@ -205,6 +205,17 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
             res[i] = True
         if perturbed_label == wrong_label:
             res2[i] = True
+
+        if attacker.with_w_label:
+            print('iter: {}, attack target node {}, add all of wrong label nodes to subgraph'.format(i, target))
+        else:
+            if attacker._walk_length <= 10:
+                print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
+                if args.add_wl:
+                    print('add all of wrong label nodes to subgraph')
+            else:
+                pass
+                # print('not add other nodes to subgraph')
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, cost: {} min'.format(i, target, (end_i - start_i) / 60))
@@ -226,12 +237,13 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True):
     print('acc: {}'.format(acc))
     print('wrong label acc: {}'.format(wlacc))
     end = time()
-    if verbose:
-        print('testACC end, cost time: {} min'.format((end - start) / 60))
-    return acc, wlacc
+    cost = (end - start) / 60
+    print('testACC end, cost time: {} min'.format(cost))
+
+    return acc, wlacc, cost
 
 
-def run(subgraph_type, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, level_limit=0, us=True):
+def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, level_limit=0, us=True, verbose=True):
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
@@ -240,8 +252,7 @@ def run(subgraph_type, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alp
     graph = data.graph
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
-    args = ARGS(cmd=cmd)
-    args.targets = targets
+    args = ARGS(cmd=cmd, targets=targets, splits=splits)
     random.seed(args.seed)
 
     args.subgraph_type = subgraph_type
@@ -269,35 +280,8 @@ def run(subgraph_type, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alp
         attacker = SCA(graph, seed=args.seed).process(surrogate_model)
     else:
         attacker = SGA(graph, seed=args.seed).process(surrogate_model)
-    acc, wlacc = testACC(gcn_model, attacker, args, us=us)
-    return acc, wlacc
-
-# if __name__ == '__main__':
-#     gg.set_backend("th")
-#     data = NPZDataset('cora',
-#                       root="~/GraphData/datasets/",
-#                       verbose=False,
-#                       transform="standardize")
-#
-#     graph = data.graph
-#     splits = data.split_nodes(random_state=15)
-#     seeds = list(range(9999))
-#     adj_matrix = graph.adj_matrix
-#     attr_matrix = graph.node_attr
-#     labels = graph.node_label
-#     g = nx.DiGraph(adj_matrix)
-#
-#     seed = 0
-#     target = 1235
-#     model_ori = testSGA(target=target, seed=seed)
-#     model_n2v = testSCA(target=target, subgraph_type="dw", seed=seed, sample_ratio=0.1)
-#     print_(model_ori, labels)
-#     print_(model_n2v, labels)
-#
-#     sp = nx.shortest_path(g, source=target)
-#     print_sp(model_ori, sp)
-#     print_sp(model_n2v, sp)
-
+    acc, wlacc, cost = testACC(gcn_model, attacker, args, us=us, verbose=verbose)
+    return acc, wlacc, cost
 
 
 if __name__ == '__main__':
@@ -325,7 +309,8 @@ if __name__ == '__main__':
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd)
     args.targets = targets
-    args.subgraph_type = "n2v_wl"
+    args.subgraph_type = "dw_wl"
+    args.seed = 2012
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
@@ -346,7 +331,7 @@ if __name__ == '__main__':
         attacker = SCA(graph, seed=args.seed).process(surrogate_model)
     else:
         attacker = SGA(graph, seed=args.seed).process(surrogate_model)
-    acc, wlacc = testACC(gcn_model, attacker, args, us=args.us)
+    acc, wlacc, cost = testACC(gcn_model, attacker, args, us=args.us, verbose_us=False)
 
     # attacker = SGA(graph, seed=seed).process(surrogate_model)
     # testACC(gcn_model, attacker, args, us=False)

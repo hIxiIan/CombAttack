@@ -148,6 +148,7 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    # 有可能采样重复节点
     def deepwalk_wl_sample(self, targets, sample_nums):
         edges = {}
         nodes = []
@@ -156,18 +157,23 @@ class Walker:
             tmp_nodes = [target]
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
+                # head = random.choice(tmp_nodes)
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
 
                 if len(nbrs) > 0:
                     nbrs_wl = self.wl[nbrs]
-
+                    # print(nbrs)
+                    # print(nbrs_wl)
                     one_wl_idx = nbrs_wl >= self.wl_limit
                     if any(one_wl_idx):
                         nbrs = nbrs[one_wl_idx]
                         nbrs_wl = self.wl[nbrs]
+                        # print(nbrs)
+                        # print(nbrs_wl)
 
                     u = nbrs[stochastic_accept(nbrs_wl)]
                     tmp_nodes.append(u)
+                    # print(u)
                     if (u, head) not in edges:
                         edges[(head, u)] = 1
                 else:

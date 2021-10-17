@@ -1,11 +1,11 @@
 class ARGS:
-    def __init__(self, cmd, targets=None,
+    def __init__(self, cmd, targets=None, splits=None,
 
                  seed=0, verbose=0, device="cpu",
 
                  subgraph_type="dw", sample_ratio=0.05, direct_attack=True, with_w_label=False,
 
-                 p=2.0, q=0.25, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, wl_limit=1.0,
+                 p=2.0, q=0.25, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, wl_limit=0.5,
 
                  hops=2, keep_hops=False, prob=0.5,
 
@@ -21,6 +21,7 @@ class ARGS:
         self.subgraph_type = cmd.subgraph_type
         self.sample_ratio = cmd.sample_ratio
         self.targets = targets
+        self.splits = splits
         self.direct_attack = not cmd.indirect_attack
         self.with_w_label = with_w_label
 
