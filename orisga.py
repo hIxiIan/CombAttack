@@ -107,6 +107,7 @@ class SGA(TargetedAttacker):
         self.verbose_us = verbose_us
         self.added_edges = []
         self.non_added_edges = []
+        self.with_w_label = False
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
