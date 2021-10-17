@@ -292,7 +292,7 @@ if __name__ == '__main__':
 
     rootdir = "result" + os.sep
     prefix = cmd.dataset + "_no_wrong_label_"
-    times = 10
+    times = 5
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
