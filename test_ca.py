@@ -27,7 +27,7 @@ if __name__ == '__main__':
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
-        cmd.add_wl = True
+        cmd.add_wl = False
         # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
         filename = rootdir + prefix + str(i) + '.csv'
         print(filename)
