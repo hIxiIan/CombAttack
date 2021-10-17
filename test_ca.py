@@ -291,7 +291,7 @@ if __name__ == '__main__':
     res = pd.DataFrame(columns=['acc', 'wlacc'])
 
     rootdir = "result" + os.sep
-    prefix = cmd.dataset + ""
+    prefix = cmd.dataset + "wl"
     times = 10
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
@@ -341,7 +341,7 @@ if __name__ == '__main__':
                     res.to_csv(filename)
 
         # spread
-        for subgraph_type in subgraph_types[14:]:
+        for subgraph_type in subgraph_types[9:14]:
             key = '_'.join([subgraph_type])
             p = 1.0
             q = 1.0
@@ -355,7 +355,7 @@ if __name__ == '__main__':
             res.to_csv(filename)
 
         # ppr
-        for subgraph_type in subgraph_types[9:14]:
+        for subgraph_type in subgraph_types[14:]:
             p = 1.0
             q = 1.0
             for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
