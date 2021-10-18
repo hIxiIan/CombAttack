@@ -206,7 +206,7 @@ class SCA(TargetedAttacker):
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
 
-        if len(sub_nodes) > 10 and not self.with_w_label:
+        if not self.with_w_label:
             wrong_label_nodes = []
         non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
 
@@ -297,6 +297,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)
+        elif subgraph_type == "ppr_nums":
+            sub_edges, sub_nodes = self.PPRer.ppr_sample_nums(targets, self.sample_nums)
         elif subgraph_type == 'ppr_':
             sub_edges, sub_nodes = self.PPRer.ppr_sample_wl(targets)
         elif subgraph_type == 'ppr_topk_des':
@@ -305,6 +307,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, False)
         elif subgraph_type == 'ppr_wl':
             sub_edges, sub_nodes = self.PPRer.ppr_wl_sample(targets)
+        elif subgraph_type == 'ppr_wl_nums':
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_sample_nums(targets, self.sample_nums)
         elif subgraph_type == 'ppr_wl_':
             sub_edges, sub_nodes = self.PPRer.ppr_sample_wl_wl(targets)
         else:

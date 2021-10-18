@@ -298,6 +298,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
+    cmd.add_wl = False
     random.seed(cmd.seed)
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
@@ -308,10 +309,10 @@ if __name__ == '__main__':
     graph = data.graph
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
-    args = ARGS(cmd=cmd)
-    args.targets = targets
-    args.subgraph_type = "dw_wl"
+    args = ARGS(cmd=cmd, targets=targets, splits=splits)
+    args.subgraph_type = "ppr_nums"
     args.seed = 2012
+    args.alpha = 0.01
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

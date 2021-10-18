@@ -39,12 +39,22 @@ class PPRer:
         edges, nodes, weights = calc_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets))
         return edges, nodes
 
+    def ppr_sample_nums(self, targets, sample_nums):
+        edges, nodes, weights = calc_ppr_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+                                         np.asarray(targets), sample_nums)
+        return edges, nodes
+
     def ppr_topk_sample(self, targets, topk, descending):
         edges, nodes, weights = calc_ppr_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets), topk, descending)
         return edges, nodes
 
     def ppr_wl_sample(self, targets):
         edges, nodes, weights = calc_wl_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, np.asarray(targets), self.labels, self.wrong_label, self.wl)
+        return edges, nodes
+
+    def ppr_wl_sample_nums(self, targets, sample_nums):
+        edges, nodes, weights = calc_wl_ppr_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+                                            np.asarray(targets), self.labels, self.wrong_label, self.wl, sample_nums)
         return edges, nodes
 
     # todo
@@ -60,6 +70,53 @@ class PPRer:
         edges, nodes, weights = calc_wl_ppr_(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                             np.asarray(targets), self.labels, self.wrong_label, self.wl, self.wl_cnt)
         return edges, nodes
+
+
+def calc_ppr_nums(indptr, indices, deg, alpha, epsilon, nodes, sample_nums):
+    edges = {}
+    targets = []
+    weights = []
+    for i, node in enumerate(nodes):
+        node, weight, edge = _calc_ppr_node_nums(node, indptr, indices, deg, alpha, epsilon, sample_nums)
+        targets.append(node)
+        weights.append(weight)
+        edges.update(edge)
+
+    return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
+
+# todo 可能还是topk的方法好点，最好比较一下
+def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums):
+    edges = {}
+    alpha_eps = alpha * epsilon
+    f32_0 = numba.float32(0)
+    p = {inode: f32_0}
+    r = {}
+    r[inode] = alpha
+    q = [inode]
+    while len(q) > 0 and len(p) < sample_nums:
+        unode = q.pop()
+
+        res = r[unode] if unode in r else f32_0
+        if unode in p:
+            p[unode] += res
+        else:
+            p[unode] = res
+        r[unode] = f32_0
+        for vnode in indices[indptr[unode]:indptr[unode + 1]]:
+            _val = (1 - alpha) * res / deg[unode]
+            if vnode in r:
+                r[vnode] += _val
+            else:
+                r[vnode] = _val
+
+            res_vnode = r[vnode] if vnode in r else f32_0
+            if res_vnode >= alpha_eps * deg[vnode]:
+                if vnode not in q:
+                    q.append(vnode)
+                    if (vnode, unode) not in edges:
+                        edges[(unode, vnode)] = 1
+
+    return list(p.keys()), list(p.values()), edges
 
 
 def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
@@ -184,7 +241,7 @@ def calc_ppr_(indptr, indices, deg, alpha, epsilon, nodes, wl):
 
     return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
 
-
+# todo 试试0.01，然后topk，加wl偏好
 def calc_ppr_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, descending=False):
     edges = {}
     targets = []
@@ -226,7 +283,30 @@ def calc_wl_ppr(indptr, indices, deg, alpha, epsilon, nodes, labels, wrong_label
         node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
         node_np, weight_np = np.array(node), np.array(weight)
         idx_wl = labels[node_np] == wrong_label
-        idx_one_wl = wl[node_np] > 0.8
+        idx_one_wl = wl[node_np] >= 0.5
+        idx = idx_wl | idx_one_wl
+        if any(idx):
+            targets.append(node_np[idx])
+            weights.append(weight_np[idx])
+            edges.update(dict_filter_key(edge, node_np[~idx]))
+        else:
+            print('iter:{}, node:{}, calc_wl_ppr no wrong label nodes'.format(i, node))
+            targets.append(node)
+            weights.append(weight)
+            edges.update(edge)
+
+    return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
+
+# todo 有点问题
+def calc_wl_ppr_nums(indptr, indices, deg, alpha, epsilon, nodes, labels, wrong_label, wl, sample_nums):
+    edges = {}
+    targets = []
+    weights = []
+    for i, node in enumerate(nodes):
+        node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
+        node_np, weight_np = np.array(node), np.array(weight)
+        idx_wl = labels[node_np] == wrong_label
+        idx_one_wl = wl[node_np] >= 0.5
         if any(idx_wl | idx_one_wl):
             targets.append(node_np[idx_wl])
             weights.append(weight_np[idx_wl])

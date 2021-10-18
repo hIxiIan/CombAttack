@@ -1,4 +1,6 @@
 import os
+from time import strftime, localtime
+
 import graphgallery as gg
 import pandas as pd
 import argparse
@@ -17,25 +19,30 @@ if __name__ == '__main__':
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
+    parser.add_argument("--file_prefix", default=strftime("%Y_%m_%d_%H_%M_%S", localtime()), help="result file path")
     cmd = parser.parse_args()
     gg.set_backend("th")
     res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
 
     rootdir = "result" + os.sep
-    prefix = cmd.dataset + "_new_wl_"
-    times = 5
+    prefix = cmd.dataset + "_" + cmd.file_prefix + "_"
+    times = 3
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
-        cmd.add_wl = True
+        cmd.add_wl = False
         # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
         filename = rootdir + prefix + str(i) + '.csv'
         print(filename)
         # sga
-        acc, wlacc, cost = run("sga", cmd=cmd, us=False, verbose=False)
-        res.loc['sga'] = [acc, wlacc, cost]
-        print('-------sga')
-        res.to_csv(filename)
+        try:
+            acc, wlacc, cost = run("sga", cmd=cmd, us=False, verbose=False)
+            res.loc['sga'] = [acc, wlacc, cost]
+            print('-------sga')
+            res.to_csv(filename)
+        except Exception as e:
+            res.loc['sga'] = [-1, -1, -1]
+            print('##################################error', repr(e))
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce',
@@ -44,16 +51,30 @@ if __name__ == '__main__':
         # 'ppr_topk_des', 'ppr_topk_asc', 'ppr_wl_'
 
         # dw
-        for subgraph_type in subgraph_types[:5]:
+        for subgraph_type in subgraph_types[:4]:
+            key = '_'.join([subgraph_type])
+            p = 1.0
+            q = 1.0
+            try:
+                acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                res.loc[key] = [acc, wlacc, cost]
+            except Exception as e:
+                res.loc[key] = [-1, -1, -1]
+                print('##################################error', repr(e))
+            print('-------subgraph:{}'.format(subgraph_type))
+            res.to_csv(filename)
+
+        # dw
+        for subgraph_type in subgraph_types[4:5]:
             for level_limit in [0, 1, 2]:
                 key = '_'.join([subgraph_type, str(level_limit)])
                 p = 1.0
                 q = 1.0
                 try:
-                    acc, wlacc, cost = run(subgraph_type, cmd=cmd,p=p, q=q, level_limit=level_limit, verbose=False)
+                    acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, level_limit=level_limit, verbose=False)
                     res.loc[key] = [acc, wlacc, cost]
                 except Exception as e:
-                    res.loc[key] = [-1, -1]
+                    res.loc[key] = [-1, -1, -1]
                     print('##################################error', repr(e))
                 print('-------subgraph:{}, level_limit:{}'.format(subgraph_type, level_limit))
                 res.to_csv(filename)
@@ -67,7 +88,7 @@ if __name__ == '__main__':
                         acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                         res.loc[key] = [acc, wlacc, cost]
                     except Exception as e:
-                        res.loc[key] = [-1, -1]
+                        res.loc[key] = [-1, -1, -1]
                         print('##################################error', repr(e))
                     print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                     res.to_csv(filename)
@@ -81,13 +102,13 @@ if __name__ == '__main__':
                 acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 res.loc[key] = [acc, wlacc, cost]
             except Exception as e:
-                res.loc[key] = [-1, -1]
+                res.loc[key] = [-1, -1, -1]
                 print('##################################error', repr(e))
             print('-------subgraph:{}'.format(subgraph_type))
             res.to_csv(filename)
 
         # ppr
-        for subgraph_type in subgraph_types[14:15]:
+        for subgraph_type in subgraph_types[14:]:
             p = 1.0
             q = 1.0
             for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
@@ -96,7 +117,7 @@ if __name__ == '__main__':
                     acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
                     res.loc[key] = [acc, wlacc, cost]
                 except Exception as e:
-                    res.loc[key] = [-1, -1]
+                    res.loc[key] = [-1, -1, -1]
                     print('##################################error', repr(e))
                 print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
