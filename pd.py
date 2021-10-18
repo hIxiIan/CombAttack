@@ -231,7 +231,7 @@ class GCN(nn.Module):
     #         self.fc5 = nn.Linear(dim_in ,dim_out,bias=False)
 
     def forward(self, X, flag=1):
-        X = F.tanh(self.fc1(self.DAD.mm(X)))
+        X = torch.tanh(self.fc1(self.DAD.mm(X)))
         #         X = F.tanh(self.fc2(self.DAD.mm(X)))
         #         X = F.tanh(self.fc3(self.DAD.mm(X)))
         #         X = F.tanh(self.fc2(self.DAD.mm(X)))
@@ -353,3 +353,4 @@ if __name__ == '__main__':
     scipy_adj_matrix = nx.convert_matrix.to_scipy_sparse_matrix(sp_mulG, format='coo')
 
     gcn_res = gcn_tree(epoch=6, lr=0.0035, weight_decay=1e-6, esize=8, random_seed=args.seed)
+    print(gcn_res)
