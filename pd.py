@@ -274,7 +274,7 @@ def gcn_train(X, Y, A_normed, A, epoch, lr, weight_decay, esize, random_seed):
     return Z
 
 
-def gcn_tree(epoch=10, lr=0.02, weight_decay=2e-6, esize=8, random_seed=RANDOM_SEED):
+def gcn_tree(epoch=10, lr=0.02, weight_decay=2e-6, esize=8, random_seed=2022):
     global train_x, train_y
     gcn_res, rcnt = [0, 0, 0, 0], 5
     X_new, Y_new, A_normed_new, adj_mat_new = get_input_vars()
@@ -324,7 +324,7 @@ class ARGS:
         self.FEATURES_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/features.dat' % self.sample_size)
         self.DATA_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d' % self.sample_size)
 
-
+# gpu实现
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
