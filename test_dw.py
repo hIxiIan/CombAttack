@@ -50,11 +50,25 @@ if __name__ == '__main__':
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']
-        subgraph_types = ['n2v_wl']
+        subgraph_types = ['dw_ce', 'dw_ce_topk']
+        for subgraph_type in subgraph_types:
+            p = 1.0
+            q = 1.0
+            key = '_'.join([subgraph_type, str(p), str(q)])
+            try:
+                acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                res.loc[key] = [acc, wlacc, cost]
+            except Exception as e:
+                res.loc[key] = [-1, -1, -1]
+                print('##################################error', repr(e))
+            print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
+            res.to_csv(filename)
+
+        subgraph_types = ['n2v_wl', 'n2v_ce']
         # 'dw_ce', 'dw_ce_topk'
         # ppr
         for subgraph_type in subgraph_types:
-            for p in [1.5, 2.0, 4.0, 6.0]:
+            for p in [1.5, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0, 20.0]:
                 for q in [0.1, 0.25, 0.5, 0.8]:
                     key = '_'.join([subgraph_type, str(p), str(q)])
                     try:
