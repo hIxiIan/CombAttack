@@ -105,7 +105,8 @@ class Walker:
                     if any(idx_ce):
                         nbrs = nbrs[idx_ce]
                         nbrs_ce = nbrs_ce[idx_ce]
-
+                    # todo 全轮盘赌
+                    # topk+轮盘赌
                     u = nbrs[stochastic_accept(nbrs_ce)]
                     tmp_nodes.append(u)
                     if (u, head) not in edges:
