@@ -71,7 +71,6 @@ def lgb_train_model(train_x, train_y, random_seed):
         'num_class': 2,
         'force_col_wise': True,
         'min_data_in_leaf': 20,
-        'early_stopping_round': 1,
         #         'scale_pos_weight':100,
     }
 
@@ -84,8 +83,7 @@ def lgb_train_model(train_x, train_y, random_seed):
                               train_set,
                               #                               num_boost_round=100
                               valid_sets=[val_set],
-                              early_stopping_rounds=60,
-                              verbose_eval=0,
+                              # early_stopping_rounds=60,
                               feval=eval_f
                               )
 
