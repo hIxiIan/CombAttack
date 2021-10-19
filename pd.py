@@ -324,6 +324,9 @@ class ARGS:
         self.SAMPLE_MULDIGS_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/SP_MulDiGs.pkl' % self.sample_size)
         self.FEATURES_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/features.dat' % self.sample_size)
         self.DATA_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d' % self.sample_size)
+        self.lr = cmd.learning_rate
+        self.epoch = cmd.epoch
+        self.weight_decay = cmd.weight_decay
 
 # gpu实现
 if __name__ == '__main__':
@@ -334,7 +337,9 @@ if __name__ == '__main__':
 
     parser.add_argument("-ss", "--sample_size", default=30000, type=int, help="sample size")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
-
+    parser.add_argument("-lr", "--learning_rate", default=0.005, type=float, help="learning rate")
+    parser.add_argument("--epoch", default=6, type=int)
+    parser.add_argument("--weight_decay", default=1e-6, type=float)
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
     args = ARGS(cmd)
@@ -353,5 +358,5 @@ if __name__ == '__main__':
     pos_cnt, neg_cnt = int(train_y.sum()), int(len(train_y) - train_y.sum())
     scipy_adj_matrix = nx.convert_matrix.to_scipy_sparse_matrix(sp_mulG, format='coo')
 
-    gcn_res = gcn_tree(epoch=6, lr=0.0035, weight_decay=1e-6, esize=8, random_seed=args.seed)
+    gcn_res = gcn_tree(epoch=args.epoch, lr=args.lr, weight_decay=args.weight_decay, esize=8, random_seed=args.seed)
     print(gcn_res)
