@@ -271,6 +271,9 @@ class Walker:
             elif self.is_wl_matrix:
                 unnormalized_probs = [self.wl_matrix[node][nbr] for nbr in
                                       self.indices[self.indptr[node]:self.indptr[node + 1]]]
+            elif self.is_ce_matrix:
+                unnormalized_probs = [self.ce_matrix[node][nbr] for nbr in
+                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
             else:
                 unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
             norm_const = sum(unnormalized_probs)
