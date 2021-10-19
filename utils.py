@@ -1,5 +1,5 @@
 import random
-
+import pandas as pd
 import torch
 import numpy as np
 from bisect import bisect_left
@@ -179,3 +179,16 @@ def get_target_subgraph_level(target, indices, indptr, N):
             break
 
     return seen
+
+
+def save_test(_prefix, times):
+    tdf = None
+    for i in range(times):
+        filename = "_".join([_prefix, str(i)]) + '.csv'
+        df = pd.read_csv(filename, index_col=0)
+        if i == 0:
+            tdf = df
+        else:
+            tdf += df
+    tdf /= times
+    tdf.to_csv(_prefix + '_total.csv')

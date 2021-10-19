@@ -143,7 +143,7 @@ def init_sampler(attacker, args):
     pprer = None
 
     if args.subgraph_type[:2] == "dw":
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, level_limit=args.level_limit, wl_limit=args.wl_limit)
+        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
     elif args.subgraph_type[:3] == "n2v":
         if args.subgraph_type == "n2v_purity":
             args.is_purity_matrix = True
@@ -212,11 +212,6 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
             else:
                 if attacker._walk_length <= 10:
                     print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
-                    if args.add_wl:
-                        print('add all of wrong label nodes to subgraph')
-                else:
-                    pass
-                    # print('not add other nodes to subgraph')
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, cost: {} min'.format(i, target, (end_i - start_i) / 60))
@@ -244,7 +239,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     return acc, wlacc, cost
 
 
-def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, level_limit=0, us=True, verbose=True):
+def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, us=True, verbose=True):
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
@@ -261,7 +256,6 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
     args.p = p
     args.q = q
     args.alpha = alpha
-    args.level_limit = level_limit
     surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
@@ -298,7 +292,6 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
-    cmd.add_wl = False
     random.seed(cmd.seed)
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
@@ -310,9 +303,9 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    args.subgraph_type = "ppr_nums"
+    args.subgraph_type = "spread_ce"
     args.seed = 2012
-    args.alpha = 0.01
+    # args.alpha = 0.01
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

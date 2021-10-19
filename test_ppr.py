@@ -1,8 +1,11 @@
 import os
+from time import strftime, localtime
+
 import graphgallery as gg
 import pandas as pd
 import argparse
 from ca import run
+from utils import save_test
 
 
 if __name__ == '__main__':
@@ -19,17 +22,20 @@ if __name__ == '__main__':
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
     gg.set_backend("th")
-    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
 
-    rootdir = "result" + os.sep
-    prefix = cmd.dataset + "pprs_"
+    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
+    rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    if not os.path.exists(rootdir):
+        os.mkdir(rootdir)
+    personal = "test_ppr_11_19"
+    prefix = "_".join([cmd.dataset, personal])
+    _prefix = rootdir + os.sep + prefix
+
     times = 3
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
-        cmd.add_wl = True
-        # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
-        filename = rootdir + prefix + str(i) + '.csv'
+        filename = "_".join([_prefix, str(i)]) + '.csv'
         print(filename)
         # sga
         try:
@@ -60,14 +66,5 @@ if __name__ == '__main__':
                 print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
 
-    tdf = None
-    for i in range(times):
-        filename = rootdir + prefix + str(i) + '.csv'
-        df = pd.read_csv(filename, index_col=0)
-        if i == 0:
-            tdf = df
-        else:
-            tdf += df
-    tdf /= times
-    tdf.to_csv(rootdir + prefix + '_total.csv')
+    save_test(_prefix, times)
 

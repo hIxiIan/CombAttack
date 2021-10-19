@@ -5,7 +5,7 @@ from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, level_limit=0, wl_limit=1.0, eps=1e-4):
+    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, wl_limit=1.0, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
@@ -24,8 +24,6 @@ class Walker:
         # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
         if logits is not None:
             self.ce_matrix = get_cross_entropy_matrix(logits)
-
-        self.level_limit = level_limit
 
         self.wrong_label = None
         self.wl = None
@@ -89,24 +87,12 @@ class Walker:
         nodes = []
 
         for target in targets:
-            level = get_target_subgraph_level(target, self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, len(self.labels))
             tmp_nodes = [target]
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
                 if len(nbrs) > 0:
-                    # nbrs_ce = self.ce_matrix[target, nbrs]
-                    if level[nbrs].min() > self.level_limit:
-                        nbrs_ce = self.ce_matrix[target, nbrs]
-                    else:
-                        nbrs_ce = self.ce_matrix[head, nbrs]
-                    ce_limit = np.percentile(nbrs_ce, 50)
-                    idx_ce = nbrs_ce > ce_limit
-                    if any(idx_ce):
-                        nbrs = nbrs[idx_ce]
-                        nbrs_ce = nbrs_ce[idx_ce]
-                    # todo 全轮盘赌
-                    # topk+轮盘赌
+                    nbrs_ce = self.ce_matrix[target, nbrs]
                     u = nbrs[stochastic_accept(nbrs_ce)]
                     tmp_nodes.append(u)
                     if (u, head) not in edges:
@@ -115,6 +101,33 @@ class Walker:
                     break
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    def deepwalk_ce_topk_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                if len(nbrs) > 0:
+                    nbrs_ce = self.ce_matrix[target, nbrs]
+                    if topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_ce)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_ce = nbrs_ce[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_ce)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
 
     def deepwalk_purity_sample(self, targets, sample_nums):
         edges = {}

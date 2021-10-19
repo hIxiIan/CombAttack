@@ -1,7 +1,11 @@
 import os
+from time import strftime, localtime
+
 import graphgallery as gg
 import pandas as pd
 import argparse
+
+from utils import save_test
 from ca import run
 
 
@@ -19,17 +23,20 @@ if __name__ == '__main__':
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     cmd = parser.parse_args()
     gg.set_backend("th")
-    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
 
-    rootdir = "result" + os.sep
-    prefix = cmd.dataset + "test_n2v_pq_"
+    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
+    rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    if not os.path.exists(rootdir):
+        os.mkdir(rootdir)
+    personal = "test_n2v_11_19"
+    prefix = "_".join([cmd.dataset, personal])
+    _prefix = rootdir + os.sep + prefix
+
     times = 1
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
-        cmd.add_wl = True
-        # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
-        filename = rootdir + prefix + str(i) + '.csv'
+        filename = "_".join([_prefix, str(i)]) + '.csv'
         print(filename)
         # sga
         try:
@@ -44,6 +51,7 @@ if __name__ == '__main__':
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']
         subgraph_types = ['n2v_wl']
+        # 'dw_ce', 'dw_ce_topk'
         # ppr
         for subgraph_type in subgraph_types:
             for p in [1.5, 2.0, 4.0, 6.0]:
@@ -58,14 +66,7 @@ if __name__ == '__main__':
                     print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                     res.to_csv(filename)
 
-    tdf = None
-    for i in range(times):
-        filename = rootdir + prefix + str(i) + '.csv'
-        df = pd.read_csv(filename, index_col=0)
-        if i == 0:
-            tdf = df
-        else:
-            tdf += df
-    tdf /= times
-    tdf.to_csv(rootdir + prefix + '_total.csv')
+    save_test(_prefix, times)
+
+
 

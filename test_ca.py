@@ -4,6 +4,8 @@ from time import strftime, localtime
 import graphgallery as gg
 import pandas as pd
 import argparse
+
+from utils import save_test
 from ca import run
 
 
@@ -22,17 +24,20 @@ if __name__ == '__main__':
     parser.add_argument("--file_prefix", default=strftime("%Y_%m_%d_%H_%M_%S", localtime()), help="result file path")
     cmd = parser.parse_args()
     gg.set_backend("th")
-    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
 
-    rootdir = "result" + os.sep
-    prefix = cmd.dataset + "_" + cmd.file_prefix + "_"
+    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
+    rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    if not os.path.exists(rootdir):
+        os.mkdir(rootdir)
+    personal = "test_ca_11_19"
+    prefix = "_".join([cmd.dataset, personal])
+    _prefix = rootdir + os.sep + prefix
+
     times = 3
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
-        cmd.add_wl = False
-        # filename = "result/result" + strftime("%Y_%m_%d_%H_%M_%S", localtime()) + ".csv"
-        filename = rootdir + prefix + str(i) + '.csv'
+        filename = "_".join([_prefix, str(i)]) + '.csv'
         print(filename)
         # sga
         try:
@@ -51,7 +56,7 @@ if __name__ == '__main__':
         # 'ppr_topk_des', 'ppr_topk_asc', 'ppr_wl_'
 
         # dw
-        for subgraph_type in subgraph_types[:4]:
+        for subgraph_type in subgraph_types[:5]:
             key = '_'.join([subgraph_type])
             p = 1.0
             q = 1.0
@@ -63,21 +68,6 @@ if __name__ == '__main__':
                 print('##################################error', repr(e))
             print('-------subgraph:{}'.format(subgraph_type))
             res.to_csv(filename)
-
-        # dw
-        for subgraph_type in subgraph_types[4:5]:
-            for level_limit in [0, 1, 2]:
-                key = '_'.join([subgraph_type, str(level_limit)])
-                p = 1.0
-                q = 1.0
-                try:
-                    acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, level_limit=level_limit, verbose=False)
-                    res.loc[key] = [acc, wlacc, cost]
-                except Exception as e:
-                    res.loc[key] = [-1, -1, -1]
-                    print('##################################error', repr(e))
-                print('-------subgraph:{}, level_limit:{}'.format(subgraph_type, level_limit))
-                res.to_csv(filename)
 
         # n2v
         for subgraph_type in subgraph_types[5:9]:
@@ -121,14 +111,6 @@ if __name__ == '__main__':
                     print('##################################error', repr(e))
                 print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
-    tdf = None
-    for i in range(times):
-        filename = rootdir + prefix + str(i) + '.csv'
-        df = pd.read_csv(filename, index_col=0)
-        if i == 0:
-            tdf = df
-        else:
-            tdf += df
-    tdf /= times
-    tdf.to_csv(rootdir + prefix + '_total.csv')
+
+    save_test(_prefix, times)
 

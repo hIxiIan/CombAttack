@@ -225,10 +225,12 @@ class Spreader:
                 idx_ce = nbrs_ce > ce_limit
                 if any(idx_ce):
                     nbrs = nbrs[idx_ce]
+                    nbrs_ce = nbrs_ce[idx_ce]
 
                 if sample_nums < len(targets) + len(nbrs):
                     topk = sample_nums - len(targets)
-                    nbrs = np.sort(nbrs)[-topk:]
+                    idx_topk = np.argsort(nbrs_ce)[-topk:]
+                    nbrs = nbrs[idx_topk]
 
                 for i, u in enumerate(nbrs):
                     if seen[u] < 0:

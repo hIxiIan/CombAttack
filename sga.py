@@ -277,6 +277,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_sample_wl_keep_hops(targets, self.sample_nums)
         elif subgraph_type == 'dw_ce':
             sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'dw_ce_topk':
+            sub_edges, sub_nodes = self.walker.deepwalk_ce_topk_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v':
             sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
         elif subgraph_type == 'n2v_purity':
