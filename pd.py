@@ -55,6 +55,7 @@ def eval_f(y_pred, y_true):
 
 
 def lgb_train_model(train_x, train_y, random_seed):
+    global MIN_DATA_IN_LEAF
     skfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_seed)
     lgb_paras = {
         'objective': 'multiclass',
@@ -70,7 +71,7 @@ def lgb_train_model(train_x, train_y, random_seed):
         'num_threads': 8,
         'num_class': 2,
         'force_col_wise': True,
-        'min_data_in_leaf': 20,
+        'min_data_in_leaf': MIN_DATA_IN_LEAF,
         #         'scale_pos_weight':100,
     }
 
@@ -340,11 +341,13 @@ if __name__ == '__main__':
     parser.add_argument("--epoch", default=6, type=int)
     parser.add_argument("--weight_decay", default=1e-6, type=float)
     parser.add_argument("--n_us", action="store_true", help="run sga model")
+    parser.add_argument("--min_data_in_leaf", default=20, type=int)
     cmd = parser.parse_args()
     args = ARGS(cmd)
 
     DATA_PATH = args.DATA_PATH
     RANDOM_SEED = args.seed
+    MIN_DATA_IN_LEAF = cmd.min_data_in_leaf
 
     df = load_pickle(args.FEATURES_PATH)
     sp_muldG = load_pickle(args.SAMPLE_MULDIGS_PATH)
