@@ -31,7 +31,6 @@ class Spreader:
         self.wl_matrix = get_wl_matrix(self.wl)
 
     # 10^-3
-    # todo:可能扩散不出去，措施直接与wrong_label相连？
     def spread_random_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops

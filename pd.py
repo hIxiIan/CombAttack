@@ -71,6 +71,7 @@ def lgb_train_model(train_x, train_y, random_seed):
         'num_class': 2,
         'force_col_wise': True,
         'min_data_in_leaf': 20,
+        'early_stopping_round': 1,
         #         'scale_pos_weight':100,
     }
 
