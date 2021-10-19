@@ -85,9 +85,9 @@ def lgb_train_model(train_x, train_y, random_seed):
                               #                               num_boost_round=100
                               valid_sets=[val_set],
                               # early_stopping_rounds=60,
-                              feval=eval_f
+                              feval=eval_f,
+                              callbacks=[lgb.early_stopping(60)]
                               )
-
         val_pred = np.argmax(lgb_model.predict(val_x, num_iteration=lgb_model.best_iteration), axis=1)
         auc_score = metrics.roc_auc_score(val_y, val_pred)
         recall_score = metrics.recall_score(val_y, val_pred, pos_label=1)
