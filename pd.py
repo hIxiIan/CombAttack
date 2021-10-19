@@ -327,6 +327,7 @@ class ARGS:
         self.lr = cmd.learning_rate
         self.epoch = cmd.epoch
         self.weight_decay = cmd.weight_decay
+        self.cuda = torch.cuda.is_available() and cmd.device == "gpu"
 
 # gpu实现
 if __name__ == '__main__':
