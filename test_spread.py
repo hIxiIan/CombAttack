@@ -28,7 +28,7 @@ if __name__ == '__main__':
     rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = "test_spread_11_19"
+    personal = "test_spread"
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
@@ -67,6 +67,7 @@ if __name__ == '__main__':
             print('-------subgraph:{}'.format(subgraph_type))
             res.to_csv(filename)
 
+    print(_prefix)
     save_test(_prefix, times)
 
 

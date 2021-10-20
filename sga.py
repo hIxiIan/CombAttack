@@ -320,23 +320,28 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_wl_keep_hops':
             sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+
         # ppr
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)
         elif subgraph_type == "ppr_nums":
-            sub_edges, sub_nodes = self.PPRer.ppr_sample_nums(targets, self.sample_nums)
-        elif subgraph_type == 'ppr_':
-            sub_edges, sub_nodes = self.PPRer.ppr_sample_wl(targets)
+            sub_edges, sub_nodes = self.PPRer.ppr_nums_sample(targets, self.sample_nums)
         elif subgraph_type == 'ppr_topk_des':
-            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, True)
+            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, descending=True)
         elif subgraph_type == 'ppr_topk_asc':
-            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, False)
-        elif subgraph_type == 'ppr_wl':
+            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, descending=False)
+        elif subgraph_type == 'ppr_wl_limit': # wl阈值
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_sample(targets)
+        elif subgraph_type == 'ppr_wl_limit_nums':
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_nums_sample(targets, self.sample_nums)
+        elif subgraph_type == 'ppr_wl': # 公式乘wl
             sub_edges, sub_nodes = self.PPRer.ppr_wl_sample(targets)
-        elif subgraph_type == 'ppr_wl_nums':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_sample_nums(targets, self.sample_nums)
-        elif subgraph_type == 'ppr_wl_':
-            sub_edges, sub_nodes = self.PPRer.ppr_sample_wl_wl(targets)
+        elif subgraph_type == 'ppr_wl_limit_wl':
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_wl_sample(targets)
+        elif subgraph_type == 'ppr_wl_topk_des':
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=True)
+        elif subgraph_type == 'ppr_wl_topk_asc':
+            sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=False)
         else:
             sub_edges, sub_nodes = [], []
         return sub_edges, np.unique(sub_nodes)

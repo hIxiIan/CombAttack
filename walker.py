@@ -26,9 +26,9 @@ class Walker:
         if is_purity_matrix and (self.p != 1.0 or self.q != 1.0):
             self.preprocess_transition_probs()
 
-        if is_ce_matrix and logits is not None:
+        if logits is not None:
             self.ce_matrix = get_cross_entropy_matrix(logits)
-            if self.p != 1.0 or self.q != 1.0:
+            if self.is_ce_matrix and (self.p != 1.0 or self.q != 1.0):
                 self.preprocess_transition_probs()
 
         self.wrong_label = None

@@ -27,7 +27,7 @@ if __name__ == '__main__':
     rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = "test_ppr_11_19"
+    personal = "test_ppr"
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
@@ -49,7 +49,9 @@ if __name__ == '__main__':
 
         # us
         # no, yes, yes, yes, no
-        subgraph_types = ['ppr', 'ppr_nums', 'ppr_topk_des', 'ppr_topk_asc', 'ppr_wl']
+        subgraph_types = ['ppr', 'ppr_nums', 'ppr_topk_des', 'ppr_topk_asc',
+                          'ppr_wl_limit', 'ppr_wl_limit_nums', 'ppr_wl', 'ppr_wl_limit_wl'
+                          'ppr_wl_topk_des', 'ppr_wl_topk_asc']
 
         # ppr
         for subgraph_type in subgraph_types:
@@ -66,5 +68,6 @@ if __name__ == '__main__':
                 print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
 
+    print(_prefix)
     save_test(_prefix, times)
 
