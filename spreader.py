@@ -189,7 +189,7 @@ class Spreader:
             assert False, 'sample 0 edge'
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
 
-    def spread_sample(self, targets, sample_nums):
+    def spread_ce_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops
         indices = self.indices
@@ -205,7 +205,64 @@ class Spreader:
         root = targets[0]
         while sample_nums > len(targets):
             end = len(targets)
+            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            while start < end and sample_nums > len(targets):
+                head = targets[start]
+                nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
 
+                if keep_hops and level < hops:
+                    for i, u in enumerate(nbrs):
+                        if sample_nums <= len(targets):
+                            break
+                        if seen[u] < 0:
+                            seen[u] = level + 1
+                            targets.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = level + 1
+                    start += 1
+                    continue
+                nbrs_ce = self.ce_matrix[root][nbrs]
+                # ce_limit
+                ce_limit = np.percentile(nbrs_ce, 50)
+                idx_ce = nbrs_ce > ce_limit
+                if any(idx_ce) and idx_ce.sum() >= target_topk:
+                    nbrs = nbrs[idx_ce]
+                    nbrs_ce = nbrs_ce[idx_ce]
+
+                if sample_nums < len(targets) + len(nbrs):
+                    topk = sample_nums - len(targets)
+                    idx_topk = np.argsort(nbrs_ce)[-topk:]
+                    nbrs = nbrs[idx_topk]
+
+                for i, u in enumerate(nbrs):
+                    if seen[u] < 0:
+                        seen[u] = level + 1
+                        targets.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = level + 1
+                start += 1
+
+            level = level + 1
+
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+
+    def spread_wl_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
+        indices = self.indices
+        indptr = self.indptr
+
+        edges = {}
+        start = 0
+        N = self.adj_matrix.shape[0]
+        # N个节点，全部初始化为-1
+        seen = np.zeros(N) - 1
+        seen[targets] = 0
+        level = 0
+        while sample_nums > len(targets):
+            end = len(targets)
+            wl_limit = 0.5
+            target_topk = len(self.indices[self.indptr[head]:self.indptr[head + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -220,12 +277,11 @@ class Spreader:
                             edges[(head, u)] = level + 1
                     start += 1
                     continue
-                nbrs_ce = self.ce_matrix[root][nbrs]
-                ce_limit = np.percentile(nbrs_ce, 50)
-                idx_ce = nbrs_ce > ce_limit
-                if any(idx_ce):
-                    nbrs = nbrs[idx_ce]
-                    nbrs_ce = nbrs_ce[idx_ce]
+                nbrs_wl = self.wl[nbrs]
+                idx_wl = nbrs_wl > wl_limit
+                if any(idx_wl) and idx_wl.sum() >= target_topk:
+                    nbrs = nbrs[idx_wl]
+                    nbrs_ce = nbrs_wl[idx_wl]
 
                 if sample_nums < len(targets) + len(nbrs):
                     topk = sample_nums - len(targets)
@@ -236,6 +292,7 @@ class Spreader:
                     if seen[u] < 0:
                         seen[u] = level + 1
                         targets.append(u)
+                        wl_limit = max(wl_limit, self.wl[u])
                     if (u, head) not in edges:
                         edges[(head, u)] = level + 1
                 start += 1

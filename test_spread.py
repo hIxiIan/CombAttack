@@ -49,8 +49,10 @@ if __name__ == '__main__':
             print('##################################error', repr(e))
 
         # us
-        subgraph_types = ['spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce', 'spread_random_ce_keep_hops', 'spread_ce']
-        subgraph_types = ['spread_ce']
+        subgraph_types = ['spread_random_wl', 'spread_random_wl_keep_hops',
+                          'spread_random_ce', 'spread_random_ce_keep_hops',
+                          'spread_ce', 'spread_ce_keep_hops',
+                          'spread_wl', 'spread_wl_keep_hops']
 
         for subgraph_type in subgraph_types:
             key = '_'.join([subgraph_type])

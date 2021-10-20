@@ -282,6 +282,10 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_ce_topk':
             sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums, is_topk=True)
+        elif subgraph_type == 'dw_ce_dynamic':
+            sub_edges, sub_nodes = self.walker.deepwalk_ce_dynamic_sample(targets, self.sample_nums, is_topk=False)
+        elif subgraph_type == 'dw_ce_dynamic_topk':
+            sub_edges, sub_nodes = self.walker.deepwalk_ce_dynamic_sample(targets, self.sample_nums, is_topk=True)
         elif subgraph_type == 'dw_purity':
             sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_purity_topk':
@@ -309,8 +313,13 @@ class SCA(TargetedAttacker):
         elif subgraph_type == 'spread_random_ce_keep_hops':
             sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_ce':
-            sub_edges, sub_nodes = self.spreader.spread_sample(targets, self.sample_nums)
-
+            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_ce_keep_hops':
+            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_wl':
+            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_wl_keep_hops':
+            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
         # ppr
         elif subgraph_type == 'ppr':
             sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)

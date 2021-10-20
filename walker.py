@@ -68,6 +68,7 @@ class Walker:
 
     # 轮盘赌
     # 轮盘赌+topk
+    # todo 尝试将度小考虑进来
     def deepwalk_wl_sample(self, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -103,12 +104,11 @@ class Walker:
 
         for target in targets:
             tmp_nodes = [target]
-            wl_limit_max = 0.5
+            wl_limit = 0.5
             topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                wl_limit = max(wl_limit_max, self.wl[tmp_nodes].mean())
                 if len(nbrs) > 0:
                     nbrs_wl = self.wl[nbrs]
                     one_wl_idx = nbrs_wl >= wl_limit
@@ -123,7 +123,7 @@ class Walker:
 
                     u = nbrs[stochastic_accept(nbrs_wl)]
                     tmp_nodes.append(u)
-                    wl_limit_max = max(wl_limit_max, self.wl[u])
+                    wl_limit = max(wl_limit, self.wl[u])
                     if (u, head) not in edges:
                         edges[(head, u)] = 1
                 else:
@@ -159,6 +159,42 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    # 轮盘赌+动态cross_entropy阈值
+    # 轮盘赌+动态cross_entropy阈值+topk
+    def deepwalk_ce_dynamic_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            ce_limit = 1.0
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                if len(nbrs) > 0:
+                    nbrs_ce = self.ce_matrix[target, nbrs]
+                    one_ce_idx = nbrs_ce >= ce_limit
+                    if any(one_ce_idx) and one_ce_idx.sum() >= topk:
+                        nbrs = nbrs[one_ce_idx]
+                        nbrs_ce = nbrs_ce[one_ce_idx]
+
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_ce)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_ce = nbrs_ce[idx_topk]
+
+                    idx = stochastic_accept(nbrs_ce)
+                    u = nbrs[idx]
+                    tmp_nodes.append(u)
+                    ce_limit = max(ce_limit, nbrs_ce[idx])
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
     # 轮盘赌
     # 轮盘赌+topk
     def deepwalk_purity_sample(self, targets, sample_nums, is_topk):
@@ -177,7 +213,7 @@ class Walker:
                     nbrs_labels = self.labels[nbrs]
                     wrong_label_idx = nbrs_labels == self.wrong_label
 
-                    if any(wrong_label_idx):
+                    if any(wrong_label_idx) and wrong_label_idx.sum() >= topk:
                         nbrs = nbrs[wrong_label_idx]
                         nbrs_purity = self.purity[nbrs]
 

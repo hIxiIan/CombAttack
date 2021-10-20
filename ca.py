@@ -153,11 +153,8 @@ def init_sampler(attacker, args):
             args.is_ce_matrix = True
         walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, args.is_purity_matrix, args.is_wl_matrix, args.is_ce_matrix, wl_limit=args.wl_limit)
     elif args.subgraph_type[:6] == "spread":
-        if args.subgraph_type == "spread_random_wl_keep_hops":
-            args.keep_hops = True
-        if args.subgraph_type == "spread_random_ce_keep_hops":
-            args.keep_hops = True
-        if args.subgraph_type == "spread_ce_keep_hops":
+        if args.subgraph_type in ['spread_random_wl_keep_hops', 'spread_random_ce_keep_hops',
+                                  'spread_ce_keep_hops', 'spread_wl_keep_hops']:
             args.keep_hops = True
         spreader = Spreader(attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
     elif args.subgraph_type[:3] == "ppr":
@@ -304,7 +301,7 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    args.subgraph_type = "dw_wl_dynamic"
+    args.subgraph_type = "spread_wl"
     args.seed = 2012
     # args.p = 6.0
     # args.q = 0.25

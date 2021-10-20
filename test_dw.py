@@ -50,7 +50,8 @@ if __name__ == '__main__':
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']
-        subgraph_types = ['dw_wl', 'dw_wl_topk', 'dw_wl_dynamic', 'dw_wl_dynamic_topk', 'dw_ce', 'dw_ce_topk', 'dw_purity', 'dw_purity_topk']
+        subgraph_types = ['dw_wl', 'dw_wl_topk', 'dw_wl_dynamic', 'dw_wl_dynamic_topk', 'dw_ce', 'dw_ce_topk', 'dw_ce_dynamic',
+                          'dw_wl_dynamic_topk', 'dw_purity', 'dw_purity_topk']
         for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
