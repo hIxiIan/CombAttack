@@ -1,12 +1,7 @@
-import types
-
 import numba
 import numpy as np
-from numba import int64
 
 from graphgallery import functional as gf
-from numba.typed import Dict
-from numba.core import types
 from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
@@ -80,6 +75,7 @@ class PPRer:
         return edges, nodes
 
 
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -114,6 +110,7 @@ def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums
     return list(p.keys()), list(p.values()), edges
 
 
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -148,6 +145,7 @@ def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
     return list(p.keys()), list(p.values()), edges
 
 
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node_wl(wl, inode, indptr, indices, deg, alpha, epsilon):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -269,7 +267,7 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
 
         nodes_wl = wl[node_np]
         idx_wl = nodes_wl >= 0.5
-        if any(idx_wl) and idx_wl.sum() >= topk / 2:
+        if idx_wl.sum() >= topk / 2:
             node_np = node_np[idx_wl]
             weight_np = weight_np[idx_wl]
 
