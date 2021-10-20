@@ -20,10 +20,16 @@ class Walker:
         self.purity_r = 1 - self.purity + eps  # 杂度
         self.purity += eps
 
-        self.purity_matrix = get_purity_martix(self.purity, self.purity_r, labels) + eps
-        # self.purity_r_matrix = get_purity_martix(self.purity_r, labels) + eps
-        if logits is not None:
+        self.purity_matrix = get_purity_martix(self.purity, self.purity, labels) + eps
+        self.purity_r_matrix = get_purity_martix(self.purity_r, self.purity_r, labels) + eps
+
+        if is_purity_matrix and (self.p != 1.0 or self.q != 1.0):
+            self.preprocess_transition_probs()
+
+        if is_ce_matrix and logits is not None:
             self.ce_matrix = get_cross_entropy_matrix(logits)
+            if self.p != 1.0 or self.q != 1.0:
+                self.preprocess_transition_probs()
 
         self.wrong_label = None
         self.wl = None
@@ -36,11 +42,163 @@ class Walker:
         self.wrong_label = wrong_label
         self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, self.labels, wrong_label, self.eps)
         self.wl_matrix = get_wl_matrix(self.wl)
-        if self.p != 1.0 or self.q != 1.0:
+        if self.is_wl_matrix and (self.p != 1.0 or self.q != 1.0):
             self.preprocess_transition_probs()
 
+    # 纯随机游走
+    def deepwalk_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    u = random.choice(nbrs)
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    # 轮盘赌
+    # 轮盘赌+topk
+    def deepwalk_wl_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_wl = self.wl[nbrs]
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_wl)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_wl = nbrs_wl[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_wl)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    # 轮盘赌+动态wrong_label阈值
+    # 轮盘赌+动态wrong_label阈值+topk
+    def deepwalk_wl_dynamic_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            wl_limit_max = 0.5
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                wl_limit = max(wl_limit_max, self.wl[tmp_nodes].mean())
+                if len(nbrs) > 0:
+                    nbrs_wl = self.wl[nbrs]
+                    one_wl_idx = nbrs_wl >= wl_limit
+                    if any(one_wl_idx) and one_wl_idx.sum() >= topk:
+                        nbrs = nbrs[one_wl_idx]
+                        nbrs_wl = self.wl[nbrs]
+
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_wl)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_wl = nbrs_wl[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_wl)]
+                    tmp_nodes.append(u)
+                    wl_limit_max = max(wl_limit_max, self.wl[u])
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    # 轮盘赌
+    # 轮盘赌+topk
+    def deepwalk_ce_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                if len(nbrs) > 0:
+                    nbrs_ce = self.ce_matrix[target, nbrs]
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_ce)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_ce = nbrs_ce[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_ce)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    # 轮盘赌
+    # 轮盘赌+topk
+    def deepwalk_purity_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_purity = self.purity_r[nbrs]
+                    nbrs_labels = self.labels[nbrs]
+                    wrong_label_idx = nbrs_labels == self.wrong_label
+
+                    if any(wrong_label_idx):
+                        nbrs = nbrs[wrong_label_idx]
+                        nbrs_purity = self.purity[nbrs]
+
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_purity)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_purity = nbrs_purity[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_purity)]
+                    tmp_nodes.append(u)
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    # 仅作保留
     def deepwalk_sample_wl_keep_hops(self, targets, sample_nums):
-        nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0], hops=2)
+        nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0],
+                                         hops=2)
         nodes = list(nodes)
         while len(nodes) < sample_nums:
             head = random.choice(nodes)
@@ -59,140 +217,6 @@ class Walker:
             else:
                 break
 
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
-    def deepwalk_sample(self, targets, sample_nums):
-        edges = {}
-        nodes = []
-
-        for target in targets:
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                # head = random.choice(tmp_nodes)
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-
-                if len(nbrs) > 0:
-                    u = random.choice(nbrs)
-                    tmp_nodes.append(u)
-                    if (u, head) not in edges:
-                        edges[(head, u)] = 1
-                else:
-                    break
-            nodes.extend(tmp_nodes)
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
-    def deepwalk_ce_sample(self, targets, sample_nums):
-        edges = {}
-        nodes = []
-
-        for target in targets:
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                if len(nbrs) > 0:
-                    nbrs_ce = self.ce_matrix[target, nbrs]
-                    u = nbrs[stochastic_accept(nbrs_ce)]
-                    tmp_nodes.append(u)
-                    if (u, head) not in edges:
-                        edges[(head, u)] = 1
-                else:
-                    break
-            nodes.extend(tmp_nodes)
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
-    def deepwalk_ce_topk_sample(self, targets, sample_nums):
-        edges = {}
-        nodes = []
-
-        for target in targets:
-            tmp_nodes = [target]
-            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                if len(nbrs) > 0:
-                    nbrs_ce = self.ce_matrix[target, nbrs]
-                    if topk < len(nbrs):
-                        idx_topk = np.argsort(nbrs_ce)[-topk:]
-                        nbrs = nbrs[idx_topk]
-                        nbrs_ce = nbrs_ce[idx_topk]
-
-                    u = nbrs[stochastic_accept(nbrs_ce)]
-                    tmp_nodes.append(u)
-                    if (u, head) not in edges:
-                        edges[(head, u)] = 1
-                else:
-                    break
-            nodes.extend(tmp_nodes)
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
-
-    def deepwalk_purity_sample(self, targets, sample_nums):
-        edges = {}
-        nodes = []
-
-        for target in targets:
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-
-                if len(nbrs) > 0:
-                    nbrs_purity = self.purity_r[nbrs]
-
-                    nbrs_labels = self.labels[nbrs]
-                    wrong_label_idx = nbrs_labels == self.wrong_label
-                    # different_label_idx = nbrs_labels != self.labels[target]
-                    # wrong_label_idx = nbrs_labels != self.labels[target]
-                    # print(wrong_label_idx)
-                    # print(nbrs_labels != self.labels[target])
-
-                    if any(wrong_label_idx):
-                        nbrs = nbrs[wrong_label_idx]
-                        nbrs_purity = self.purity[nbrs]
-
-                    u = nbrs[stochastic_accept(nbrs_purity)]
-                    tmp_nodes.append(u)
-                    if (u, head) not in edges:
-                        edges[(head, u)] = 1
-                else:
-                    break
-            nodes.extend(tmp_nodes)
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
-
-    # 有可能采样重复节点
-    def deepwalk_wl_sample(self, targets, sample_nums):
-        edges = {}
-        nodes = []
-
-        for target in targets:
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                # head = random.choice(tmp_nodes)
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-
-                if len(nbrs) > 0:
-                    nbrs_wl = self.wl[nbrs]
-                    # print(nbrs)
-                    # print(nbrs_wl)
-                    one_wl_idx = nbrs_wl >= self.wl_limit
-                    if any(one_wl_idx):
-                        nbrs = nbrs[one_wl_idx]
-                        nbrs_wl = self.wl[nbrs]
-                        # print(nbrs)
-                        # print(nbrs_wl)
-
-                    u = nbrs[stochastic_accept(nbrs_wl)]
-                    tmp_nodes.append(u)
-                    # print(u)
-                    if (u, head) not in edges:
-                        edges[(head, u)] = 1
-                else:
-                    break
-            nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
     def node2vec_sample(self, targets, sample_nums):
@@ -238,12 +262,14 @@ class Walker:
         nbrs = self.indices[self.indptr[dst]:self.indptr[dst + 1]]
         for dst_nbr in nbrs:
             if self.is_purity_matrix:
+                # p控制重复访问过的节点概率，若p校高，则访问刚刚访问过的节点src概率会变低
                 if dst_nbr == src:
-                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr] / p)
+                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr] / p)
                 elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr])
+                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr])
                 else:
-                    unnormalized_probs.append(self.purity_matrix[dst][dst_nbr] / q)
+                    # q控制BFS和DFS，若q>1，则倾向于访问和target接近的点（BFS），反之DFS
+                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr] / q)
             elif self.is_wl_matrix:
                 if dst_nbr == src:
                     unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / p)
@@ -279,7 +305,7 @@ class Walker:
         alias_nodes = {}
         for node in range(N):
             if self.is_purity_matrix:
-                unnormalized_probs = [self.purity_matrix[node][nbr] for nbr in
+                unnormalized_probs = [self.purity_r_matrix[node][nbr] for nbr in
                                       self.indices[self.indptr[node]:self.indptr[node + 1]]]
             elif self.is_wl_matrix:
                 unnormalized_probs = [self.wl_matrix[node][nbr] for nbr in

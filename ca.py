@@ -234,6 +234,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     print('wrong label acc: {}'.format(wlacc))
     end = time()
     cost = (end - start) / 60
+    print('subgraph:{}, p:{}, q:{}'.format(args.subgraph_type, args.p, args.q))
     print('testACC end, cost time: {} min'.format(cost))
 
     return acc, wlacc, cost
@@ -303,8 +304,10 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    args.subgraph_type = "spread_ce"
+    args.subgraph_type = "dw_wl_dynamic"
     args.seed = 2012
+    # args.p = 6.0
+    # args.q = 0.25
     # args.alpha = 0.01
     # args.subgraph_type = "dw_wl"
 

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = "test_n2v_11_19"
+    personal = "test_n2v"
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
@@ -50,25 +50,25 @@ if __name__ == '__main__':
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']
-        # subgraph_types = ['dw_ce', 'dw_ce_topk']
-        # for subgraph_type in subgraph_types:
-        #     p = 1.0
-        #     q = 1.0
-        #     key = '_'.join([subgraph_type, str(p), str(q)])
-        #     try:
-        #         acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-        #         res.loc[key] = [acc, wlacc, cost]
-        #     except Exception as e:
-        #         res.loc[key] = [-1, -1, -1]
-        #         print('##################################error', repr(e))
-        #     print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
-        #     res.to_csv(filename)
+        subgraph_types = ['dw_wl', 'dw_wl_topk', 'dw_wl_dynamic', 'dw_wl_dynamic_topk', 'dw_ce', 'dw_ce_topk', 'dw_purity', 'dw_purity_topk']
+        for subgraph_type in subgraph_types:
+            p = 1.0
+            q = 1.0
+            key = '_'.join([subgraph_type, str(p), str(q)])
+            try:
+                acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                res.loc[key] = [acc, wlacc, cost]
+            except Exception as e:
+                res.loc[key] = [-1, -1, -1]
+                print('##################################error', repr(e))
+            print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
+            res.to_csv(filename)
 
-        subgraph_types = ['n2v_wl']
+        subgraph_types = ['n2v_wl', 'n2v_ce', 'n2v_purity']
         # 'dw_ce', 'dw_ce_topk'
         # ppr
         for subgraph_type in subgraph_types:
-            for p in [6.5, 7.0, 7.5, 8.0, 12.0, 14.0, 16.0, 18.0]:
+            for p in [1.5, 2.0, 4.0, 5.0, 6.0, 6.5, 7.0, 7.5, 8.0, 12.0, 14.0, 16.0, 18.0]:
                 for q in [0.1, 0.25, 0.4, 0.5, 0.6, 0.8]:
                     key = '_'.join([subgraph_type, str(p), str(q)])
                     try:
@@ -79,7 +79,7 @@ if __name__ == '__main__':
                         print('##################################error', repr(e))
                     print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                     res.to_csv(filename)
-
+    print(_prefix)
     save_test(_prefix, times)
 
 
