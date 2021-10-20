@@ -268,6 +268,7 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
         nodes_wl = wl[node_np]
         idx_wl = nodes_wl >= 0.5
         if idx_wl.sum() >= topk / 2:
+            edge = dict_filter_key(edge, node_np[~idx_wl])
             node_np = node_np[idx_wl]
             weight_np = weight_np[idx_wl]
 

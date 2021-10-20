@@ -1,20 +1,32 @@
-import types
-
 import numba
 import numpy as np
-from numba import int64
 
 from graphgallery import functional as gf
-from numba.typed import Dict
-from numba.core import types
+from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
 class PPRer:
-    def __init__(self, adj_matrix):
+    def __init__(self, adj_matrix, labels, alpha=0.25, logits=None, eps=1e-4):
         self.adj_matrix = adj_matrix
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.out_degree = np.sum(adj_matrix > 0, axis=1).A1
+        self.labels = labels
+
+        if logits is not None:
+            self.ce_matrix = get_cross_entropy_matrix(logits)
+
+        self.wrong_label = None
+        self.wl = None
+        self.wl_cnt = None
+        self.wl_cnt_matrix = None
+        self.eps = eps
+        self.alpha = alpha
+
+    def set_wrong_label(self, wrong_label):
+        self.wrong_label = wrong_label
+        self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
+        self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
 
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors
@@ -35,8 +47,16 @@ class PPRer:
         _edges = update_edges(edges)
         return gf.asedge(list(_edges.keys()), shape='row_wise'), np.asarray(nodes).ravel()
 
+    # 原始ppr+topk+wl偏好
+    def ppr_wl_topk_sample(self, targets, topk, descending):
+        edges, nodes, weights, del_nodes = calc_ppr_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+                                                 np.asarray(targets), topk, self.wl, descending)
+        delete_edges(edges, del_nodes)
+        _edges = update_edges(edges)
+        return gf.asedge(list(_edges.keys()), shape='row_wise'), np.asarray(nodes).ravel()
 
-# @numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
+
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -65,31 +85,54 @@ def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
             if res_vnode >= alpha_eps * deg[vnode]:
                 if vnode not in q:
                     q.append(vnode)
-                    _vnode = int64(vnode)
-                    _unode = int64(unode)
-                    if (_vnode, _unode) not in edges:
-                        edges[(_unode, _vnode)] = 1
+                    if (vnode, unode) not in edges:
+                        edges[(unode, vnode)] = 1
 
     return list(p.keys()), list(p.values()), edges
 
 
-def update_edges(edges):
-    _edges = {}
-    for edge in edges:
-        _edges.update(edge)
-    return _edges
+# 原始ppr+topk+wl偏好
+@numba.njit(cache=True)
+def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, descending=False):
+    edges = []
+    targets = []
+    weights = []
+    del_nodes = []
+    for i, node in enumerate(nodes):
+        node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
+        node_np, weight_np = np.array(node), np.array(weight)
 
+        del_node = []
+        nodes_wl = wl[node_np]
+        idx_wl = nodes_wl >= 0.5
+        if idx_wl.sum() >= topk / 2:
+            del_node.extend(node_np[~idx_wl])
+            node_np = node_np[idx_wl]
+            weight_np = weight_np[idx_wl]
 
-def delete_edges(edges, del_nodes):
-    for i in range(len(edges)):
-        dict_del_key(edges[i], del_nodes[i])
+        # topk大于提取节点数量，退化成calc_ppr
+        if len(node_np) <= topk:
+            print('calc_ppr_topk back to calc_ppr')
+            targets.append(node_np)
+            weights.append(weight_np)
+            edges.append(edge)
+            continue
+        # weight_np小到大排序
+        idx_sort = np.argsort(weight_np)
 
+        if descending:
+            idx_topk = idx_sort[-topk:] # 取倒序topk个， 最重要
+            idx_topk_rest = idx_sort[:-topk]
+        else:
+            idx_topk = idx_sort[:topk] # 取顺序topk个，最不重要
+            idx_topk_rest = idx_sort[topk:]
+        targets.append(node_np[idx_topk])
+        weights.append(weight_np[idx_topk])
+        edges.append(edge)
+        del_node.extend(node_np[idx_topk_rest])
+        del_nodes.append(del_node)
 
-def dict_del_key(_dict, _del_keys):
-    keys = list(_dict.keys())
-    for key in keys:
-        if key[0] in _del_keys or key[1] in _del_keys:
-            _dict.pop(key)
+    return edges, targets, weights, del_nodes
 
 
 # @numba.njit(cache=True)
@@ -151,5 +194,31 @@ def calc_ppr_topk_parallel(indptr, indices, deg, alpha, epsilon, nodes, topk):
     return edges, targets, weights, del_nodes
 
 
+def update_edges(edges):
+    _edges = {}
+    for edge in edges:
+        _edges.update(edge)
+    return _edges
+
+
+def delete_edges(edges, del_nodes):
+    for i in range(len(edges)):
+        dict_del_key(edges[i], del_nodes[i])
+
+
+def dict_del_key(_dict, _del_keys):
+    keys = list(_dict.keys())
+    for key in keys:
+        if key[0] in _del_keys or key[1] in _del_keys:
+            _dict.pop(key)
+
+
+def dict_filter_key(_dict, _del_keys):
+    _fdict = {}
+    keys = list(_dict.keys())
+    for key in keys:
+        if key[0] not in _del_keys and key[1] not in _del_keys:
+            _fdict[key] = 1
+    return _fdict
 
 
