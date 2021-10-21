@@ -69,7 +69,7 @@ class Walker:
             # self.similar_dict = {}
             t1 = time()
             self.wl_list = get_wl_list(self.indices, self.indptr, self.wl)
-            # print('get_wl_list cost:{} min'.format((time() - t1) / 60))
+            print('get_wl_list cost:{} min'.format((time() - t1) / 60))
             self.preprocess_transition_probs()
             print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
@@ -360,27 +360,15 @@ class Walker:
         Preprocessing of transition probabilities for guiding the random walks.
         '''
         N = self.adj_matrix.shape[0]
-
+        ans = get_an(self.subgraph_type, np.array(self.wl_list), len(self.labels))
         alias_nodes = {}
         for node in range(N):
-            nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
-            if self.subgraph_type == "n2v_purity":
-                unnormalized_probs = self.purity_list[node]
-            elif self.subgraph_type == "n2v_wl":
-                unnormalized_probs = self.wl_list[node]
-            elif self.subgraph_type == "n2v_ce":
-                unnormalized_probs = self.ce_list[node]
-            else:
-                unnormalized_probs = [1 for _ in nbrs]
-
-            norm_const = sum(unnormalized_probs)
-            normalized_probs = np.array([float(u_prob) / norm_const for u_prob in unnormalized_probs])
-            alias_nodes[node] = alias_setup(normalized_probs)
+            alias_nodes[node] = ans[node]
 
         alias_edges = {}
         for node in range(N):
-            nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
-            for u in nbrs:
+            nbr = self.indices[self.indptr[node]:self.indptr[node + 1]]
+            for u in nbr:
                 alias_edges[(node, u)] = self.get_alias_edge(node, u)
                 alias_edges[(u, node)] = self.get_alias_edge(u, node)
 
@@ -388,6 +376,17 @@ class Walker:
         self.alias_edges = alias_edges
 
         return
+
+
+@njit
+def get_an(subgraph_type, similar_list, N):
+    an = []
+    for node in range(N):
+        unnormalized_probs = similar_list[node]
+        norm_const = unnormalized_probs.sum()
+        normalized_probs = np.array([float(u_prob) / norm_const for u_prob in unnormalized_probs])
+        an.append([alias_setup(normalized_probs)])
+    return an
 
 
 @njit
