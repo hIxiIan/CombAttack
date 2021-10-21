@@ -5,11 +5,12 @@ from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix, get_hop_neigh
 
 
 class Spreader:
-    def __init__(self, adj_matrix, labels, prob, hops, keep_hops, logits=None, wl_limit=0.8, eps=1e-4):
+    def __init__(self, subgraph_type, adj_matrix, labels, prob, hops, keep_hops, logits=None, wl_limit=0.8, eps=1e-4):
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix
         self.labels = labels
+        self.subgraph_type = subgraph_type
 
         self.prob = prob
         self.wl_limit = wl_limit

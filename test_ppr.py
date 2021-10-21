@@ -56,6 +56,7 @@ if __name__ == '__main__':
         subgraph_types = ['ppr', 'ppr_nums', 'ppr_topk_des', 'ppr_topk_asc',
                           'ppr_wl_limit', 'ppr_wl_limit_nums', 'ppr_wl', 'ppr_wl_limit_wl'
                           'ppr_wl_topk_des', 'ppr_wl_topk_asc']
+        subgraph_types = ['ppr_topk_asc', 'ppr_wl_topk_asc']
 
         # ppr
         for subgraph_type in subgraph_types:
