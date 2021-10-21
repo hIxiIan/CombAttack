@@ -305,9 +305,9 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "ppr_wl_topk_asc"
+    # args.subgraph_type = "n2v_wl"
     args.seed = 2012
-    # args.p = 6.0
+    # args.p = 7.0
     # args.q = 0.25
     # args.alpha = 0.01
     # args.dataset = "citeseer"
