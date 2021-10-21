@@ -15,8 +15,8 @@ class Spreader:
         self.prob = prob
         self.wl_limit = wl_limit
 
-        if logits is not None:
-            self.ce_matrix = get_cross_entropy_matrix(logits)
+        # if logits is not None:
+        #     self.ce_matrix = get_cross_entropy_matrix(logits)
 
         self.hops = hops
         self.keep_hops = keep_hops
@@ -29,7 +29,7 @@ class Spreader:
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
         self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
-        self.wl_matrix = get_wl_matrix(self.wl)
+        # self.wl_matrix = get_wl_matrix(self.wl)
 
     # 10^-3
     def spread_random_sample(self, targets, sample_nums):

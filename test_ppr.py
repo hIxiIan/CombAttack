@@ -35,7 +35,7 @@ if __name__ == '__main__':
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
-    times = 1
+    times = 3
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]
@@ -56,13 +56,16 @@ if __name__ == '__main__':
         subgraph_types = ['ppr', 'ppr_nums', 'ppr_topk_des', 'ppr_topk_asc',
                           'ppr_wl_limit', 'ppr_wl_limit_nums', 'ppr_wl', 'ppr_wl_limit_wl'
                           'ppr_wl_topk_des', 'ppr_wl_topk_asc']
+
+        # cora cora_full
         subgraph_types = ['ppr_wl_topk_asc']
 
         # ppr
         for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
-            for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+            # for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+            for alpha in [0.01]:
                 key = '_'.join([subgraph_type, str(alpha)])
                 try:
                     acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
