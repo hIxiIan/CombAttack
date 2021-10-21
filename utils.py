@@ -81,6 +81,17 @@ def get_wl_target_nbrs(target, nbrs, wl):
     return [wl[target] * wl[nbr] for nbr in nbrs]
 
 
+@njit
+def get_wl_list(indices, indptr, wl):
+    N = len(wl)
+    wl_list = []
+    for node_i in range(N):
+        nbrs = indices[indptr[node_i]:indptr[node_i + 1]]
+        tmp_wl_list = [wl[node_i] * wl[nbr] for nbr in nbrs]
+        wl_list.append(tmp_wl_list)
+    return wl_list
+
+
 def roulette_wheel_selection(purity):
     '''
         Input: a list of N fitness values (list or tuple)

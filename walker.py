@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_purity_target_nbrs, get_wl_target_nbrs
+from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_purity_target_nbrs, get_wl_target_nbrs, get_wl_list
 
 
 class Walker:
@@ -23,6 +23,7 @@ class Walker:
         self.wl = None
         self.wl_cnt = None
         self.wl_limit = wl_limit
+        self.wl_list = None
         self.eps = eps
 
         self.init()
@@ -54,6 +55,7 @@ class Walker:
 
         if self.subgraph_type == "n2v_wl":
             self.similar_dict = {}
+            self.wl_list = get_wl_list(self.indices, self.indptr, self.wl)
             self.preprocess_transition_probs()
 
     # 纯随机游走
@@ -298,6 +300,9 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    def get_weight(self, dst, dst_nbr_idx):
+        if self.subgraph_type == "n2v_wl":
+            return self.wl_list[dst][dst_nbr_idx]
 
     def get_alias_edge(self, src, dst):
         '''
@@ -312,12 +317,12 @@ class Walker:
         for dst_nbr_idx, dst_nbr in enumerate(nbrs):
             # p控制重复访问过的节点概率，若p校高，则访问刚刚访问过的节点src概率会变低
             if dst_nbr == src:
-                unnormalized_probs.append(self.similar_dict[dst][dst_nbr_idx] / p)
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / p)
             elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                unnormalized_probs.append(self.similar_dict[dst][dst_nbr_idx])
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx))
             else:
                 # q控制BFS和DFS，若q>1，则倾向于访问和target接近的点（BFS），反之DFS
-                unnormalized_probs.append(self.similar_dict[dst][dst_nbr_idx] / q)
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / q)
         norm_const = sum(unnormalized_probs)
         normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
 
@@ -336,12 +341,13 @@ class Walker:
                 self.similar_dict[node] = get_purity_target_nbrs(node, nbrs, self.purity_r)
             elif self.subgraph_type == "n2v_wl":
                 self.similar_dict[node] = get_wl_target_nbrs(node, nbrs, self.wl)
+                unnormalized_probs = self.wl_list[node]
             elif self.subgraph_type == "n2v_ce":
                 self.similar_dict[node] = get_cross_entropy_target_nbrs(node, nbrs, self.logits)
             else:
                 self.similar_dict[node] = [1 for _ in nbrs]
 
-            unnormalized_probs = self.similar_dict[node]
+            # unnormalized_probs = self.similar_dict[node]
             norm_const = sum(unnormalized_probs)
             normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)
