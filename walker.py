@@ -340,7 +340,7 @@ class Walker:
             if self.subgraph_type == "n2v_purity":
                 self.similar_dict[node] = get_purity_target_nbrs(node, nbrs, self.purity_r)
             elif self.subgraph_type == "n2v_wl":
-                self.similar_dict[node] = get_wl_target_nbrs(node, nbrs, self.wl)
+                # self.similar_dict[node] = get_wl_target_nbrs(node, nbrs, self.wl)
                 unnormalized_probs = self.wl_list[node]
             elif self.subgraph_type == "n2v_ce":
                 self.similar_dict[node] = get_cross_entropy_target_nbrs(node, nbrs, self.logits)
