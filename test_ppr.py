@@ -20,6 +20,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
+    parser.add_argument("-p", default=7.0)
+    parser.add_argument("-q", default=0.25)
+    parser.add_argument("-a", "--alpha", default=0.25)
+
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -31,7 +35,7 @@ if __name__ == '__main__':
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
-    times = 3
+    times = 1
     seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     for i in range(times):
         cmd.seed = seeds[i]

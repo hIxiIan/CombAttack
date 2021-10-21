@@ -289,6 +289,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
+    parser.add_argument("-p", default=7.0)
+    parser.add_argument("-q", default=0.25)
+    parser.add_argument("-a", "--alpha", default=0.25)
+
     cmd = parser.parse_args()
     random.seed(cmd.seed)
     gg.set_backend("th")
@@ -301,11 +305,12 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    args.subgraph_type = "spread_wl"
+    # args.subgraph_type = "ppr_wl_topk_asc"
     args.seed = 2012
     # args.p = 6.0
     # args.q = 0.25
     # args.alpha = 0.01
+    # args.dataset = "citeseer"
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

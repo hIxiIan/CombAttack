@@ -26,8 +26,8 @@ class ARGS:
         self.with_w_label = with_w_label
 
         # dw
-        self.p = p
-        self.q = q
+        self.p = cmd.p
+        self.q = cmd.q
         self.is_purity_matrix = is_purity_matrix
         self.is_wl_matrix = is_wl_matrix
         self.is_ce_matrix = is_ce_matrix
@@ -39,5 +39,5 @@ class ARGS:
         self.prob = prob
 
         # ppr
-        self.alpha = alpha
+        self.alpha = cmd.alpha
         self.eps = eps
