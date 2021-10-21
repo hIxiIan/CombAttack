@@ -312,9 +312,9 @@ class SCA(TargetedAttacker):
         elif subgraph_type == 'spread_ce_keep_hops':
             sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_wl':
-            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+            sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_wl_keep_hops':
-            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
+            sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
 
         # ppr
         elif subgraph_type == 'ppr':
