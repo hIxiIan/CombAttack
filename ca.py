@@ -224,7 +224,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     print('wrong label acc: {}'.format(wlacc))
     end = time()
     cost = (end - start) / 60
-    print('subgraph:{}, p:{}, q:{}'.format(args.subgraph_type, args.p, args.q))
+    print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
 
     return acc, wlacc, cost
