@@ -56,6 +56,7 @@ class PPRer:
         return gf.asedge(list(_edges.keys()), shape='row_wise'), np.asarray(nodes).ravel()
 
 
+# 这里好像有个int32和int64的转化，numba有报警
 @numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
     edges = {}

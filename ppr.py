@@ -6,12 +6,13 @@ from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
 class PPRer:
-    def __init__(self, adj_matrix, labels, alpha=0.25, logits=None, eps=1e-4):
+    def __init__(self, subgraph_type, adj_matrix, labels, alpha=0.25, logits=None, eps=1e-4):
         self.adj_matrix = adj_matrix
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.out_degree = np.sum(adj_matrix > 0, axis=1).A1
         self.labels = labels
+        self.subgraph_type = subgraph_type
 
         if logits is not None:
             self.ce_matrix = get_cross_entropy_matrix(logits)
@@ -264,13 +265,14 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
     for i, node in enumerate(nodes):
         node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
         node_np, weight_np = np.array(node), np.array(weight)
-
+        print(len(node_np))
         nodes_wl = wl[node_np]
         idx_wl = nodes_wl >= 0.5
         if idx_wl.sum() >= topk / 2:
             edge = dict_filter_key(edge, node_np[~idx_wl])
             node_np = node_np[idx_wl]
             weight_np = weight_np[idx_wl]
+        print(len(node_np))
 
         # topk大于提取节点数量，退化成calc_ppr
         if len(node_np) <= topk:

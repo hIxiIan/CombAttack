@@ -187,6 +187,7 @@ class SCA(TargetedAttacker):
                     potential_times -= 1
                     continue
                 else:
+                    print('potential_times:{}, total_times:{}'.format(potential_times, len(gradients)))
                     self.adj_flips[(u, v)] = it
                     self.update_subgraph(u, v, index, add=add)
                     if add:
