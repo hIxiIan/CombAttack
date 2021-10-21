@@ -21,9 +21,9 @@ if __name__ == '__main__':
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
-    parser.add_argument("-p", default=7.0)
-    parser.add_argument("-q", default=0.25)
-    parser.add_argument("-a", "--alpha", default=0.25)
+    parser.add_argument("-p", default=7.0, type=float)
+    parser.add_argument("-q", default=0.25, type=float)
+    parser.add_argument("-a", "--alpha", default=0.25, type=float)
 
     cmd = parser.parse_args()
     gg.set_backend("th")
