@@ -21,20 +21,22 @@ if __name__ == '__main__':
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
-    parser.add_argument("--file_prefix", default=strftime("%Y_%m_%d_%H_%M_%S", localtime()), help="result file path")
+    parser.add_argument("-p", default=7.0, type=float)
+    parser.add_argument("-q", default=0.25, type=float)
+    parser.add_argument("-a", "--alpha", default=0.25, type=float)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
     res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
-    rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    rootdir = "result/test_ca"
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = "test_ca_11_19"
+    personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
     times = 3
-    seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
+    seeds = [56, 44, 94, 2012, 1997, 5018, 2413, 97, 21, 32]
     for i in range(times):
         cmd.seed = seeds[i]
         filename = "_".join([_prefix, str(i)]) + '.csv'
@@ -53,26 +55,27 @@ if __name__ == '__main__':
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce',
                           'spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce',
                           'spread_random_ce_keep_hops', 'spread_ce', 'ppr', 'ppr_wl']
-        # 'ppr_topk_des', 'ppr_topk_asc', 'ppr_wl_'
 
         # dw
-        for subgraph_type in subgraph_types[:5]:
-            key = '_'.join([subgraph_type])
+        subgraph_types = ['dw_wl', 'dw_wl_dynamic', 'dw_purity']
+        for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
+            key = '_'.join([subgraph_type, str(p), str(q)])
             try:
                 acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 res.loc[key] = [acc, wlacc, cost]
             except Exception as e:
                 res.loc[key] = [-1, -1, -1]
                 print('##################################error', repr(e))
-            print('-------subgraph:{}'.format(subgraph_type))
+            print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
             res.to_csv(filename)
 
-        # n2v
-        for subgraph_type in subgraph_types[5:9]:
-            for p in [0.5, 2.0]:
-                for q in [0.25, 2.0]:
+        # dw
+        subgraph_types = ['n2v_wl', 'n2v_purity']
+        for subgraph_type in subgraph_types:
+            for p in [7.0]:
+                for q in [0.25]:
                     key = '_'.join([subgraph_type, str(p), str(q)])
                     try:
                         acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
@@ -84,7 +87,8 @@ if __name__ == '__main__':
                     res.to_csv(filename)
 
         # spread
-        for subgraph_type in subgraph_types[9:14]:
+        subgraph_types = ['spread_wl']
+        for subgraph_type in subgraph_types:
             key = '_'.join([subgraph_type])
             p = 1.0
             q = 1.0
@@ -98,10 +102,11 @@ if __name__ == '__main__':
             res.to_csv(filename)
 
         # ppr
-        for subgraph_type in subgraph_types[14:]:
+        subgraph_types = ['ppr_wl_topk_asc']
+        for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
-            for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
+            for alpha in [0.01]:
                 key = '_'.join([subgraph_type, str(alpha)])
                 try:
                     acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
@@ -112,5 +117,5 @@ if __name__ == '__main__':
                 print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                 res.to_csv(filename)
 
+    print(_prefix)
     save_test(_prefix, times)
-

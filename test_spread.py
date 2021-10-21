@@ -58,6 +58,7 @@ if __name__ == '__main__':
                           'spread_ce', 'spread_ce_keep_hops',
                           'spread_wl', 'spread_wl_keep_hops']
 
+        subgraph_types = ['spread_wl']
         for subgraph_type in subgraph_types:
             key = '_'.join([subgraph_type])
             p = 1.0

@@ -71,7 +71,6 @@ if __name__ == '__main__':
 
         subgraph_types = ['n2v_wl', 'n2v_ce', 'n2v_purity']
         # 'dw_ce', 'dw_ce_topk'
-        # ppr
         for subgraph_type in subgraph_types:
             for p in [1.5, 2.0, 4.0, 5.0, 6.0, 6.5, 7.0, 7.5, 8.0, 12.0, 14.0, 16.0, 18.0]:
                 for q in [0.1, 0.25, 0.4, 0.5, 0.6, 0.8]:
