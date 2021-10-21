@@ -57,6 +57,17 @@ def get_purity_target_nbrs(target, nbrs, purity):
 
 
 @njit
+def get_purity_list(indices, indptr, purity):
+    N = len(purity)
+    purity_list = []
+    for node_i in range(N):
+        nbrs = indices[indptr[node_i]:indptr[node_i + 1]]
+        tmp_purity_list = [purity[node_i] * purity[nbr] for nbr in nbrs]
+        purity_list.append(tmp_purity_list)
+    return purity_list
+
+
+@njit
 def get_wl(indices, indptr, labels, wrong_label, eps):
     N = len(labels)
     wl = []
@@ -176,6 +187,17 @@ def cross_entropy(hi, hj):
 def get_cross_entropy_matrix(logits):
     N = len(logits)
     return np.array([cross_entropy(logits[i], logits[j]) for i in range(N) for j in range(N)]).reshape((N, N))
+
+
+@njit
+def get_cross_entropy_list(indices, indptr, logits):
+    N = len(logits)
+    cross_entropy_list = []
+    for node_i in range(N):
+        nbrs = indices[indptr[node_i]:indptr[node_i + 1]]
+        tmp_cross_entropy_list = [cross_entropy(logits[node_i], logits[nbr]) for nbr in nbrs]
+        cross_entropy_list.append(tmp_cross_entropy_list)
+    return cross_entropy_list
 
 
 @njit

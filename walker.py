@@ -1,7 +1,8 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_purity_target_nbrs, get_wl_target_nbrs, get_wl_list
+from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list
+from time import time
 
 
 class Walker:
@@ -24,6 +25,8 @@ class Walker:
         self.wl_cnt = None
         self.wl_limit = wl_limit
         self.wl_list = None
+        self.purity_list = None
+        self.ce_list = None
         self.eps = eps
 
         self.init()
@@ -44,8 +47,16 @@ class Walker:
             self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
             self.purity_r = 1 - self.purity + self.eps  # 杂度
             self.purity += self.eps
-        elif self.subgraph_type in ['n2v', 'n2v_ce']:
+            self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
+        elif self.subgraph_type == 'n2v':
+            t1 = time()
             self.preprocess_transition_probs()
+            print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
+        elif self.subgraph_type == "n2v_ce":
+            t1 = time()
+            self.ce_list = get_cross_entropy_list(self.indices, self.indptr, self.logits)
+            self.preprocess_transition_probs()
+            print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     def set_wrong_label(self, wrong_label):
         if self.subgraph_type in ["dw", "n2v"]:
@@ -54,9 +65,18 @@ class Walker:
         self.wl, self.wl_cnt = get_wl(self.indices, self.indptr, self.labels, wrong_label, self.eps)
 
         if self.subgraph_type == "n2v_wl":
-            self.similar_dict = {}
+            # self.similar_dict = {}
+            # t1 = time()
             self.wl_list = get_wl_list(self.indices, self.indptr, self.wl)
+            # print('get_wl_list cost:{} min'.format((time() - t1) / 60))
             self.preprocess_transition_probs()
+            # print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
+
+            # t1 = time()
+            # self.wl_matrix = get_wl_matrix(self.wl)
+            # print('get_wl_list cost:{} min'.format((time() - t1) / 60))
+            # self.preprocess_transition_probs()
+            # print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     # 纯随机游走
     def deepwalk_sample(self, targets, sample_nums):
@@ -303,6 +323,12 @@ class Walker:
     def get_weight(self, dst, dst_nbr_idx):
         if self.subgraph_type == "n2v_wl":
             return self.wl_list[dst][dst_nbr_idx]
+        elif self.subgraph_type == "n2v_purity":
+            return self.purity_list[dst][dst_nbr_idx]
+        elif self.subgraph_type == "n2v_ce":
+            return self.ce_list[dst][dst_nbr_idx]
+
+        return 1.0
 
     def get_alias_edge(self, src, dst):
         '''
@@ -338,16 +364,14 @@ class Walker:
         for node in range(N):
             nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
             if self.subgraph_type == "n2v_purity":
-                self.similar_dict[node] = get_purity_target_nbrs(node, nbrs, self.purity_r)
+                unnormalized_probs = self.purity_list[node]
             elif self.subgraph_type == "n2v_wl":
-                # self.similar_dict[node] = get_wl_target_nbrs(node, nbrs, self.wl)
                 unnormalized_probs = self.wl_list[node]
             elif self.subgraph_type == "n2v_ce":
-                self.similar_dict[node] = get_cross_entropy_target_nbrs(node, nbrs, self.logits)
+                unnormalized_probs = self.ce_list[node]
             else:
-                self.similar_dict[node] = [1 for _ in nbrs]
+                unnormalized_probs = [1 for _ in nbrs]
 
-            # unnormalized_probs = self.similar_dict[node]
             norm_const = sum(unnormalized_probs)
             normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)
