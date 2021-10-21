@@ -49,6 +49,7 @@ class Walker:
             self.purity_r = 1 - self.purity + self.eps  # 杂度
             self.purity += self.eps
             self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
+            self.preprocess_transition_probs()
         elif self.subgraph_type == 'n2v':
             t1 = time()
             self.preprocess_transition_probs()

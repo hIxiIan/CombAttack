@@ -35,7 +35,7 @@ if __name__ == '__main__':
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
-    times = 3
+    times = 4
     seeds = [56, 44, 94, 2012, 1997, 5018, 2413, 97, 21, 32]
     for i in range(times):
         cmd.seed = seeds[i]
