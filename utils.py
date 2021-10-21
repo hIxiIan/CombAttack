@@ -52,6 +52,11 @@ def get_purity_martix(purity, purity_r, labels):
 
 
 @njit
+def get_purity_target_nbrs(target, nbrs, purity):
+    return np.array([purity[target] * purity[nbr] for nbr in nbrs])
+
+
+@njit
 def get_wl(indices, indptr, labels, wrong_label, eps):
     N = len(labels)
     wl = []
@@ -69,6 +74,11 @@ def get_wl(indices, indptr, labels, wrong_label, eps):
 def get_wl_matrix(wl):
     N = len(wl)
     return np.array([wl[i] * wl[j] for i in range(N) for j in range(N)]).reshape((N, N))
+
+
+@njit
+def get_wl_target_nbrs(target, nbrs, wl):
+    return np.array([wl[target] * wl[nbr] for nbr in nbrs])
 
 
 def roulette_wheel_selection(purity):
@@ -155,6 +165,11 @@ def cross_entropy(hi, hj):
 def get_cross_entropy_matrix(logits):
     N = len(logits)
     return np.array([cross_entropy(logits[i], logits[j]) for i in range(N) for j in range(N)]).reshape((N, N))
+
+
+@njit
+def get_cross_entropy_target_nbrs(target, nbrs, logits):
+    return np.array([cross_entropy(logits[target], logits[nbr]) for nbr in nbrs])
 
 
 @njit

@@ -138,29 +138,22 @@ def print_sp(model, sp):
 
 
 def init_sampler(attacker, args):
+    t1 = time()
     walker = None
     spreader = None
     pprer = None
 
-    if args.subgraph_type[:2] == "dw":
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
-    elif args.subgraph_type[:3] == "n2v":
-        if args.subgraph_type == "n2v_purity":
-            args.is_purity_matrix = True
-        elif args.subgraph_type == "n2v_wl":
-            args.is_wl_matrix = True
-        elif args.subgraph_type == "n2v_ce":
-            args.is_ce_matrix = True
-        walker = Walker(attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, args.is_purity_matrix, args.is_wl_matrix, args.is_ce_matrix, wl_limit=args.wl_limit)
+    if args.subgraph_type[:2] == "dw" or args.subgraph_type[:3] == "n2v":
+        walker = Walker(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
     elif args.subgraph_type[:6] == "spread":
         if args.subgraph_type in ['spread_random_wl_keep_hops', 'spread_random_ce_keep_hops',
                                   'spread_ce_keep_hops', 'spread_wl_keep_hops']:
             args.keep_hops = True
-        spreader = Spreader(attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
+        spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
     elif args.subgraph_type[:3] == "ppr":
-        pprer = PPRer(attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.eps)
+        pprer = PPRer(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.eps)
 
-    print('init_sampler end...')
+    print('init_sampler end..., cost:{} min'.format((time() - t1) / 60))
     return walker, spreader, pprer
 
 
@@ -294,6 +287,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
 
     cmd = parser.parse_args()
+    # cmd.dataset = "cora_full"
     random.seed(cmd.seed)
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
@@ -305,12 +299,11 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "ppr_wl_topk_asc"
+    # args.subgraph_type = "n2v_wl"
     args.seed = 2012
-    # args.p = 6.0
+    # args.p = 7.0
     # args.q = 0.25
     # args.alpha = 0.01
-    # args.dataset = "citeseer"
     # args.subgraph_type = "dw_wl"
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()

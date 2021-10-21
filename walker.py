@@ -1,11 +1,11 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_purity_martix, get_wl, get_wl_matrix, get_hop_neighbors, get_cross_entropy_matrix, get_target_subgraph_level
+from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_purity_target_nbrs, get_wl_target_nbrs
 
 
 class Walker:
-    def __init__(self, adj_matrix, labels, p=1.0, q=1.0, logits=None, is_purity_matrix=False, is_wl_matrix=False, is_ce_matrix=False, wl_limit=1.0, eps=1e-4):
+    def __init__(self, subgraph_type, adj_matrix, labels, p=1.0, q=1.0, logits=None, wl_limit=1.0, eps=1e-4):
         self.p = p
         self.q = q
         self.indices = adj_matrix.indices
@@ -13,36 +13,47 @@ class Walker:
         self.adj_matrix = adj_matrix.tolil()  # weight默认为0/1
         self.adj_matrix_csr = adj_matrix
         self.labels = labels
-        self.is_purity_matrix = is_purity_matrix
-        self.is_wl_matrix = is_wl_matrix
-        self.is_ce_matrix = is_ce_matrix
-        self.purity = get_purity(adj_matrix.indices, adj_matrix.indptr, labels)  # 纯度
-        self.purity_r = 1 - self.purity + eps  # 杂度
-        self.purity += eps
+        self.subgraph_type = subgraph_type
+        self.logits = logits
+        self.similar_dict = {}
 
-        self.purity_matrix = get_purity_martix(self.purity, self.purity, labels) + eps
-        self.purity_r_matrix = get_purity_martix(self.purity_r, self.purity_r, labels) + eps
-
-        if is_purity_matrix and (self.p != 1.0 or self.q != 1.0):
-            self.preprocess_transition_probs()
-
-        if logits is not None:
-            self.ce_matrix = get_cross_entropy_matrix(logits)
-            if self.is_ce_matrix and (self.p != 1.0 or self.q != 1.0):
-                self.preprocess_transition_probs()
-
+        self.purity = None
+        self.purity_r = None
         self.wrong_label = None
         self.wl = None
         self.wl_cnt = None
-        self.wl_matrix = None
         self.wl_limit = wl_limit
         self.eps = eps
 
+        self.init()
+
+    def init(self):
+        # dw
+        if self.subgraph_type == "dw":
+            return
+        elif self.subgraph_type[:5] in ['dw_wl', 'dw_ce', 'dw_kh']:
+            return
+        elif self.subgraph_type[:9] == 'dw_purity':
+            self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
+            self.purity_r = 1 - self.purity + self.eps  # 杂度
+            self.purity += self.eps
+
+        # n2v
+        elif self.subgraph_type == 'n2v_purity':
+            self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
+            self.purity_r = 1 - self.purity + self.eps  # 杂度
+            self.purity += self.eps
+        elif self.subgraph_type in ['n2v', 'n2v_ce']:
+            self.preprocess_transition_probs()
+
     def set_wrong_label(self, wrong_label):
+        if self.subgraph_type in ["dw", "n2v"]:
+            return
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, self.labels, wrong_label, self.eps)
-        self.wl_matrix = get_wl_matrix(self.wl)
-        if self.is_wl_matrix and (self.p != 1.0 or self.q != 1.0):
+        self.wl, self.wl_cnt = get_wl(self.indices, self.indptr, self.labels, wrong_label, self.eps)
+
+        if self.subgraph_type == "n2v_wl":
+            self.similar_dict = {}
             self.preprocess_transition_probs()
 
     # 纯随机游走
@@ -143,8 +154,8 @@ class Walker:
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                nbrs_ce = get_cross_entropy_target_nbrs(target, nbrs, self.logits)
                 if len(nbrs) > 0:
-                    nbrs_ce = self.ce_matrix[target, nbrs]
                     if is_topk and topk < len(nbrs):
                         idx_topk = np.argsort(nbrs_ce)[-topk:]
                         nbrs = nbrs[idx_topk]
@@ -172,8 +183,8 @@ class Walker:
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                nbrs_ce = get_cross_entropy_target_nbrs(target, nbrs, self.logits)
                 if len(nbrs) > 0:
-                    nbrs_ce = self.ce_matrix[target, nbrs]
                     one_ce_idx = nbrs_ce >= ce_limit
                     if any(one_ce_idx) and one_ce_idx.sum() >= topk:
                         nbrs = nbrs[one_ce_idx]
@@ -287,6 +298,12 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    def get_weight(self, dst, dst_nbr_idx):
+        if self.subgraph_type == "n2v":
+            return 1.0
+
+        return self.similar_dict[dst][dst_nbr_idx]
+
     def get_alias_edge(self, src, dst):
         '''
         Get the alias edge setup lists for a given edge.
@@ -296,37 +313,16 @@ class Walker:
 
         unnormalized_probs = []
         nbrs = self.indices[self.indptr[dst]:self.indptr[dst + 1]]
-        for dst_nbr in nbrs:
-            if self.is_purity_matrix:
-                # p控制重复访问过的节点概率，若p校高，则访问刚刚访问过的节点src概率会变低
-                if dst_nbr == src:
-                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr] / p)
-                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr])
-                else:
-                    # q控制BFS和DFS，若q>1，则倾向于访问和target接近的点（BFS），反之DFS
-                    unnormalized_probs.append(self.purity_r_matrix[dst][dst_nbr] / q)
-            elif self.is_wl_matrix:
-                if dst_nbr == src:
-                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / p)
-                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr])
-                else:
-                    unnormalized_probs.append(self.wl_matrix[dst][dst_nbr] / q)
-            elif self.is_ce_matrix:
-                if dst_nbr == src:
-                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr] / p)
-                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr])
-                else:
-                    unnormalized_probs.append(self.ce_matrix[dst][dst_nbr] / q)
+
+        for dst_nbr_idx, dst_nbr in enumerate(nbrs):
+            # p控制重复访问过的节点概率，若p校高，则访问刚刚访问过的节点src概率会变低
+            if dst_nbr == src:
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / p)
+            elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx))
             else:
-                if dst_nbr == src:
-                    unnormalized_probs.append(1 / p)
-                elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                    unnormalized_probs.append(1)
-                else:
-                    unnormalized_probs.append(1 / q)
+                # q控制BFS和DFS，若q>1，则倾向于访问和target接近的点（BFS），反之DFS
+                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / q)
         norm_const = sum(unnormalized_probs)
         normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
 
@@ -340,17 +336,19 @@ class Walker:
 
         alias_nodes = {}
         for node in range(N):
-            if self.is_purity_matrix:
-                unnormalized_probs = [self.purity_r_matrix[node][nbr] for nbr in
-                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
-            elif self.is_wl_matrix:
-                unnormalized_probs = [self.wl_matrix[node][nbr] for nbr in
-                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
-            elif self.is_ce_matrix:
-                unnormalized_probs = [self.ce_matrix[node][nbr] for nbr in
-                                      self.indices[self.indptr[node]:self.indptr[node + 1]]]
+            nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
+            if self.subgraph_type == "n2v_purity":
+                self.similar_dict[node] = get_purity_target_nbrs(node, nbrs, self.purity_r)
+                unnormalized_probs = self.similar_dict[node]
+            elif self.subgraph_type == "n2v_wl":
+                self.similar_dict[node] = get_wl_target_nbrs(node, nbrs, self.wl)
+                unnormalized_probs = self.similar_dict[node]
+            elif self.subgraph_type == "n2v_ce":
+                self.similar_dict[node] = get_cross_entropy_target_nbrs(node, nbrs, self.logits)
+                unnormalized_probs = self.similar_dict[node]
             else:
                 unnormalized_probs = [1 for _ in self.indices[self.indptr[node]:self.indptr[node + 1]]]
+
             norm_const = sum(unnormalized_probs)
             normalized_probs = [float(u_prob) / norm_const for u_prob in unnormalized_probs]
             alias_nodes[node] = alias_setup(normalized_probs)
