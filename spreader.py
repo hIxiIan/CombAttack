@@ -260,10 +260,11 @@ class Spreader:
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
+        root = targets[0]
         while sample_nums > len(targets):
             end = len(targets)
             wl_limit = 0.5
-            target_topk = len(self.indices[self.indptr[head]:self.indptr[head + 1]])
+            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
