@@ -265,14 +265,14 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
     for i, node in enumerate(nodes):
         node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
         node_np, weight_np = np.array(node), np.array(weight)
-        print(len(node_np))
+        # print(len(node_np))
         nodes_wl = wl[node_np]
         idx_wl = nodes_wl >= 0.5
         if idx_wl.sum() >= topk / 2:
             edge = dict_filter_key(edge, node_np[~idx_wl])
             node_np = node_np[idx_wl]
             weight_np = weight_np[idx_wl]
-        print(len(node_np))
+        # print(len(node_np))
 
         # topk大于提取节点数量，退化成calc_ppr
         if len(node_np) <= topk:
