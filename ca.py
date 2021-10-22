@@ -139,15 +139,13 @@ def print_sp(model, sp):
 
 def init_sampler(attacker, args):
     t1 = time()
-    walker = None
-    spreader = None
-    pprer = None
+    walker, spreader, pprer = None, None, None
 
-    if args.subgraph_type[:2] == "dw" or args.subgraph_type[:3] == "n2v":
+    if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
         walker = Walker(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
-    elif args.subgraph_type[:6] == "spread":
+    elif "spread" in args.subgraph_type:
         spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits)
-    elif args.subgraph_type[:3] == "ppr":
+    elif "ppr" in args.subgraph_type:
         pprer = PPRer(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.wl_limit, args.eps)
 
     print('init_sampler end..., cost:{} min'.format((time() - t1) / 60))
