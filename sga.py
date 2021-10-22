@@ -11,6 +11,7 @@ from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 from copy import deepcopy
 from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_list
+from time import time
 
 try:
     """It will be faster with torch_geometric"""
@@ -268,6 +269,7 @@ class SCA(TargetedAttacker):
     def get_subgraph(self, subgraph_type):
         # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
         targets = to_list(self.target)
+        t1 = time()
         # dw
         if subgraph_type == 'dw':
             sub_edges, sub_nodes = self.walker.deepwalk_sample(targets, self.sample_nums)
@@ -339,6 +341,7 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=False)
         else:
             sub_edges, sub_nodes = [], []
+        self._subgraph_time = (time() - t1) / 60
         return sub_edges, np.unique(sub_nodes)
 
     def compute_gradient(self, eps=5.0):

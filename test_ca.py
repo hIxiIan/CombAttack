@@ -35,8 +35,8 @@ if __name__ == '__main__':
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
-    times = 4
-    seeds = [56, 44, 94, 2012, 1997, 5018, 2413, 97, 21, 32]
+    times = 3
+    seeds = [5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
     for i in range(times):
         cmd.seed = seeds[i]
         filename = "_".join([_prefix, str(i)]) + '.csv'
@@ -102,6 +102,7 @@ if __name__ == '__main__':
             res.to_csv(filename)
 
         # ppr
+        # 和random seed无关
         subgraph_types = ['ppr_wl_topk_asc']
         for subgraph_type in subgraph_types:
             p = 1.0
