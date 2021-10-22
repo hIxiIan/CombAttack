@@ -6,28 +6,28 @@ from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix
 
 
 class PPRer:
-    def __init__(self, subgraph_type, adj_matrix, labels, alpha=0.25, logits=None, eps=1e-4):
+    def __init__(self, subgraph_type, adj_matrix, labels, alpha=0.25, logits=None, wl_limit=0.5, eps=1e-4):
         self.adj_matrix = adj_matrix
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.out_degree = np.sum(adj_matrix > 0, axis=1).A1
         self.labels = labels
         self.subgraph_type = subgraph_type
-
-        if logits is not None:
-            self.ce_matrix = get_cross_entropy_matrix(logits)
+        self.logits = logits
 
         self.wrong_label = None
         self.wl = None
         self.wl_cnt = None
         self.wl_cnt_matrix = None
+        self.wl_limit = wl_limit
         self.eps = eps
         self.alpha = alpha
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
-        self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
+        if "wl" in self.subgraph_type:
+            self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
+            # self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
 
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors， 节点也更多

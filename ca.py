@@ -146,12 +146,9 @@ def init_sampler(attacker, args):
     if args.subgraph_type[:2] == "dw" or args.subgraph_type[:3] == "n2v":
         walker = Walker(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
     elif args.subgraph_type[:6] == "spread":
-        if args.subgraph_type in ['spread_random_wl_keep_hops', 'spread_random_ce_keep_hops',
-                                  'spread_ce_keep_hops', 'spread_wl_keep_hops']:
-            args.keep_hops = True
-        spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, args.keep_hops, attacker.logits)
+        spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits)
     elif args.subgraph_type[:3] == "ppr":
-        pprer = PPRer(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.eps)
+        pprer = PPRer(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.wl_limit, args.eps)
 
     print('init_sampler end..., cost:{} min'.format((time() - t1) / 60))
     return walker, spreader, pprer
@@ -204,7 +201,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
                     print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
         if verbose:
             print('###################')
-            print('iter: {}, attack target node {}, cost: {} min'.format(i, target, (end_i - start_i) / 60))
+            print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, attacker._subgraph_time, (end_i - start_i) / 60))
             print('hop_ratio:{}, hop_length:{}, walk_length:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
             print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
@@ -299,7 +296,7 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "n2v_wl"
+    # args.subgraph_type = "dw"
     args.seed = 2012
     # args.p = 7.0
     # args.q = 0.25

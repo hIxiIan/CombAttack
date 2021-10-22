@@ -1,38 +1,41 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_wl, get_wl_matrix, get_cross_entropy_matrix, get_hop_neighbors
+from utils import get_wl, get_cross_entropy_list, get_cross_entropy_target_nbrs
 
 
 class Spreader:
-    def __init__(self, subgraph_type, adj_matrix, labels, prob, hops, keep_hops, logits=None, wl_limit=0.8, eps=1e-4):
+    def __init__(self, subgraph_type, adj_matrix, labels, prob, hops, logits=None, wl_limit=0.8, eps=1e-4):
         self.indices = adj_matrix.indices
         self.indptr = adj_matrix.indptr
         self.adj_matrix = adj_matrix
         self.labels = labels
         self.subgraph_type = subgraph_type
-
-        self.prob = prob
-        self.wl_limit = wl_limit
-
-        # if logits is not None:
-        #     self.ce_matrix = get_cross_entropy_matrix(logits)
+        self.logits = logits
 
         self.hops = hops
-        self.keep_hops = keep_hops
+        self.keep_hops = False
+        self.prob = prob
         self.wrong_label = None
         self.wl = None
         self.wl_cnt = None
         self.wl_matrix = None
+        self.wl_limit = wl_limit
+        self.ce_list = None
         self.eps = eps
+
+    def init(self):
+        if "kh" in self.subgraph_type:
+            self.keep_hops = True
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
-        # self.wl_matrix = get_wl_matrix(self.wl)
+
+        if "wl" in self.subgraph_type:
+            self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
 
     # 10^-3
-    def spread_random_sample(self, targets, sample_nums):
+    def spread_random_wl_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops
         indices = self.indices
@@ -130,7 +133,6 @@ class Spreader:
             while start < end:
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
-                ce_limit = self.ce_matrix[root][nbrs].mean()
 
                 for i, u in enumerate(nbrs):
                     if sample_nums <= len(targets):
@@ -142,7 +144,9 @@ class Spreader:
                         if (u, head) not in edges:
                             edges[(head, u)] = level + 1
                     else:
-                        if self.ce_matrix[root][u] > ce_limit:
+                        nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, self.logits)
+                        ce_limit = nbrs_ce.mean()
+                        if nbrs_ce[i] > ce_limit:
                             if seen[u] < 0:
                                 seen[u] = level + 1
                                 targets.append(u)
@@ -224,11 +228,10 @@ class Spreader:
                             edges[(head, u)] = level + 1
                     start += 1
                     continue
-                nbrs_ce = self.ce_matrix[root][nbrs]
-                # ce_limit
+                nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, self.logits)
                 ce_limit = np.percentile(nbrs_ce, 50)
                 idx_ce = nbrs_ce > ce_limit
-                if any(idx_ce) and idx_ce.sum() >= target_topk:
+                if idx_ce.sum() >= target_topk:
                     nbrs = nbrs[idx_ce]
                     nbrs_ce = nbrs_ce[idx_ce]
 

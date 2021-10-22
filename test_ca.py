@@ -53,8 +53,8 @@ if __name__ == '__main__':
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce',
-                          'spread_random_wl', 'spread_random_wl_keep_hops', 'spread_random_ce',
-                          'spread_random_ce_keep_hops', 'spread_ce', 'ppr', 'ppr_wl']
+                          'spread_random_wl', 'spread_random_wl_kh', 'spread_random_ce',
+                          'spread_random_ce_kh', 'spread_ce', 'ppr', 'ppr_wl']
 
         # dw
         subgraph_types = ['dw_wl', 'dw_wl_dynamic', 'dw_purity']

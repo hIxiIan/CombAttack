@@ -17,7 +17,6 @@ class Walker:
         self.labels = labels
         self.subgraph_type = subgraph_type
         self.logits = logits
-        self.similar_dict = {}
 
         self.purity = None
         self.purity_r = None
@@ -34,51 +33,37 @@ class Walker:
 
     def init(self):
         # dw
-        if self.subgraph_type == "dw":
-            return
-        elif self.subgraph_type[:5] in ['dw_wl', 'dw_ce', 'dw_kh']:
-            return
-        elif self.subgraph_type[:9] == 'dw_purity':
-            self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
-            self.purity_r = 1 - self.purity + self.eps  # 杂度
-            self.purity += self.eps
+        if "dw" in self.subgraph_type:
+            if "purity" in self.subgraph_type:
+                self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
+                self.purity_r = 1 - self.purity + self.eps  # 杂度
+                self.purity += self.eps
 
         # n2v
-        elif self.subgraph_type == 'n2v_purity':
-            self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
-            self.purity_r = 1 - self.purity + self.eps  # 杂度
-            self.purity += self.eps
-            self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
-            self.preprocess_transition_probs()
-        elif self.subgraph_type == 'n2v':
+        elif "n2v" in self.subgraph_type:
+            if "purity" in self.subgraph_type:
+                self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
+                self.purity_r = 1 - self.purity + self.eps  # 杂度
+                self.purity += self.eps
+                self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
+                self.preprocess_transition_probs()
+            elif "ce" in self.subgraph_type:
+                self.ce_list = get_cross_entropy_list(self.indices, self.indptr, self.logits)
+
             t1 = time()
-            self.preprocess_transition_probs()
-            print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
-        elif self.subgraph_type == "n2v_ce":
-            t1 = time()
-            self.ce_list = get_cross_entropy_list(self.indices, self.indptr, self.logits)
             self.preprocess_transition_probs()
             print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     def set_wrong_label(self, wrong_label):
-        if self.subgraph_type in ["dw", "n2v"]:
-            return
         self.wrong_label = wrong_label
-        self.wl, self.wl_cnt = get_wl(self.indices, self.indptr, self.labels, wrong_label, self.eps)
 
-        if self.subgraph_type == "n2v_wl":
-            # self.similar_dict = {}
-            t1 = time()
-            self.wl_list = get_wl_list(self.indices, self.indptr, self.wl)
-            # print('get_wl_list cost:{} min'.format((time() - t1) / 60))
-            self.preprocess_transition_probs()
-            print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
-
-            # t1 = time()
-            # self.wl_matrix = get_wl_matrix(self.wl)
-            # print('get_wl_list cost:{} min'.format((time() - t1) / 60))
-            # self.preprocess_transition_probs()
-            # print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
+        if "wl" in self.subgraph_type:
+            self.wl, self.wl_cnt = get_wl(self.indices, self.indptr, self.labels, wrong_label, self.eps)
+            if "n2v" in self.subgraph_type:
+                t1 = time()
+                self.wl_list = get_wl_list(self.indices, self.indptr, self.wl)
+                self.preprocess_transition_probs()
+                print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     # 纯随机游走
     def deepwalk_sample(self, targets, sample_nums):
@@ -267,7 +252,7 @@ class Walker:
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
     # 仅作保留
-    def deepwalk_sample_wl_keep_hops(self, targets, sample_nums):
+    def deepwalk_wl_kh_sample(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0],
                                          hops=2)
         nodes = list(nodes)

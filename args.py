@@ -28,14 +28,10 @@ class ARGS:
         # dw
         self.p = cmd.p
         self.q = cmd.q
-        self.is_purity_matrix = is_purity_matrix
-        self.is_wl_matrix = is_wl_matrix
-        self.is_ce_matrix = is_ce_matrix
         self.wl_limit = wl_limit
 
         # spreader
         self.hops = hops
-        self.keep_hops = keep_hops
         self.prob = prob
 
         # ppr

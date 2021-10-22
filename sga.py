@@ -293,8 +293,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_purity_topk':
             sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_kh':
-            sub_edges, sub_nodes = self.walker.deepwalk_sample_wl_keep_hops(targets, self.sample_nums)
+        elif subgraph_type == 'dw_wl_kh':
+            sub_edges, sub_nodes = self.walker.deepwalk_wl_kh_sample(targets, self.sample_nums)
 
         # n2v
         elif subgraph_type in ['n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']:
@@ -302,20 +302,20 @@ class SCA(TargetedAttacker):
 
         # spread
         elif subgraph_type == 'spread_random_wl':
-            sub_edges, sub_nodes = self.spreader.spread_random_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_wl_keep_hops':
-            sub_edges, sub_nodes = self.spreader.spread_random_sample(targets, self.sample_nums)
+            sub_edges, sub_nodes = self.spreader.spread_random_wl_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_random_wl_kh':
+            sub_edges, sub_nodes = self.spreader.spread_random_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_random_ce':
             sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_ce_keep_hops':
+        elif subgraph_type == 'spread_random_ce_kh':
             sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_ce':
             sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_ce_keep_hops':
+        elif subgraph_type == 'spread_ce_kh':
             sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_wl':
             sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_wl_keep_hops':
+        elif subgraph_type == 'spread_wl_kh':
             sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
 
         # ppr
