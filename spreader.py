@@ -206,6 +206,8 @@ class Spreader:
         root = targets[0]
         while sample_nums > len(targets):
             end = len(targets)
+            if start == end:
+                break
             target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
@@ -247,6 +249,7 @@ class Spreader:
 
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
 
+    # 有可能死循环
     def spread_wl_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops
@@ -261,8 +264,10 @@ class Spreader:
         seen[targets] = 0
         level = 0
         root = targets[0]
-        while sample_nums > len(targets):
+        while sample_nums > len(targets): # 这里会出现死循环
             end = len(targets)
+            if start == end:
+                break
             wl_limit = 0.5
             target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
             while start < end and sample_nums > len(targets):
@@ -290,6 +295,7 @@ class Spreader:
                     idx_topk = np.argsort(nbrs_wl)[-topk:]
                     nbrs = nbrs[idx_topk]
 
+                # 如果seen一直小于0，taget就一直不会有增加
                 for i, u in enumerate(nbrs):
                     if seen[u] < 0:
                         seen[u] = level + 1
