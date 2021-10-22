@@ -24,6 +24,8 @@ class Spreader:
         self.ce_list = None
         self.eps = eps
 
+        self.init()
+
     def init(self):
         if "kh" in self.subgraph_type:
             self.keep_hops = True

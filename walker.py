@@ -46,13 +46,14 @@ class Walker:
                 self.purity_r = 1 - self.purity + self.eps  # 杂度
                 self.purity += self.eps
                 self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
+                t1 = time()
                 self.preprocess_transition_probs()
+                print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
             elif "ce" in self.subgraph_type:
                 self.ce_list = get_cross_entropy_list(self.indices, self.indptr, self.logits)
-
-            t1 = time()
-            self.preprocess_transition_probs()
-            print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
+                t1 = time()
+                self.preprocess_transition_probs()
+                print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
