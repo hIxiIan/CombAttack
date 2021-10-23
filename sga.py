@@ -339,7 +339,7 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=True)
         elif subgraph_type == 'ppr_wl_topk_asc':
             sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=False)
-        elif subgraph_type == 'ppr_wl_limit_topk_wl':
+        elif subgraph_type == 'ppr_wl_limit_topk_wl_asc':
             sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_topk_wl_sample(targets, self.sample_nums, descending=False)
         else:
             sub_edges, sub_nodes = [], []
