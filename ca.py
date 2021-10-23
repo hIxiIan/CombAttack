@@ -242,14 +242,14 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
     args.p = p
     args.q = q
     args.alpha = alpha
-    surrogate_model = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build()
+    surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=args.verbose,
                       epochs=100)
     args.surrogate_model = surrogate_model
     # Before attack
-    gcn_model = gg.gallery.nodeclas.GCN(seed=args.seed).setup_graph(graph).build()
+    gcn_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     his = gcn_model.fit(splits.train_nodes,
                       splits.val_nodes,
                       verbose=args.verbose,
@@ -258,9 +258,9 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
 
     # attacker
     if us:
-        attacker = SCA(graph, seed=args.seed).process(surrogate_model)
+        attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
-        attacker = SGA(graph, seed=args.seed).process(surrogate_model)
+        attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     acc, wlacc, cost = testACC(gcn_model, attacker, args, us=us, verbose=verbose)
     return acc, wlacc, cost
 
@@ -269,7 +269,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
-    parser.add_argument("--device", default="cpu", type=str, choices=["cpu", "gpu"], help="code environment")
+    parser.add_argument("--device", default="gpu", type=str, choices=["cpu", "gpu"], help="code environment")
 
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
@@ -294,7 +294,7 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), 50)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "dw"
+    args.subgraph_type = "n2v_wl"
     args.seed = 2012
     # args.p = 7.0
     # args.q = 0.25
@@ -316,9 +316,9 @@ if __name__ == '__main__':
 
     # attacker
     if args.us:
-        attacker = SCA(graph, seed=args.seed).process(surrogate_model)
+        attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
-        attacker = SGA(graph, seed=args.seed).process(surrogate_model)
+        attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     acc, wlacc, cost = testACC(gcn_model, attacker, args, us=args.us, verbose_us=False)
 
     # attacker = SGA(graph, seed=seed).process(surrogate_model)

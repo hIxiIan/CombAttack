@@ -1,3 +1,5 @@
+import torch
+
 class ARGS:
     def __init__(self, cmd, targets=None, splits=None,
 
@@ -13,7 +15,7 @@ class ARGS:
         # 通用
         self.seed = cmd.seed
         self.verbose = cmd.verbose
-        self.device = cmd.device
+        self.device = "gpu" if cmd.device == "gpu" and torch.cuda.is_available() else "cpu"
         self.dataset = cmd.dataset
         self.us = not cmd.n_us
 
