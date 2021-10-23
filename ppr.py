@@ -75,6 +75,12 @@ class PPRer:
                                               np.asarray(targets), topk, self.wl, descending)
         return edges, nodes
 
+    # ppr公式乘wl+topk+wl阈值偏好
+    def ppr_wl_limit_topk_wl_sample(self, targets, topk, descending):
+        edges, nodes, weights = calc_ppr_wl_limit_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+                                              np.asarray(targets), topk, self.wl, self.wl_cnt, descending)
+        return edges, nodes
+
 
 @numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
 def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums):
@@ -264,6 +270,46 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
     weights = []
     for i, node in enumerate(nodes):
         node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
+        node_np, weight_np = np.array(node), np.array(weight)
+        # print(len(node_np))
+        nodes_wl = wl[node_np]
+        idx_wl = nodes_wl >= 0.5
+        if idx_wl.sum() >= topk / 2:
+            edge = dict_filter_key(edge, node_np[~idx_wl])
+            node_np = node_np[idx_wl]
+            weight_np = weight_np[idx_wl]
+        # print(len(node_np))
+
+        # topk大于提取节点数量，退化成calc_ppr
+        if len(node_np) <= topk:
+            print('calc_ppr_topk back to calc_ppr')
+            targets.append(node_np)
+            weights.append(weight_np)
+            edges.update(edge)
+            continue
+        # weight_np小到大排序
+        idx_sort = np.argsort(weight_np)
+
+        if descending:
+            idx_topk = idx_sort[-topk:] # 取倒序topk个， 最重要
+            idx_topk_rest = idx_sort[:-topk]
+        else:
+            idx_topk = idx_sort[:topk] # 取顺序topk个，最不重要
+            idx_topk_rest = idx_sort[topk:]
+        targets.append(node_np[idx_topk])
+        weights.append(weight_np[idx_topk])
+        edges.update(dict_filter_key(edge, node_np[idx_topk_rest]))
+
+    return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
+
+
+# ppr公式乘wl+topk+wl偏好
+def calc_ppr_wl_limit_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, wl_cnt, descending=False):
+    edges = {}
+    targets = []
+    weights = []
+    for i, node in enumerate(nodes):
+        node, weight, edge = _calc_ppr_node_wl(wl_cnt, node, indptr, indices, deg, alpha, epsilon)
         node_np, weight_np = np.array(node), np.array(weight)
         # print(len(node_np))
         nodes_wl = wl[node_np]
