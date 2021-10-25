@@ -178,7 +178,7 @@ class SGA(TargetedAttacker):
         self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
         self.construct_sub_adj(influence_nodes, wrong_label_nodes, sub_nodes, sub_edges)
         # if self.verbose_us:
-        print('sub_non_edges:', self._sub_non_edges.shape)
+        # print('sub_non_edges:', self._sub_non_edges.shape)
 
         if attacker_nodes is not None:
             if self.direct_attack:
