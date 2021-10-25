@@ -233,7 +233,7 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
-    targets = random.sample(list(splits.test_nodes), 50)
+    targets = random.sample(list(splits.test_nodes), 1000)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
     random.seed(args.seed)
 
