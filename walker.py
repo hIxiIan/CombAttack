@@ -1,10 +1,10 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list
+from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list, get_purity_gains, get_wl_gains
 from time import time
 from numba import njit
-
+from sklearn import preprocessing
 
 class Walker:
     def __init__(self, subgraph_type, adj_matrix, labels, p=1.0, q=1.0, logits=None, wl_limit=1.0, eps=1e-4):
@@ -28,6 +28,7 @@ class Walker:
         self.purity_list = None
         self.ce_list = None
         self.eps = eps
+        self.min_max_scaler = preprocessing.MinMaxScaler()
 
         self.init()
 
@@ -152,6 +153,47 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    def deepwalk_wl_gains_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+        left = 1
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = random.choice(tmp_nodes[-left:])
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_wl_gains = get_wl_gains(self.indices, self.indptr, self.labels, self.wl, target,
+                                                         nbrs, self.wrong_label)
+
+                    nbrs_wl_gains = nbrs_wl_gains.ravel()
+                    idx = nbrs_wl_gains <= 0
+                    if idx.sum() > 0:
+                        nbrs = nbrs[idx]
+                        left = len(nbrs)
+                        for u in nbrs:
+                            tmp_nodes.append(u)
+                            if (u, head) not in edges:
+                                edges[(head, u)] = 1
+                    else:
+                        # nbrs_wl_gains = self.min_max_scaler.fit_transform(nbrs_wl_gains).ravel()
+                        # nbrs_wl_gains = nbrs_wl_gains + self.eps
+                        # u = nbrs[stochastic_accept(nbrs_wl_gains)]
+                        nbrs_wl_gains = nbrs_wl_gains[~idx]
+                        nbrs = nbrs[~idx]
+                        u = nbrs[nbrs_wl_gains.argmax()]
+                        # u = random.choice(nbrs)
+                        left = 1
+                        tmp_nodes.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = 1
+                else:
+                    break
+            print('tmp_nodes', tmp_nodes)
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
     # 轮盘赌
     # 轮盘赌+topk
     def deepwalk_ce_sample(self, targets, sample_nums, is_topk):
@@ -252,6 +294,80 @@ class Walker:
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
+    # dw + 纯度幅度偏好
+    def deepwalk_purity_gains_select_sample(self, targets, sample_nums, is_topk):
+        edges = {}
+        nodes = []
+
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
+            while len(tmp_nodes) < sample_nums:
+                head = tmp_nodes[-1]
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+                print('head:{}, nbrs:{}'.format(head, nbrs))
+                if len(nbrs) > 0:
+                    nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity,
+                                                         target,
+                                                         nbrs)
+                    nbrs_purity_gains = self.min_max_scaler.fit_transform(nbrs_purity_gains).ravel()
+                    nbrs_purity_gains = 1 - nbrs_purity_gains + self.eps
+                    print('nbrs_purity_gains:{}'.format(nbrs_purity_gains))
+                    if is_topk and topk < len(nbrs):
+                        idx_topk = np.argsort(nbrs_purity_gains)[-topk:]
+                        nbrs = nbrs[idx_topk]
+                        nbrs_purity_gains = nbrs_purity_gains[idx_topk]
+
+                    u = nbrs[stochastic_accept(nbrs_purity_gains)]
+                    tmp_nodes.append(u)
+                    print('tmp_nodes:{}'.format(tmp_nodes))
+                    if (u, head) not in edges:
+                        edges[(head, u)] = 1
+                else:
+                    break
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
+    def deepwalk_purity_gains_sample(self, targets, sample_nums):
+        edges = {}
+        nodes = []
+        left = 1
+        for target in targets:
+            tmp_nodes = [target]
+            while len(tmp_nodes) < sample_nums:
+                head = random.choice(tmp_nodes[-left:])
+                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
+
+                if len(nbrs) > 0:
+                    nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity,
+                                                         target,
+                                                         nbrs)
+                    nbrs_purity_gains = nbrs_purity_gains.ravel()
+                    idx = nbrs_purity_gains <= 0
+                    if idx.sum() > 0:
+                        nbrs = nbrs[idx]
+                        left = len(nbrs)
+                        for u in nbrs:
+                            tmp_nodes.append(u)
+                            if (u, head) not in edges:
+                                edges[(head, u)] = 1
+                    else:
+                        nbrs_purity_gains = nbrs_purity_gains[~idx]
+                        nbrs = nbrs[~idx]
+                        u = nbrs[nbrs_purity_gains.argmin()]
+                        # nbrs_purity_gains = self.min_max_scaler.fit_transform(nbrs_purity_gains).ravel()
+                        # nbrs_purity_gains = 1 - nbrs_purity_gains + self.eps
+                        # u = nbrs[stochastic_accept(nbrs_purity_gains)]
+                        left = 1
+                        tmp_nodes.append(u)
+                        if (u, head) not in edges:
+                            edges[(head, u)] = 1
+
+                else:
+                    break
+            print('tmp_nodes', tmp_nodes)
+            nodes.extend(tmp_nodes)
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
     # 仅作保留
     def deepwalk_wl_kh_sample(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0],

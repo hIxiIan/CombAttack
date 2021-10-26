@@ -281,6 +281,8 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_wl_dynamic_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_wl_dynamic_topk':
             sub_edges, sub_nodes = self.walker.deepwalk_wl_dynamic_sample(targets, self.sample_nums, is_topk=True)
+        elif subgraph_type == 'dw_wl_gains':
+            sub_edges, sub_nodes = self.walker.deepwalk_wl_gains_sample(targets, self.sample_nums)
         elif subgraph_type == 'dw_ce':
             sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_ce_topk':
@@ -293,8 +295,15 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=False)
         elif subgraph_type == 'dw_purity_topk':
             sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=True)
+        elif subgraph_type == 'dw_purity_gains':
+            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_sample(targets, self.sample_nums)
+        elif subgraph_type == 'dw_purity_gains_select':
+            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_select_sample(targets, self.sample_nums, is_topk=False)
+        elif subgraph_type == 'dw_purity_gains_select_topk':
+            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_select_sample(targets, self.sample_nums, is_topk=True)
         elif subgraph_type == 'dw_wl_kh':
             sub_edges, sub_nodes = self.walker.deepwalk_wl_kh_sample(targets, self.sample_nums)
+
 
         # n2v
         elif subgraph_type in ['n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']:

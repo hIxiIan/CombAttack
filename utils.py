@@ -3,8 +3,11 @@ import pandas as pd
 import torch
 import numpy as np
 from bisect import bisect_left
+
+from sklearn import preprocessing
+
 from graphgallery import functional as gf
-from numba import njit, int32, int64
+from numba import jit, int32, int64
 
 
 def normalize_GCN(indices, weights, degree):
@@ -25,20 +28,20 @@ def to_list(targets):
     return targets
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_purity(indices, indptr, labels):
     N = len(labels)
     purity = []
     for node_i in range(N):
         node_i_label = labels[node_i]
-        nbrs = indices[indptr[node_i]:indptr[node_i+1]]
+        nbrs = indices[indptr[node_i]:indptr[node_i + 1]]
         nbrs_label = labels[nbrs]
         cnt = (nbrs_label == node_i_label).mean()
         purity.append(cnt)
     return np.array(purity)
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_purity_martix(purity, purity_r, labels):
     N = len(purity)
     purity_matrix = np.zeros((N, N))
@@ -51,12 +54,12 @@ def get_purity_martix(purity, purity_r, labels):
     return purity_matrix
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_purity_target_nbrs(target, nbrs, purity):
     return [purity[target] * purity[nbr] for nbr in nbrs]
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_purity_list(indices, indptr, purity):
     N = len(purity)
     purity_list = []
@@ -67,7 +70,7 @@ def get_purity_list(indices, indptr, purity):
     return purity_list
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_wl(indices, indptr, labels, wrong_label, eps):
     N = len(labels)
     wl = []
@@ -81,18 +84,18 @@ def get_wl(indices, indptr, labels, wrong_label, eps):
     return np.array(wl) + eps, np.log10((np.array(wl_cnt) + 10))
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_wl_matrix(wl):
     N = len(wl)
     return np.array([wl[i] * wl[j] for i in range(N) for j in range(N)]).reshape((N, N))
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_wl_target_nbrs(target, nbrs, wl):
     return [wl[target] * wl[nbr] for nbr in nbrs]
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_wl_list(indices, indptr, wl):
     N = len(wl)
     wl_list = []
@@ -146,7 +149,7 @@ def get_hop_neighbors(indices, indptr, target, hops=2):
     return np.unique(nodes), edges
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_hop_neighbors_njit(indices, indptr, target, hops):
     edges = {}
     nodes = [np.int64(target)]
@@ -165,31 +168,31 @@ def get_hop_neighbors_njit(indices, indptr, target, hops):
     return nodes, edges
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_hop_rate(walk_nodes, hop_nodes):
     intersection = np.intersect1d(hop_nodes, walk_nodes)
     # print(intersection.shape, intersection)
     return len(intersection) / len(hop_nodes), len(hop_nodes), len(walk_nodes)
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_wrong_rate(nodes, wrong_label_nodes):
     intersection = np.intersect1d(nodes, wrong_label_nodes)
     return len(intersection) / len(wrong_label_nodes), len(intersection)
 
 
-@njit
+@jit(cache=True, nopython=True)
 def cross_entropy(hi, hj):
     return (- np.sum(hi * np.log(hj)) - np.sum(hj * np.log(hi))) / 2
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_cross_entropy_matrix(logits):
     N = len(logits)
     return np.array([cross_entropy(logits[i], logits[j]) for i in range(N) for j in range(N)]).reshape((N, N))
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_cross_entropy_list(indices, indptr, logits):
     N = len(logits)
     cross_entropy_list = []
@@ -200,12 +203,12 @@ def get_cross_entropy_list(indices, indptr, logits):
     return cross_entropy_list
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_cross_entropy_target_nbrs(target, nbrs, logits):
     return [cross_entropy(logits[target], logits[nbr]) for nbr in nbrs]
 
 
-@njit
+@jit(cache=True, nopython=True)
 def get_target_subgraph_level(target, indices, indptr, N):
     start = 0
     seen = np.zeros(N) - 1
@@ -240,3 +243,54 @@ def save_test(_prefix, times):
             tdf += df
     tdf /= times
     tdf.to_csv(_prefix + '_total.csv')
+
+
+@jit(cache=True, nopython=True)
+def get_purity_gains(indices, indptr, labels, purity, target, nbrs):
+    first_nbrs = indices[indptr[target]:indptr[target + 1]]
+    target_label = labels[target]
+    purity_gains = []
+    for nbr in nbrs:
+        nbr_nbrs = indices[indptr[nbr]:indptr[nbr + 1]]  # 邻居的邻居
+        nbr_nbrs_labels = labels[nbr_nbrs]  # 邻居的邻居的标签
+        purity_cnt = (nbr_nbrs_labels == labels[nbr]).sum()
+        nbr_cnt = len(nbr_nbrs)
+        if nbr in first_nbrs:  # 一阶邻居，删边
+            if target_label == labels[nbr]:
+                purity_cnt -= 1.0
+            nbr_cnt -= 1
+        else:  # k阶邻居，加边
+            if target_label == labels[nbr]:
+                purity_cnt += 1.0
+            nbr_cnt += 1
+        # 防止0/0情况（nbr只有target一个邻居）
+        if purity_cnt > 0:
+            cur_purity = purity_cnt / nbr_cnt
+            purity_gains.append([(cur_purity - purity[nbr]) / purity[nbr]])
+        else:
+            purity_gains.append([-1.0])
+
+    return np.asarray(purity_gains)
+
+
+@jit(cache=True, nopython=True)
+def get_wl_gains(indices, indptr, labels, wl, target, nbrs, wrong_label):
+    first_nbrs = indices[indptr[target]:indptr[target + 1]]
+    wl_gains = []
+    for nbr in nbrs:
+        nbr_nbrs = indices[indptr[nbr]:indptr[nbr + 1]]  # 邻居的邻居
+        nbr_nbrs_labels = labels[nbr_nbrs]  # 邻居的邻居的标签
+        wl_cnt = (nbr_nbrs_labels == wrong_label).sum()
+        nbr_cnt = len(nbr_nbrs)
+        if nbr in first_nbrs:  # 一阶邻居，删边
+            nbr_cnt -= 1
+        else:  # k阶邻居，加边
+            nbr_cnt += 1
+        # 防止0/0情况（nbr只有target一个邻居）
+        if nbr_cnt > 0:
+            cur_wl = wl_cnt / nbr_cnt
+            wl_gains.append([(cur_wl - wl[nbr]) / wl[nbr]])
+        else:
+            wl_gains.append([0.0])
+
+    return np.asarray(wl_gains)
