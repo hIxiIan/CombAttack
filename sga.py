@@ -326,6 +326,10 @@ class SCA(TargetedAttacker):
             sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
         elif subgraph_type == 'spread_wl_kh':
             sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_random_purity_gains':
+            sub_edges, sub_nodes = self.spreader.spread_random_purity_gains_sample(targets, self.sample_nums)
+        elif subgraph_type == 'spread_wl_improve':
+            sub_edges, sub_nodes = self.spreader.spread_wl_improve_sample(targets, self.sample_nums)
 
         # ppr
         elif subgraph_type == 'ppr':

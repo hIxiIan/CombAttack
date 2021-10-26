@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from graphgallery import functional as gf
-from utils import get_wl, get_cross_entropy_list, get_cross_entropy_target_nbrs
+from utils import get_wl, get_purity, get_cross_entropy_target_nbrs, get_purity_gains
 
 
 class Spreader:
@@ -22,6 +22,8 @@ class Spreader:
         self.wl_matrix = None
         self.wl_limit = wl_limit
         self.ce_list = None
+        self.purity = None
+        self.purity_r = None
         self.eps = eps
 
         self.init()
@@ -29,6 +31,10 @@ class Spreader:
     def init(self):
         if "kh" in self.subgraph_type:
             self.keep_hops = True
+        if "purity" in self.subgraph_type:
+            self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
+            self.purity_r = 1 - self.purity + self.eps  # 杂度
+            self.purity += self.eps
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
@@ -254,7 +260,6 @@ class Spreader:
 
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
 
-    # 有可能死循环
     def spread_wl_sample(self, targets, sample_nums):
         hops = self.hops
         keep_hops = self.keep_hops
@@ -269,7 +274,7 @@ class Spreader:
         seen[targets] = 0
         level = 0
         root = targets[0]
-        while sample_nums > len(targets): # 这里会出现死循环
+        while sample_nums > len(targets):
             end = len(targets)
             if start == end:
                 break
@@ -291,7 +296,7 @@ class Spreader:
                     continue
                 nbrs_wl = self.wl[nbrs]
                 idx_wl = nbrs_wl > wl_limit
-                if any(idx_wl) and idx_wl.sum() >= target_topk:
+                if idx_wl.sum() >= target_topk:
                     nbrs = nbrs[idx_wl]
                     nbrs_wl = nbrs_wl[idx_wl]
 
@@ -300,7 +305,6 @@ class Spreader:
                     idx_topk = np.argsort(nbrs_wl)[-topk:]
                     nbrs = nbrs[idx_topk]
 
-                # 如果seen一直小于0，taget就一直不会有增加
                 for i, u in enumerate(nbrs):
                     if seen[u] < 0:
                         seen[u] = level + 1
@@ -310,6 +314,168 @@ class Spreader:
                         edges[(head, u)] = level + 1
                 start += 1
 
+            level = level + 1
+
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+
+    def spread_wl_improve_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
+        indices = self.indices
+        indptr = self.indptr
+
+        edges = {}
+        start = 0
+        N = self.adj_matrix.shape[0]
+        # N个节点，全部初始化为-1
+        seen = np.zeros(N) - 1
+        seen[targets] = 0
+        level = 0
+        root = targets[0]
+        while sample_nums > len(targets):
+            end = len(targets)
+            if start == end:
+                break
+            wl_limit = 0.5
+            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            while start < end and sample_nums > len(targets):
+                head = targets[start]
+                nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
+                if len(nbrs) > 0:
+                    if keep_hops and level < hops:
+                        for i, u in enumerate(nbrs):
+                            if sample_nums <= len(targets):
+                                break
+                            if seen[u] < 0:
+                                seen[u] = level + 1
+                                targets.append(u)
+                            if (u, head) not in edges:
+                                edges[(head, u)] = level + 1
+                        start += 1
+                        continue
+                    nbrs_wl = self.wl[nbrs]
+                    idx_wl = nbrs_wl > wl_limit
+                    if idx_wl.sum() >= target_topk:
+                        nbrs = nbrs[idx_wl]
+                        nbrs_wl = nbrs_wl[idx_wl]
+
+                        if sample_nums < len(targets) + len(nbrs):
+                            topk = sample_nums - len(targets)
+                            idx_topk = np.argsort(nbrs_wl)[-topk:]
+                            nbrs = nbrs[idx_topk]
+                            nbrs_wl = nbrs_wl[idx_topk]
+
+                        next_start_offset = 1
+                        ccc = 0
+                        for i, u in enumerate(nbrs):
+                            if seen[u] < 0:
+                                ccc += 1
+                                seen[u] = level + 1
+                                targets.append(u)
+                                if wl_limit > self.wl[u]:
+                                    wl_limit = self.wl[u]
+                                    next_start_offset = ccc
+                            if (u, head) not in edges:
+                                edges[(head, u)] = level + 1
+                        start += next_start_offset
+                    else:
+                        if sample_nums < len(targets) + len(nbrs):
+                            topk = sample_nums - len(targets)
+                            idx_topk = np.argsort(nbrs_wl)[-topk:]
+                            nbrs = nbrs[idx_topk]
+
+                        next_start_offset = 1
+                        ccc = 0
+                        for i, u in enumerate(nbrs):
+                            if random.random() < 0.5:
+                                if seen[u] < 0:
+                                    ccc += 1
+                                    seen[u] = level + 1
+                                    targets.append(u)
+                                    if wl_limit > self.wl[u]:
+                                        wl_limit = self.wl[u]
+                                        next_start_offset = ccc
+                                if (u, head) not in edges:
+                                    edges[(head, u)] = level + 1
+                        start += next_start_offset
+                else:
+                    start += 1
+                    break
+
+            level = level + 1
+
+        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+
+    def spread_random_purity_gains_sample(self, targets, sample_nums):
+        hops = self.hops
+        keep_hops = self.keep_hops
+        indices = self.indices
+        indptr = self.indptr
+
+        edges = {}
+        start = 0
+        N = self.adj_matrix.shape[0]
+        # N个节点，全部初始化为-1
+        seen = np.zeros(N) - 1
+        seen[targets] = 0
+        level = 0
+        root = targets[0]
+        while sample_nums > len(targets):
+            end = len(targets)
+            if start >= end:
+                break
+            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            while start < end and sample_nums > len(targets):
+                head = targets[start]
+                nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
+                if len(nbrs) > 0:
+                    if keep_hops and level < hops:
+                        for i, u in enumerate(nbrs):
+                            if sample_nums <= len(targets):
+                                break
+                            if seen[u] < 0:
+                                seen[u] = level + 1
+                                targets.append(u)
+                            if (u, head) not in edges:
+                                edges[(head, u)] = level + 1
+                        start += 1
+                        continue
+                    nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity, root, nbrs)
+                    nbrs_purity_gains_ravel = nbrs_purity_gains.ravel()
+                    idx = nbrs_purity_gains_ravel <= 0
+                    if idx.sum() > 0:
+                        nbrs = nbrs[idx]
+                        nbrs_purity_gains_ravel = nbrs_purity_gains_ravel[idx]
+                        ccc = 0
+                        next_start_offset = 1
+                        _min = 1.1
+                        for i, u in enumerate(nbrs):
+                            if seen[u] < 0:
+                                ccc += 1
+                                seen[u] = level + 1
+                                targets.append(u)
+                                if nbrs_purity_gains_ravel[i] < _min:
+                                    _min = nbrs_purity_gains_ravel[i]
+                                    next_start_offset = ccc
+                            if (u, head) not in edges:
+                                edges[(head, u)] = level + 1
+                        start += next_start_offset
+                    else:
+                        for i, u in enumerate(nbrs):
+                            if random.random() < self.prob:
+                                if seen[u] < 0:
+                                    seen[u] = level + 1
+                                    targets.append(u)
+                                if (u, head) not in edges:
+                                    edges[(head, u)] = level + 1
+                        # if sample_nums < len(targets) + len(nbrs):
+                        #     topk = sample_nums - len(targets)
+                        #     idx_topk = np.argsort(nbrs_purity_gains)[-topk:]
+                        #     nbrs = nbrs[idx_topk]
+                        start += 1
+                else:
+                    start += 1
+                    break
             level = level + 1
 
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
