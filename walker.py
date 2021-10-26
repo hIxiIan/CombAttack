@@ -190,7 +190,6 @@ class Walker:
                             edges[(head, u)] = 1
                 else:
                     break
-            print('tmp_nodes', tmp_nodes)
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
 
@@ -305,14 +304,12 @@ class Walker:
             while len(tmp_nodes) < sample_nums:
                 head = tmp_nodes[-1]
                 nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                print('head:{}, nbrs:{}'.format(head, nbrs))
                 if len(nbrs) > 0:
                     nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity,
                                                          target,
                                                          nbrs)
                     nbrs_purity_gains = self.min_max_scaler.fit_transform(nbrs_purity_gains).ravel()
                     nbrs_purity_gains = 1 - nbrs_purity_gains + self.eps
-                    print('nbrs_purity_gains:{}'.format(nbrs_purity_gains))
                     if is_topk and topk < len(nbrs):
                         idx_topk = np.argsort(nbrs_purity_gains)[-topk:]
                         nbrs = nbrs[idx_topk]
@@ -320,7 +317,6 @@ class Walker:
 
                     u = nbrs[stochastic_accept(nbrs_purity_gains)]
                     tmp_nodes.append(u)
-                    print('tmp_nodes:{}'.format(tmp_nodes))
                     if (u, head) not in edges:
                         edges[(head, u)] = 1
                 else:
@@ -368,6 +364,7 @@ class Walker:
             print('tmp_nodes', tmp_nodes)
             nodes.extend(tmp_nodes)
         return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(nodes)
+
     # 仅作保留
     def deepwalk_wl_kh_sample(self, targets, sample_nums):
         nodes, edges = get_hop_neighbors(self.adj_matrix_csr.indices, self.adj_matrix_csr.indptr, targets[0],
