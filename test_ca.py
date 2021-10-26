@@ -27,7 +27,7 @@ if __name__ == '__main__':
     cmd = parser.parse_args()
     gg.set_backend("th")
 
-    res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
+
     rootdir = "result/test_ca"
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
@@ -38,6 +38,7 @@ if __name__ == '__main__':
     times = 3
     seeds = [5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
     for i in range(times):
+        res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
         cmd.seed = seeds[i]
         filename = "_".join([_prefix, str(i)]) + '.csv'
         print(filename)
