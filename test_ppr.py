@@ -28,10 +28,10 @@ if __name__ == '__main__':
     cmd = parser.parse_args()
     gg.set_backend("th")
 
-    rootdir = "result/" + strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    rootdir = "result/test_ppr"
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = "test_ppr"
+    personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
