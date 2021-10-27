@@ -2,6 +2,7 @@ import random
 import numpy as np
 from graphgallery import functional as gf
 from utils import get_wl, get_purity, get_cross_entropy_target_nbrs, get_purity_gains
+from numba import jit
 
 
 class Spreader:
@@ -42,21 +43,37 @@ class Spreader:
         if "wl" in self.subgraph_type:
             self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
 
-    # 10^-3
-    def spread_random_wl_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
+    def spread_walk(self, targets, sample_nums):
+        if 'wl' in self.subgraph_type:
+            if self.subgraph_type in ['spread_random_wl', 'spread_random_wl_kh']:
+                sub_edges, sub_nodes = self.spread_random_wl_sample(self.wl, self.wl_limit, self.labels, self.wrong_label, self.hops, self.keep_hops, self.prob, self.indices, self.indptr, targets, sample_nums)
+            elif self.subgraph_type in ['spread_wl', 'spread_wl_kh']:
+                sub_edges, sub_nodes = self.spread_wl_sample(self.wl, self.hops, self.keep_hops, self.indices, self.indptr, targets, sample_nums)
+            elif self.subgraph_type == 'spread_wl_improve':
+                sub_edges, sub_nodes = self.spread_wl_improve_sample(self.wl, self.hops, self.keep_hops, self.indices, self.indptr, targets, sample_nums)
+        elif 'ce' in self.subgraph_type:
+            if self.subgraph_type in ['spread_random_ce', 'spread_random_ce_kh']:
+                sub_edges, sub_nodes = self.spread_random_ce_sample(self.logits, self.hops, self.keep_hops, self.prob, self.indices, self.indptr, targets, sample_nums)
+            elif self.subgraph_type in ['spread_ce', 'spread_ce_kh']:
+                sub_edges, sub_nodes = self.spread_ce_sample(self.logits, self.hops, self.keep_hops, self.indices, self.indptr, targets, sample_nums)
+        elif 'purity' in self.subgraph_type:
+            if self.subgraph_type == 'spread_random_purity_gains':
+                sub_edges, sub_nodes = self.spread_random_purity_gains_sample(self.purity, self.labels, self.hops, self.keep_hops, self.prob, self.indices, self.indptr, targets, sample_nums)
 
+        return gf.asedge(sub_edges, shape='row_wise'), sub_nodes
+
+    # 10^-3
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_random_wl_sample(wl, wl_limit, labels, wrong_label, hops, keep_hops, prob, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
-
+        targets = list(targets)
         while True:
             end = len(targets)
             while start < end:
@@ -74,36 +91,35 @@ class Spreader:
                         if (u, head) not in edges:
                             edges[(head, u)] = level + 1
                     else:
-                        if self.labels[u] == self.wrong_label or self.wl[u] > self.wl_limit:
+                        if labels[u] == wrong_label or wl[u] > wl_limit:
                             if seen[u] < 0:
                                 seen[u] = level + 1
                                 targets.append(u)
                             if (u, head) not in edges:
                                 edges[(head, u)] = level + 1
                         else:
-                            rd = random.random()
+                            rd = np.random.random()
                             uu = u
                             if seen[uu] < 0:
                                 seen[uu] = level + 1
-                                if rd < self.prob:
+                                if rd < prob:
                                     targets.append(uu)
                                 if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
                                     # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
                                     while uu == head and len(nbrs) > 1:
-                                        uu = random.choice(nbrs)
+                                        uu = np.random.choice(nbrs)
                                     targets.append(uu)
-                            elif seen[uu] >= 0 and rd >= self.prob: # todo 有问题
+                            elif seen[uu] >= 0 and rd >= prob: # todo 有问题
                                 # print('---')
                                 if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
                                     # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
                                     # print(uu)
                                     if uu in targets and len(nbrs) > 1:
-                                        uu = random.choice(nbrs[nbrs != uu])
+                                        uu = np.random.choice(nbrs[nbrs != uu])
                                         # print(uu)
                                     targets.append(uu)
-                            if ((rd < self.prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
+                            if ((rd < prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
                                 edges[(head, uu)] = level + 1
-
 
                 start += 1
 
@@ -118,26 +134,23 @@ class Spreader:
         if len(edges) == 0:
             print('sample 0 edges')
             assert False, 'sample 0 edge'
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)
 
     # todo 可能有问题
-    def spread_random_ce_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
-
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_random_ce_sample(logits, hops, keep_hops, prob, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
         root = targets[0]
+        targets = list(targets)
         while True:
             end = len(targets)
-
             while start < end:
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -152,7 +165,7 @@ class Spreader:
                         if (u, head) not in edges:
                             edges[(head, u)] = level + 1
                     else:
-                        nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, self.logits)
+                        nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, logits)
                         ce_limit = nbrs_ce.mean()
                         if nbrs_ce[i] > ce_limit:
                             if seen[u] < 0:
@@ -161,31 +174,30 @@ class Spreader:
                             if (u, head) not in edges:
                                 edges[(head, u)] = level + 1
                         else:
-                            rd = random.random()
+                            rd = np.random.random()
                             uu = u
                             # print((head, uu), rd, self.prob)
                             # print(seen[uu])
                             if seen[uu] < 0:
                                 seen[uu] = level + 1
-                                if rd < self.prob:
+                                if rd < prob:
                                     targets.append(uu)
                                 if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
                                     # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
                                     while uu == head and len(nbrs) > 1:
-                                        uu = random.choice(nbrs)
+                                        uu = np.random.choice(nbrs)
                                     targets.append(uu)
-                            elif seen[uu] >= 0 and rd >= self.prob: # todo 有问题
+                            elif seen[uu] >= 0 and rd >= prob: # todo 有问题
                                 # print('---')
                                 if i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets):
                                     # 从根节点出发采样hops阶邻居个数为0，则在当前level随机选一个节点加入到候选集
                                     # print(uu)
                                     if uu in targets and len(nbrs) > 1:
-                                        uu = random.choice(nbrs[nbrs != uu])
+                                        uu = np.random.choice(nbrs[nbrs != uu])
                                         # print(uu)
                                     targets.append(uu)
-                            if ((rd < self.prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
+                            if ((rd < prob) or (i == len(nbrs) - 1 and end == len(targets) and sample_nums > len(targets))) and (uu, head) not in edges:
                                 edges[(head, uu)] = level + 1
-
 
                 start += 1
 
@@ -200,27 +212,25 @@ class Spreader:
         if len(edges) == 0:
             print('sample 0 edges')
             assert False, 'sample 0 edge'
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)
 
-    def spread_ce_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
-
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_ce_sample(logits, hops, keep_hops, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
         root = targets[0]
+        targets = list(targets)
         while sample_nums > len(targets):
             end = len(targets)
             if start == end:
                 break
-            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            target_topk = len(indices[indptr[root]:indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -236,7 +246,7 @@ class Spreader:
                             edges[(head, u)] = level + 1
                     start += 1
                     continue
-                nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, self.logits)
+                nbrs_ce = get_cross_entropy_target_nbrs(root, nbrs, logits)
                 ce_limit = np.percentile(nbrs_ce, 50)
                 idx_ce = nbrs_ce > ce_limit
                 if idx_ce.sum() >= target_topk:
@@ -258,28 +268,26 @@ class Spreader:
 
             level = level + 1
 
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)
 
-    def spread_wl_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
-
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_wl_sample(wl, hops, keep_hops, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
         root = targets[0]
+        targets = list(targets)
         while sample_nums > len(targets):
             end = len(targets)
             if start == end:
                 break
             wl_limit = 0.5
-            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            target_topk = len(indices[indptr[root]:indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -294,7 +302,7 @@ class Spreader:
                             edges[(head, u)] = level + 1
                     start += 1
                     continue
-                nbrs_wl = self.wl[nbrs]
+                nbrs_wl = wl[nbrs]
                 idx_wl = nbrs_wl > wl_limit
                 if idx_wl.sum() >= target_topk:
                     nbrs = nbrs[idx_wl]
@@ -309,35 +317,33 @@ class Spreader:
                     if seen[u] < 0:
                         seen[u] = level + 1
                         targets.append(u)
-                        wl_limit = max(wl_limit, self.wl[u])
+                        wl_limit = max(wl_limit, wl[u])
                     if (u, head) not in edges:
                         edges[(head, u)] = level + 1
                 start += 1
 
             level = level + 1
 
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)
 
-    def spread_wl_improve_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
-
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_wl_improve_sample(wl, hops, keep_hops, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
         root = targets[0]
+        targets = list(targets)
         while sample_nums > len(targets):
             end = len(targets)
             if start == end:
                 break
             wl_limit = 0.5
-            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            target_topk = len(indices[indptr[root]:indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -353,7 +359,7 @@ class Spreader:
                                 edges[(head, u)] = level + 1
                         start += 1
                         continue
-                    nbrs_wl = self.wl[nbrs]
+                    nbrs_wl = wl[nbrs]
                     idx_wl = nbrs_wl > wl_limit
                     if idx_wl.sum() >= target_topk:
                         nbrs = nbrs[idx_wl]
@@ -372,8 +378,8 @@ class Spreader:
                                 ccc += 1
                                 seen[u] = level + 1
                                 targets.append(u)
-                                if wl_limit > self.wl[u]:
-                                    wl_limit = self.wl[u]
+                                if wl_limit > wl[u]:
+                                    wl_limit = wl[u]
                                     next_start_offset = ccc
                             if (u, head) not in edges:
                                 edges[(head, u)] = level + 1
@@ -392,8 +398,8 @@ class Spreader:
                                     ccc += 1
                                     seen[u] = level + 1
                                     targets.append(u)
-                                    if wl_limit > self.wl[u]:
-                                        wl_limit = self.wl[u]
+                                    if wl_limit > wl[u]:
+                                        wl_limit = wl[u]
                                         next_start_offset = ccc
                                 if (u, head) not in edges:
                                     edges[(head, u)] = level + 1
@@ -404,27 +410,25 @@ class Spreader:
 
             level = level + 1
 
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)
 
-    def spread_random_purity_gains_sample(self, targets, sample_nums):
-        hops = self.hops
-        keep_hops = self.keep_hops
-        indices = self.indices
-        indptr = self.indptr
-
+    @staticmethod
+    @jit(cache=True, nopython=True)
+    def spread_random_purity_gains_sample(purity, labels, hops, keep_hops, prob, indices, indptr, targets, sample_nums):
         edges = {}
         start = 0
-        N = self.adj_matrix.shape[0]
+        N = len(indptr) - 1
         # N个节点，全部初始化为-1
         seen = np.zeros(N) - 1
         seen[targets] = 0
         level = 0
         root = targets[0]
+        targets = list(targets)
         while sample_nums > len(targets):
             end = len(targets)
             if start >= end:
                 break
-            target_topk = len(self.indices[self.indptr[root]:self.indptr[root + 1]])
+            target_topk = len(indices[indptr[root]:indptr[root + 1]])
             while start < end and sample_nums > len(targets):
                 head = targets[start]
                 nbrs = indices[indptr[head]:indptr[head + 1]]  # 节点head的邻居索引下标
@@ -440,7 +444,7 @@ class Spreader:
                                 edges[(head, u)] = level + 1
                         start += 1
                         continue
-                    nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity, root, nbrs)
+                    nbrs_purity_gains = get_purity_gains(indices, indptr, labels, purity, root, nbrs)
                     nbrs_purity_gains_ravel = nbrs_purity_gains.ravel()
                     idx = nbrs_purity_gains_ravel <= 0
                     if idx.sum() > 0:
@@ -462,7 +466,7 @@ class Spreader:
                         start += next_start_offset
                     else:
                         for i, u in enumerate(nbrs):
-                            if random.random() < self.prob:
+                            if random.random() < prob:
                                 if seen[u] < 0:
                                     seen[u] = level + 1
                                     targets.append(u)
@@ -478,4 +482,4 @@ class Spreader:
                     break
             level = level + 1
 
-        return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets)
+        return list(edges.keys()), np.asarray(targets)

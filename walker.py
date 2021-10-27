@@ -3,7 +3,7 @@ import numpy as np
 from graphgallery import functional as gf
 from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list, get_purity_gains, get_wl_gains, random_choice
 from time import time
-from numba import njit
+from numba import jit
 from sklearn import preprocessing
 
 
@@ -115,7 +115,7 @@ class Walker:
 
     # 纯随机游走
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_sample(indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -136,7 +136,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_biased_sample(p, q, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -169,7 +169,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_wl_sample(wl, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -200,7 +200,7 @@ class Walker:
     # 轮盘赌+动态wrong_label阈值
     # 轮盘赌+动态wrong_label阈值+topk
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_wl_dynamic_sample(wl, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -235,7 +235,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_wl_gains_sample(wl, labels, wrong_label, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -279,7 +279,7 @@ class Walker:
     # 轮盘赌
     # 轮盘赌+topk
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_ce_sample(logits, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -309,7 +309,7 @@ class Walker:
     # 轮盘赌+动态cross_entropy阈值
     # 轮盘赌+动态cross_entropy阈值+topk
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_ce_dynamic_sample(logits, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -347,7 +347,7 @@ class Walker:
     # 轮盘赌
     # 轮盘赌+topk
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_purity_sample(purity, purity_r, labels, wrong_label, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -415,7 +415,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @njit
+    @jit(cache=True, nopython=True)
     def deepwalk_purity_gains_sample(purity, labels, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -583,7 +583,7 @@ class Walker:
         return
 
 
-@njit
+@jit(cache=True, nopython=True)
 def alias_setup(probs):
     '''
     Compute utility lists for non-uniform sampling from discrete distributions.
@@ -617,7 +617,7 @@ def alias_setup(probs):
     return J, q
 
 
-@njit
+@jit(cache=True, nopython=True)
 def alias_draw(J, q):
     '''
     Draw sample from a non-uniform discrete distribution using alias sampling.

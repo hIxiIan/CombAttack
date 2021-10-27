@@ -274,27 +274,12 @@ class SCA(TargetedAttacker):
         if 'dw' in subgraph_type or 'n2v' in subgraph_type:
             sub_edges, sub_nodes = self.walker.random_walk(targets, self.sample_nums)
 
-        # spread
-        elif subgraph_type == 'spread_random_wl':
-            sub_edges, sub_nodes = self.spreader.spread_random_wl_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_wl_kh':
-            sub_edges, sub_nodes = self.spreader.spread_random_wl_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_ce':
-            sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_ce_kh':
-            sub_edges, sub_nodes = self.spreader.spread_random_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_ce':
-            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_ce_kh':
-            sub_edges, sub_nodes = self.spreader.spread_ce_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_wl':
-            sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_wl_kh':
-            sub_edges, sub_nodes = self.spreader.spread_wl_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_random_purity_gains':
-            sub_edges, sub_nodes = self.spreader.spread_random_purity_gains_sample(targets, self.sample_nums)
-        elif subgraph_type == 'spread_wl_improve':
-            sub_edges, sub_nodes = self.spreader.spread_wl_improve_sample(targets, self.sample_nums)
+        # spread walk
+        elif 'spread' in subgraph_type:
+            sub_edges, sub_nodes = self.spreader.spread_walk(targets, self.sample_nums)
+
+        # elif 'ppr' in subgraph_type:
+        #     sub_edges, sub_nodes = self.PPRer.ppr_walk(targets, self.sample_nums)
 
         # ppr
         elif subgraph_type == 'ppr':
