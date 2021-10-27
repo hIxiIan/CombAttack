@@ -270,44 +270,9 @@ class SCA(TargetedAttacker):
         # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
         targets = to_list(self.target)
         t1 = time()
-        # dw
-        if subgraph_type == 'dw':
-            sub_edges, sub_nodes = self.walker.deepwalk_sample(targets, self.sample_nums)
-        elif subgraph_type == 'dw_wl':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_wl_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_wl_dynamic':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_dynamic_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_wl_dynamic_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_dynamic_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_wl_gains':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_gains_sample(targets, self.sample_nums)
-        elif subgraph_type == 'dw_ce':
-            sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_ce_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_ce_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_ce_dynamic':
-            sub_edges, sub_nodes = self.walker.deepwalk_ce_dynamic_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_ce_dynamic_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_ce_dynamic_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_purity':
-            sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_purity_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_purity_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_purity_gains':
-            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_sample(targets, self.sample_nums)
-        elif subgraph_type == 'dw_purity_gains_select':
-            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_select_sample(targets, self.sample_nums, is_topk=False)
-        elif subgraph_type == 'dw_purity_gains_select_topk':
-            sub_edges, sub_nodes = self.walker.deepwalk_purity_gains_select_sample(targets, self.sample_nums, is_topk=True)
-        elif subgraph_type == 'dw_wl_kh':
-            sub_edges, sub_nodes = self.walker.deepwalk_wl_kh_sample(targets, self.sample_nums)
-
-
-        # n2v
-        elif subgraph_type in ['n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']:
-            sub_edges, sub_nodes = self.walker.node2vec_sample(targets, self.sample_nums)
+        # random walk
+        if 'dw' in subgraph_type or 'n2v' in subgraph_type:
+            sub_edges, sub_nodes = self.walker.random_walk(targets, self.sample_nums)
 
         # spread
         elif subgraph_type == 'spread_random_wl':

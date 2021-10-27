@@ -234,7 +234,7 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
     graph = data.graph
     splits = data.split_nodes(random_state=15)
     random.seed(cmd.seed)
-    targets = random.sample(list(splits.test_nodes), 1000)
+    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
     print(args.device)
 
@@ -275,6 +275,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -293,9 +294,9 @@ if __name__ == '__main__':
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
-    targets = random.sample(list(splits.test_nodes), 50)
+    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "n2v_wl"
+    # args.subgraph_type = "spread_wl"
     args.seed = 2012
     # args.p = 7.0
     # args.q = 0.25

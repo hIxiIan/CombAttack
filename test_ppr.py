@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")

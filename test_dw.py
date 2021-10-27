@@ -18,6 +18,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -54,8 +55,12 @@ if __name__ == '__main__':
 
         # us
         subgraph_types = ['dw', 'dw_purity', 'dw_wl', 'dw_kh', 'dw_ce', 'n2v', 'n2v_purity', 'n2v_wl', 'n2v_ce']
-        subgraph_types = ['dw_wl', 'dw_wl_topk', 'dw_wl_dynamic', 'dw_wl_dynamic_topk', 'dw_ce', 'dw_ce_topk', 'dw_ce_dynamic',
+        subgraph_types = ['dw', 'dw_wl', 'dw_wl_topk', 'dw_wl_dynamic', 'dw_wl_dynamic_topk', 'dw_ce', 'dw_ce_topk', 'dw_ce_dynamic',
                           'dw_wl_dynamic_topk', 'dw_purity', 'dw_purity_topk']
+        subgraph_types = ['dw',
+                          'dw_wl', 'dw_wl_dynamic', 'dw_wl_gains',
+                          'dw_ce', 'dw_ce_dynamic',
+                          'dw_purity', 'dw_purity_gains']
         for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
@@ -69,7 +74,8 @@ if __name__ == '__main__':
             print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
             res.to_csv(filename)
 
-        subgraph_types = ['n2v_wl', 'n2v_ce', 'n2v_purity']
+        subgraph_types = ['dw_biased', 'n2v_wl', 'n2v_ce', 'n2v_purity']
+        subgraph_types = ['dw_biased']
         # 'dw_ce', 'dw_ce_topk'
         for subgraph_type in subgraph_types:
             for p in [1.5, 2.0, 4.0, 5.0, 6.0, 6.5, 7.0, 7.5, 8.0, 12.0, 14.0, 16.0, 18.0]:

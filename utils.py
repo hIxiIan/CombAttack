@@ -124,6 +124,7 @@ def roulette_wheel_selection(purity):
     return bisect_left(accumulator, rndPoint)  # O(logN)
 
 
+@jit(cache=True, nopython=True)
 def stochastic_accept(purity):
     '''
     roulette wheel selections
@@ -138,9 +139,9 @@ def stochastic_accept(purity):
     # select: O(1)
     while True:
         # randomly select an individual with uniform probability
-        ind = int(N * random.random())
+        ind = int(N * np.random.random())
         # with probability w_i / w_max to accept the selection
-        if random.random() <= purity[ind] / max_purity:
+        if np.random.random() <= purity[ind] / max_purity:
             return ind
 
 
@@ -205,7 +206,7 @@ def get_cross_entropy_list(indices, indptr, logits):
 
 @jit(cache=True, nopython=True)
 def get_cross_entropy_target_nbrs(target, nbrs, logits):
-    return [cross_entropy(logits[target], logits[nbr]) for nbr in nbrs]
+    return np.array([cross_entropy(logits[target], logits[nbr]) for nbr in nbrs])
 
 
 @jit(cache=True, nopython=True)
@@ -294,3 +295,22 @@ def get_wl_gains(indices, indptr, labels, wl, target, nbrs, wrong_label):
             wl_gains.append([0.0])
 
     return np.asarray(wl_gains)
+
+
+@jit(cache=True, nopython=True)
+def random_choice(arr, p):
+    """Similar to `numpy.random.choice` and it suppors p=option in numba.
+    refer to <https://github.com/numba/numba/issues/2539#issuecomment-507306369>
+
+    Parameters
+    ----------
+    arr : 1-D array-like
+    p : 1-D array-like
+        The probabilities associated with each entry in arr
+
+    Returns
+    -------
+    sample : ndarray with 1 element
+        The generated random sample
+    """
+    return arr[np.searchsorted(np.cumsum(p), np.random.random(), side="right")]
