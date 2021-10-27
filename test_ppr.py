@@ -66,7 +66,7 @@ if __name__ == '__main__':
             p = 1.0
             q = 1.0
             # for alpha in [0.5, 0.25, 0.1, 0.05, 0.01]:
-            for alpha in [0.01]:
+            for alpha in [0.01, 0.005]:
                 key = '_'.join([subgraph_type, str(alpha)])
                 try:
                     acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)

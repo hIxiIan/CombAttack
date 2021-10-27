@@ -29,6 +29,34 @@ class PPRer:
             self.wl, self.wl_cnt = get_wl(self.adj_matrix.indices, self.adj_matrix.indptr, self.labels, wrong_label, self.eps)
             # self.wl_cnt_matrix = get_wl_matrix(self.wl_cnt)
 
+    def ppr_walk(self, targets, sample_nums):
+        if 'wl' in self.subgraph_type:
+            if self.subgraph_type == 'ppr_wl_limit':  # wl阈值
+                sub_edges, sub_nodes = self.ppr_wl_limit_sample(targets)
+            elif self.subgraph_type == 'ppr_wl_limit_nums':
+                sub_edges, sub_nodes = self.ppr_wl_limit_nums_sample(targets, sample_nums)
+            elif self.subgraph_type == 'ppr_wl':  # 公式乘wl
+                sub_edges, sub_nodes = self.ppr_wl_sample(targets)
+            elif self.subgraph_type == 'ppr_wl_limit_wl':
+                sub_edges, sub_nodes = self.ppr_wl_limit_wl_sample(targets)
+            elif self.subgraph_type == 'ppr_wl_topk_des':
+                sub_edges, sub_nodes = self.ppr_wl_topk_sample(targets, sample_nums, descending=True)
+            elif self.subgraph_type == 'ppr_wl_topk_asc':
+                sub_edges, sub_nodes = self.ppr_wl_topk_sample(targets, sample_nums, descending=False)
+            elif self.subgraph_type == 'ppr_wl_limit_topk_wl_asc':
+                sub_edges, sub_nodes = self.ppr_wl_limit_topk_wl_sample(targets, sample_nums, descending=False)
+        else:
+            if self.subgraph_type == 'ppr':
+                sub_edges, sub_nodes = self.ppr_sample(targets)
+            elif self.subgraph_type == "ppr_nums":
+                sub_edges, sub_nodes = self.ppr_nums_sample(targets, self.sample_nums)
+            elif self.subgraph_type == 'ppr_topk_des':
+                sub_edges, sub_nodes = self.ppr_topk_sample(targets, self.sample_nums, descending=True)
+            elif self.subgraph_type == 'ppr_topk_asc':
+                sub_edges, sub_nodes = self.ppr_topk_sample(targets, self.sample_nums, descending=False)
+
+        return gf.asedge(sub_edges, shape='row_wise'), sub_nodes
+
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors， 节点也更多
     # 原始ppr，无采样数量限制
@@ -71,9 +99,9 @@ class PPRer:
 
     # 原始ppr+topk+wl偏好
     def ppr_wl_topk_sample(self, targets, topk, descending):
-        edges, nodes, weights = calc_ppr_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+        edges, nodes, _ = calc_ppr_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                               np.asarray(targets), topk, self.wl, descending)
-        return edges, nodes
+        return edges[0], nodes[0]
 
     # ppr公式乘wl+topk+wl阈值偏好
     def ppr_wl_limit_topk_wl_sample(self, targets, topk, descending):
@@ -264,28 +292,27 @@ def calc_ppr_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, descending=
 
 
 # 原始ppr+topk+wl偏好
+@numba.jit(cache=True, nopython=True)
 def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, descending=False):
-    edges = {}
+    edges = []
     targets = []
     weights = []
     for i, node in enumerate(nodes):
         node, weight, edge = _calc_ppr_node(node, indptr, indices, deg, alpha, epsilon)
         node_np, weight_np = np.array(node), np.array(weight)
-        # print(len(node_np))
         nodes_wl = wl[node_np]
         idx_wl = nodes_wl >= 0.5
         if idx_wl.sum() >= topk / 2:
-            edge = dict_filter_key(edge, node_np[~idx_wl])
+            edge = dict_filter_key(np.array(list(edge.keys())), node_np[~idx_wl])
             node_np = node_np[idx_wl]
             weight_np = weight_np[idx_wl]
-        # print(len(node_np))
 
         # topk大于提取节点数量，退化成calc_ppr
         if len(node_np) <= topk:
             print('calc_ppr_topk back to calc_ppr')
             targets.append(node_np)
             weights.append(weight_np)
-            edges.update(edge)
+            edges.append(list(edge.keys()))
             continue
         # weight_np小到大排序
         idx_sort = np.argsort(weight_np)
@@ -298,9 +325,10 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
             idx_topk_rest = idx_sort[topk:]
         targets.append(node_np[idx_topk])
         weights.append(weight_np[idx_topk])
-        edges.update(dict_filter_key(edge, node_np[idx_topk_rest]))
+        edge = dict_filter_key(np.array(list(edge.keys())), node_np[idx_topk_rest])
+        edges.append(list(edge.keys()))
 
-    return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
+    return edges, targets, weights
 
 
 # ppr公式乘wl+topk+wl偏好
@@ -415,29 +443,10 @@ def calc_ppr_wl_limit_wl(indptr, indices, deg, alpha, epsilon, nodes, labels, wr
     return gf.asedge(list(edges.keys()), shape='row_wise'), np.asarray(targets).ravel(), np.asarray(weights)
 
 
-def update_edges(edges):
-    _edges = {}
-    for edge in edges:
-        _edges.update(edge)
-    return _edges
-
-
-def delete_edges(edges, del_nodes):
-    for i in range(len(edges)):
-        dict_del_key(edges[i], del_nodes[i])
-
-
-def dict_del_key(_dict, _del_keys):
-    keys = list(_dict.keys())
-    for key in keys:
-        if key[0] in _del_keys or key[1] in _del_keys:
-            _dict.pop(key)
-
-
-def dict_filter_key(_dict, _del_keys):
+@numba.jit(nopython=True)
+def dict_filter_key(_dict_keys, _del_keys):
     _fdict = {}
-    keys = list(_dict.keys())
-    for key in keys:
+    for key in _dict_keys:
         if key[0] not in _del_keys and key[1] not in _del_keys:
-            _fdict[key] = 1
+            _fdict[(key[0], key[1])] = 1
     return _fdict

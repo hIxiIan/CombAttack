@@ -278,32 +278,10 @@ class SCA(TargetedAttacker):
         elif 'spread' in subgraph_type:
             sub_edges, sub_nodes = self.spreader.spread_walk(targets, self.sample_nums)
 
-        # elif 'ppr' in subgraph_type:
-        #     sub_edges, sub_nodes = self.PPRer.ppr_walk(targets, self.sample_nums)
+        # ppr walk
+        elif 'ppr' in subgraph_type:
+            sub_edges, sub_nodes = self.PPRer.ppr_walk(targets, self.sample_nums)
 
-        # ppr
-        elif subgraph_type == 'ppr':
-            sub_edges, sub_nodes = self.PPRer.ppr_sample(targets)
-        elif subgraph_type == "ppr_nums":
-            sub_edges, sub_nodes = self.PPRer.ppr_nums_sample(targets, self.sample_nums)
-        elif subgraph_type == 'ppr_topk_des':
-            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, descending=True)
-        elif subgraph_type == 'ppr_topk_asc':
-            sub_edges, sub_nodes = self.PPRer.ppr_topk_sample(targets, self.sample_nums, descending=False)
-        elif subgraph_type == 'ppr_wl_limit': # wl阈值
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_sample(targets)
-        elif subgraph_type == 'ppr_wl_limit_nums':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_nums_sample(targets, self.sample_nums)
-        elif subgraph_type == 'ppr_wl': # 公式乘wl
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_sample(targets)
-        elif subgraph_type == 'ppr_wl_limit_wl':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_wl_sample(targets)
-        elif subgraph_type == 'ppr_wl_topk_des':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=True)
-        elif subgraph_type == 'ppr_wl_topk_asc':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_topk_sample(targets, self.sample_nums, descending=False)
-        elif subgraph_type == 'ppr_wl_limit_topk_wl_asc':
-            sub_edges, sub_nodes = self.PPRer.ppr_wl_limit_topk_wl_sample(targets, self.sample_nums, descending=False)
         else:
             sub_edges, sub_nodes = [], []
         self._subgraph_time = (time() - t1) / 60
