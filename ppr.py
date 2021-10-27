@@ -175,7 +175,7 @@ def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
                 if vnode not in q:
                     q.append(vnode)
                     if (vnode, unode) not in edges:
-                        edges[(unode, vnode)] = 1
+                        edges[(numba.int64(unode), numba.int64(vnode))] = 1
 
     return list(p.keys()), list(p.values()), edges
 
