@@ -10,7 +10,7 @@ from graphgallery.utils import tqdm
 from graphgallery.attack.targeted import PyTorch
 from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 from copy import deepcopy
-from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_list
+from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_array
 from time import time
 
 try:
@@ -268,7 +268,7 @@ class SCA(TargetedAttacker):
 
     def get_subgraph(self, subgraph_type):
         # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
-        targets = to_list(self.target)
+        targets = to_array(self.target)
         t1 = time()
         # random walk
         if 'dw' in subgraph_type or 'n2v' in subgraph_type:

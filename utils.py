@@ -28,6 +28,14 @@ def to_list(targets):
     return targets
 
 
+def to_array(targets):
+    if np.ndim(targets) == 0:
+        targets = np.array([targets])
+    elif isinstance(targets, list):
+        targets = np.array(targets)
+    return targets
+
+
 @jit(cache=True, nopython=True)
 def get_purity(indices, indptr, labels):
     N = len(labels)
