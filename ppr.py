@@ -292,6 +292,7 @@ def calc_ppr_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, descending=
 
 
 # 原始ppr+topk+wl偏好
+# todo dict_filter_key再优化
 @numba.jit(cache=True, nopython=True)
 def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, descending=False):
     edges = []
@@ -309,7 +310,7 @@ def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, desc
 
         # topk大于提取节点数量，退化成calc_ppr
         if len(node_np) <= topk:
-            print('calc_ppr_topk back to calc_ppr')
+            # print('calc_ppr_topk back to calc_ppr')
             targets.append(node_np)
             weights.append(weight_np)
             edges.append(list(edge.keys()))
