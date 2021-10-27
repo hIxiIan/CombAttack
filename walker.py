@@ -453,7 +453,7 @@ class Walker:
 
                 else:
                     break
-            print('tmp_nodes', tmp_nodes)
+            # print('tmp_nodes', tmp_nodes)
             nodes.extend(tmp_nodes)
         return list(edges.keys()), np.asarray(nodes)
 
