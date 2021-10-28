@@ -36,8 +36,8 @@ if __name__ == '__main__':
     prefix = "_".join([cmd.dataset, personal])
     _prefix = rootdir + os.sep + prefix
 
-    times = 3
-    seeds = [5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
+    times = 2
+    seeds = [556, 1971, 653, 5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
     for i in range(times):
         res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
         cmd.seed = seeds[i]
@@ -62,7 +62,8 @@ if __name__ == '__main__':
         subgraph_types = ['dw',
                           'dw_wl', 'dw_wl_dynamic', 'dw_wl_gains',
                           'dw_purity', 'dw_purity_gains', 'dw_purity_gains_select',
-                          'dw_ce', 'dw_ce_dynamic']
+                          'dw_ce', 'dw_ce_dynamic'
+                          ]
         for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
@@ -76,23 +77,27 @@ if __name__ == '__main__':
             print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
             res.to_csv(filename)
 
-        # dw
-        # subgraph_types = ['n2v_wl', 'n2v_purity']
-        # for subgraph_type in subgraph_types:
-        #     for p in [7.0]:
-        #         for q in [0.25]:
-        #             key = '_'.join([subgraph_type, str(p), str(q)])
-        #             try:
-        #                 acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-        #                 res.loc[key] = [acc, wlacc, cost]
-        #             except Exception as e:
-        #                 res.loc[key] = [-1, -1, -1]
-        #                 print('##################################error', repr(e))
-        #             print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
-        #             res.to_csv(filename)
+
+        # n2v
+        subgraph_types = ['dw_biased',
+                          'dw_biased_wl',
+                          'dw_biased_purity',
+                          'n2v']
+        for subgraph_type in subgraph_types:
+            for p in [7.0]:
+                for q in [0.25, 0.1]:
+                    key = '_'.join([subgraph_type, str(p), str(q)])
+                    try:
+                        acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                        res.loc[key] = [acc, wlacc, cost]
+                    except Exception as e:
+                        res.loc[key] = [-1, -1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
+                    res.to_csv(filename)
 
         # spread
-        subgraph_types = ['spread_wl']
+        subgraph_types = ['spread_wl', 'spread_wl_improve', 'spread_ce', 'spread_random_purity_gains']
         for subgraph_type in subgraph_types:
             key = '_'.join([subgraph_type])
             p = 1.0
@@ -112,7 +117,7 @@ if __name__ == '__main__':
         for subgraph_type in subgraph_types:
             p = 1.0
             q = 1.0
-            for alpha in [0.01]:
+            for alpha in [0.25, 0.1, 0.01, 0.001]:
                 key = '_'.join([subgraph_type, str(alpha)])
                 try:
                     acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)

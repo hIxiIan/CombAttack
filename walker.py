@@ -3,7 +3,7 @@ import numpy as np
 from graphgallery import functional as gf
 from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list, get_purity_gains, get_wl_gains, random_choice
 from time import time
-from numba import jit
+from numba import jit, int64
 from sklearn import preprocessing
 
 
@@ -83,6 +83,8 @@ class Walker:
                     sub_edges, sub_nodes = self.deepwalk_wl_gains_sample(self.wl, self.labels, self.wrong_label, self.indices, self.indptr, targets, sample_nums)
                 elif self.subgraph_type == 'dw_wl_kh':
                     sub_edges, sub_nodes = self.deepwalk_wl_kh_sample(targets, sample_nums)
+                elif self.subgraph_type == 'dw_biased_wl':
+                    sub_edges, sub_nodes = self.deepwalk_biased_wl_sample(self.wl, self.p, self.q, self.indices, self.indptr, targets, sample_nums)
             elif 'purity' in self.subgraph_type:
                 if self.subgraph_type == 'dw_purity':
                     sub_edges, sub_nodes = self.deepwalk_purity_sample(self.purity, self.purity_r, self.labels, self.wrong_label, self.indices, self.indptr, targets, sample_nums, is_topk=False)
@@ -94,6 +96,8 @@ class Walker:
                     sub_edges, sub_nodes = self.deepwalk_purity_gains_select_sample(targets, sample_nums, is_topk=False)
                 elif self.subgraph_type == 'dw_purity_gains_select_topk':
                     sub_edges, sub_nodes = self.deepwalk_purity_gains_select_sample(targets, sample_nums, is_topk=True)
+                elif self.subgraph_type == 'dw_biased_purity':
+                    sub_edges, sub_nodes = self.deepwalk_biased_purity_sample(self.purity, self.purity_r, self.labels, self.wrong_label, self.p, self.q, self.indices, self.indptr, targets, sample_nums)
             elif 'ce' in self.subgraph_type:
                 if self.subgraph_type == 'dw_ce':
                     sub_edges, sub_nodes = self.deepwalk_ce_sample(self.logits, self.indices,self.indptr, targets, sample_nums, is_topk=False)
@@ -115,7 +119,7 @@ class Walker:
 
     # 纯随机游走
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_sample(indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -136,7 +140,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
     def deepwalk_biased_sample(p, q, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -169,7 +173,43 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
+    def deepwalk_biased_wl_sample(wl, p, q, indices, indptr, targets, sample_nums):
+        edges = {}
+        nodes = []
+        N = len(indptr) - 1
+        for target in targets:
+            tmp_nodes = [target]
+            current_node = target
+            previous_node = N
+            previous_node_neighbors = np.empty(0, dtype=np.int32)
+            while len(tmp_nodes) < sample_nums:
+                neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
+                if neighbors.size == 0:
+                    break
+
+                nbrs_wl = wl[neighbors]
+                probability = np.array([1 / q] * neighbors.size)
+                probability[previous_node == neighbors] = 1 / p
+                for i, nbr in enumerate(neighbors):
+                    if np.any(nbr == previous_node_neighbors):
+                        probability[i] = 1.
+                # probability = probability * nbrs_wl
+                norm_probability = probability / np.sum(probability)
+                norm_probability = norm_probability * nbrs_wl
+                norm_probability = norm_probability / np.sum(norm_probability)
+                u = random_choice(neighbors, norm_probability)
+                tmp_nodes.append(u)
+                if (u, current_node) not in edges:
+                    edges[(current_node, u)] = 1
+                previous_node_neighbors = neighbors
+                previous_node = u
+                current_node = u
+            nodes.extend(tmp_nodes)
+        return list(edges.keys()), np.asarray(nodes)
+
+    @staticmethod
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_wl_sample(wl, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -200,7 +240,7 @@ class Walker:
     # 轮盘赌+动态wrong_label阈值
     # 轮盘赌+动态wrong_label阈值+topk
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_wl_dynamic_sample(wl, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -235,7 +275,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_wl_gains_sample(wl, labels, wrong_label, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []
@@ -279,7 +319,7 @@ class Walker:
     # 轮盘赌
     # 轮盘赌+topk
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_ce_sample(logits, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -309,7 +349,7 @@ class Walker:
     # 轮盘赌+动态cross_entropy阈值
     # 轮盘赌+动态cross_entropy阈值+topk
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_ce_dynamic_sample(logits, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -347,7 +387,7 @@ class Walker:
     # 轮盘赌
     # 轮盘赌+topk
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_purity_sample(purity, purity_r, labels, wrong_label, indices, indptr, targets, sample_nums, is_topk):
         edges = {}
         nodes = []
@@ -379,6 +419,49 @@ class Walker:
                         edges[(head, u)] = 1
                 else:
                     break
+            nodes.extend(tmp_nodes)
+        return list(edges.keys()), np.asarray(nodes)
+
+    @staticmethod
+    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
+    def deepwalk_biased_purity_sample(purity, purity_r, labels, wrong_label, p, q, indices, indptr, targets, sample_nums):
+        edges = {}
+        nodes = []
+        N = len(indptr) - 1
+        for target in targets:
+            tmp_nodes = [target]
+            topk = len(indices[indptr[target]:indptr[target + 1]])
+            current_node = target
+            previous_node = N
+            previous_node_neighbors = np.empty(0, dtype=np.int32)
+            while len(tmp_nodes) < sample_nums:
+                neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
+                if neighbors.size == 0:
+                    break
+
+                nbrs_purity = purity_r[neighbors]
+                nbrs_labels = labels[neighbors]
+                wrong_label_idx = nbrs_labels == wrong_label
+                if wrong_label_idx.sum() >= topk:
+                    neighbors = neighbors[wrong_label_idx]
+                    nbrs_purity = purity[neighbors]
+
+                probability = np.array([1 / q] * neighbors.size)
+                probability[previous_node == neighbors] = 1 / p
+                for i, nbr in enumerate(neighbors):
+                    if np.any(nbr == previous_node_neighbors):
+                        probability[i] = 1.
+
+                probability = probability * nbrs_purity
+                norm_probability = probability / np.sum(probability)
+
+                u = random_choice(neighbors, norm_probability)
+                tmp_nodes.append(u)
+                if (u, current_node) not in edges:
+                    edges[(current_node, u)] = 1
+                previous_node_neighbors = neighbors
+                previous_node = u
+                current_node = u
             nodes.extend(tmp_nodes)
         return list(edges.keys()), np.asarray(nodes)
 
@@ -415,7 +498,7 @@ class Walker:
         return list(edges.keys()), np.asarray(nodes)
 
     @staticmethod
-    @jit(cache=True, nopython=True)
+    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
     def deepwalk_purity_gains_sample(purity, labels, indices, indptr, targets, sample_nums):
         edges = {}
         nodes = []

@@ -294,12 +294,13 @@ if __name__ == '__main__':
 
     graph = data.graph
     splits = data.split_nodes(random_state=15)
+    random.seed(cmd.seed)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "spread_wl"
-    args.seed = 2012
+    # args.subgraph_type = "ppr_wl_topk_asc"
+    # args.seed = 2012
     # args.p = 7.0
-    # args.q = 0.25
+    # args.q = 0.1
     # args.alpha = 0.01
     # args.subgraph_type = "dw_wl"
 

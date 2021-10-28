@@ -110,7 +110,7 @@ class PPRer:
         return edges, nodes
 
 
-@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32, 'unode': numba.int64, 'vnode': numba.int64})
 def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -145,7 +145,7 @@ def _calc_ppr_node_nums(inode, indptr, indices, deg, alpha, epsilon, sample_nums
     return list(p.keys()), list(p.values()), edges
 
 
-@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32, 'unode': numba.int64, 'vnode': numba.int64})
 def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -175,12 +175,12 @@ def _calc_ppr_node(inode, indptr, indices, deg, alpha, epsilon):
                 if vnode not in q:
                     q.append(vnode)
                     if (vnode, unode) not in edges:
-                        edges[(numba.int64(unode), numba.int64(vnode))] = 1
+                        edges[(unode, vnode)] = 1
 
     return list(p.keys()), list(p.values()), edges
 
 
-@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32})
+@numba.njit(cache=True, locals={'_val': numba.float32, 'res': numba.float32, 'res_vnode': numba.float32, 'unode': numba.int64, 'vnode': numba.int64})
 def _calc_ppr_node_wl(wl, inode, indptr, indices, deg, alpha, epsilon):
     edges = {}
     alpha_eps = alpha * epsilon
@@ -292,7 +292,6 @@ def calc_ppr_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, descending=
 
 
 # 原始ppr+topk+wl偏好
-# todo dict_filter_key再优化
 @numba.jit(cache=True, nopython=True)
 def calc_ppr_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wl, descending=False):
     edges = []
