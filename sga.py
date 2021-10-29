@@ -95,16 +95,14 @@ class SCA(TargetedAttacker):
         self.wrong_label = None
         return self
 
-    def init_sampler(self, wrong_label, walker=None, spreader=None, pprer=None):
+    def init_sampler(self, walker=None, spreader=None, pprer=None):
+        self.sampler = None
         if walker is not None:
-            self.walker = walker
-            self.walker.set_wrong_label(wrong_label)
+            self.sampler = walker
         if spreader is not None:
-            self.spreader = spreader
-            self.spreader.set_wrong_label(wrong_label)
+            self.sampler = spreader
         if pprer is not None:
-            self.PPRer = pprer
-            self.PPRer.set_wrong_label(wrong_label)
+            self.sampler = pprer
 
     def attack(self,
                target,
@@ -115,23 +113,17 @@ class SCA(TargetedAttacker):
                structure_attack=True,
                feature_attack=False,
                disable=False,
-               subgraph_type='dw',
-               sample_ratio=0.3,
                w_label=None,
                verbose_us=True,
-               with_w_label=False,
                walker=None,
                spreader=None,
                pprer=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
-        self.sample_nums = int(sample_ratio * self.graph.adj_matrix.shape[0])
-        self.subgraph_type = subgraph_type
         self.added_edges = []
         self.non_added_edges = []
         self.verbose_us = verbose_us
-        self.with_w_label = with_w_label
 
         if logit is None:
             logit = self.logits[target]
@@ -142,11 +134,11 @@ class SCA(TargetedAttacker):
             wrong_label = w_label
         # print('wrong_label is', wrong_label)
 
-        self.init_sampler(wrong_label, walker, spreader, pprer)
+        self.init_sampler(walker, spreader, pprer)
         # self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
-        self.subgraph_preprocessing(subgraph_type, attacker_nodes)
+        self.subgraph_preprocessing(attacker_nodes)
         offset = self.edge_weights.shape[0]
 
         # for indirect attack, the edges related to targeted node should not be considered
@@ -200,17 +192,16 @@ class SCA(TargetedAttacker):
                 assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
         return self
 
-    def subgraph_preprocessing(self, subgraph_type, attacker_nodes=None):
+    def subgraph_preprocessing(self, attacker_nodes=None):
         wrong_label = self.wrong_label # 分类概率次大的label
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
-        sub_edges, sub_nodes = self.get_subgraph(subgraph_type)
+        sub_edges = self.sampler.sample_edges[self.sampler.targets_map[self.target]]
+        sub_nodes = self.sampler.sample_nodes[self.sampler.targets_map[self.target]]
         sub_edges = sub_edges.T  # shape [2, M]
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
 
-        if not self.with_w_label:
-            wrong_label_nodes = []
-        non_edges = self.get_non_edges(sub_nodes, wrong_label_nodes)
+        non_edges = self.get_non_edges(sub_nodes)
 
         hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
         # print(hop_nodes.shape, hop_nodes)
@@ -265,27 +256,6 @@ class SCA(TargetedAttacker):
             for infl in influence_nodes
         ])
         return non_edges
-
-    def get_subgraph(self, subgraph_type):
-        # assert subgraph_type in self.subgraph_types, 'subgraph_type must be one of {}'.format(self.subgraph_types)
-        targets = to_array(self.target)
-        t1 = time()
-        # random walk
-        if 'dw' in subgraph_type or 'n2v' in subgraph_type:
-            sub_edges, sub_nodes = self.walker.random_walk(targets, self.sample_nums)
-
-        # spread walk
-        elif 'spread' in subgraph_type:
-            sub_edges, sub_nodes = self.spreader.spread_walk(targets, self.sample_nums)
-
-        # ppr walk
-        elif 'ppr' in subgraph_type:
-            sub_edges, sub_nodes = self.PPRer.ppr_walk(targets, self.sample_nums)
-
-        else:
-            sub_edges, sub_nodes = [], []
-        self._subgraph_time = (time() - t1) / 60
-        return sub_edges, np.unique(sub_nodes)
 
     def compute_gradient(self, eps=5.0):
 

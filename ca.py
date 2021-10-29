@@ -146,9 +146,9 @@ def init_sampler(attacker, args):
     elif "spread" in args.subgraph_type:
         spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits)
     elif "ppr" in args.subgraph_type:
-        pprer = PPRer(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.softmax_logits, args.wl_limit, args.eps)
-
-    print('init_sampler end..., cost:{} min'.format((time() - t1) / 60))
+        pprer = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
+        pprer.ppr_walk()
+    print('sample process end..., cost:{} min'.format((time() - t1) / 60))
     return walker, spreader, pprer
 
 
@@ -164,8 +164,8 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
         attacker = attacker.reset()
         try:
             if us:
-                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer, with_w_label=args.with_w_label, verbose_us=verbose_us, direct_attack=args.direct_attack,
-                                subgraph_type=args.subgraph_type, sample_ratio=args.sample_ratio)
+                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer,
+                                verbose_us=verbose_us, direct_attack=args.direct_attack)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
@@ -192,14 +192,11 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
             res2[i] = True
 
         if args.subgraph_type != "sga":
-            if attacker.with_w_label:
-                print('iter: {}, attack target node {}, add all of wrong label nodes to subgraph'.format(i, target))
-            else:
-                if attacker._walk_length <= 10:
-                    print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
+            if attacker._walk_length <= 10:
+                print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
         if verbose:
             print('###################')
-            print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, attacker._subgraph_time, (end_i - start_i) / 60))
+            print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
             print('hop_ratio:{}, hop_length:{}, walk_length:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
             print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
@@ -275,7 +272,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")

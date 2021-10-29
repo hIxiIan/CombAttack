@@ -55,12 +55,11 @@ if __name__ == '__main__':
         # us
         # no, yes, yes, yes, no
         subgraph_types = ['ppr', 'ppr_nums', 'ppr_topk_des', 'ppr_topk_asc',
-                          'ppr_wl_limit', 'ppr_wl_limit_nums', 'ppr_wl', 'ppr_wl_limit_wl'
-                          'ppr_wl_topk_des', 'ppr_wl_topk_asc']
+                          'ppr_wl_limit', 'ppr_wl_limit_nums', 'ppr_wl', 'ppr_wl_limit_wl',
+                          'ppr_wl_topk_des', 'ppr_wl_topk_asc', 'ppr_wl_limit_topk_wl_asc']
 
         # cora cora_full
         subgraph_types = ['ppr_wl_topk_asc']
-
         # ppr
         for subgraph_type in subgraph_types:
             p = 1.0

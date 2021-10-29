@@ -56,6 +56,10 @@ class Walker:
                 t1 = time()
                 self.preprocess_transition_probs()
                 print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
+            else:
+                t1 = time()
+                self.preprocess_transition_probs()
+                print('preprocess_transition_probs cost:{} min'.format((time() - t1) / 60))
 
     def set_wrong_label(self, wrong_label):
         self.wrong_label = wrong_label
