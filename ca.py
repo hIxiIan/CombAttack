@@ -154,8 +154,8 @@ def init_sampler(attacker, args):
     return sampler
 
 
-def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
-    if us:
+def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
+    if args.us:
         sampler = init_sampler(attacker, args)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
@@ -165,7 +165,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
         start_i = time()
         attacker = attacker.reset()
         try:
-            if us:
+            if args.us:
                 attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
@@ -223,7 +223,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     return acc, wlacc, cost
 
 
-def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q=0.25, alpha=0.25, us=True, verbose=True):
+def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
@@ -232,14 +232,14 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
     graph = data.graph
     splits = data.split_nodes(random_state=15)
     random.seed(cmd.seed)
+    cmd.subgraph_type = subgraph_type
+    cmd.p = p
+    cmd.q = q
+    cmd.alpha = alpha
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
     print(args.device)
 
-    args.subgraph_type = subgraph_type
-    args.p = p
-    args.q = q
-    args.alpha = alpha
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
                       splits.val_nodes,
@@ -255,11 +255,11 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
 
 
     # attacker
-    if us:
+    if args.us:
         attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
         attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    acc, wlacc, cost = testACC(gcn_model, attacker, args, us=us, verbose=verbose)
+    acc, wlacc, cost = testACC(gcn_model, attacker, args, verbose=verbose)
     return acc, wlacc, cost
 
 
@@ -272,7 +272,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
-    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -282,7 +282,11 @@ if __name__ == '__main__':
 
     cmd = parser.parse_args()
     # cmd.dataset = "cora_full"
-    random.seed(cmd.seed)
+    # cmd.subgraph_type = "sga"
+    # cmd.seed = 2012
+    # cmd.p = 7.0
+    # cmd.q = 0.1
+    # cmd.alpha = 0.01
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
@@ -293,12 +297,7 @@ if __name__ == '__main__':
     random.seed(cmd.seed)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits)
-    # args.subgraph_type = "ppr_wl_topk_asc"
-    # args.seed = 2012
-    # args.p = 7.0
-    # args.q = 0.1
-    # args.alpha = 0.01
-    # args.subgraph_type = "dw_wl"
+
 
     surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
     his = surrogate_model.fit(splits.train_nodes,
@@ -318,7 +317,7 @@ if __name__ == '__main__':
         attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
         attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    acc, wlacc, cost = testACC(gcn_model, attacker, args, us=args.us, verbose_us=False)
+    acc, wlacc, cost = testACC(gcn_model, attacker, args, verbose_us=False)
 
     # attacker = SGA(graph, seed=seed).process(surrogate_model)
     # testACC(gcn_model, attacker, args, us=False)

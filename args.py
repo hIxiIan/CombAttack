@@ -10,7 +10,7 @@ class ARGS:
         self.verbose = cmd.verbose
         self.device = "gpu" if cmd.device == "gpu" and torch.cuda.is_available() else "cpu"
         self.dataset = cmd.dataset
-        self.us = not cmd.n_us
+        self.us = False if cmd.subgraph_type in ['sga'] else True
 
         # attack
         self.subgraph_type = cmd.subgraph_type

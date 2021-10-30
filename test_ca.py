@@ -45,7 +45,7 @@ if __name__ == '__main__':
         print(filename)
         # sga
         try:
-            acc, wlacc, cost = run("sga", cmd=cmd, us=False, verbose=False)
+            acc, wlacc, cost = run("sga", cmd=cmd, verbose=False)
             res.loc['sga'] = [acc, wlacc, cost]
             print('-------sga')
             res.to_csv(filename)
