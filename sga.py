@@ -95,15 +95,6 @@ class SCA(TargetedAttacker):
         self.wrong_label = None
         return self
 
-    def init_sampler(self, walker=None, spreader=None, pprer=None):
-        self.sampler = None
-        if walker is not None:
-            self.sampler = walker
-        if spreader is not None:
-            self.sampler = spreader
-        if pprer is not None:
-            self.sampler = pprer
-
     def attack(self,
                target,
                num_budgets=None,
@@ -113,28 +104,21 @@ class SCA(TargetedAttacker):
                structure_attack=True,
                feature_attack=False,
                disable=False,
-               w_label=None,
                verbose_us=True,
-               walker=None,
-               spreader=None,
-               pprer=None):
+               sampler=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
         self.added_edges = []
         self.non_added_edges = []
         self.verbose_us = verbose_us
-
+        self.sampler = sampler
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
         # wrong_label是次大概率的label
         wrong_label = idx[logit[idx].argmax()]
-        if w_label is not None:
-            wrong_label = w_label
-        # print('wrong_label is', wrong_label)
 
-        self.init_sampler(walker, spreader, pprer)
         # self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)

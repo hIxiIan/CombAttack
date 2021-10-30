@@ -139,22 +139,24 @@ def print_sp(model, sp):
 
 def init_sampler(attacker, args):
     t1 = time()
-    walker, spreader, pprer = None, None, None
+    sampler = None
 
     if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
-        walker = Walker(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.softmax_logits, wl_limit=args.wl_limit)
+        sampler = Walker(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits, attacker.softmax_logits, wl_limit=args.wl_limit)
+        sampler.random_walk()
     elif "spread" in args.subgraph_type:
-        spreader = Spreader(args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits)
+        sampler = Spreader(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits, attacker.softmax_logits)
+        sampler.spread_walk()
     elif "ppr" in args.subgraph_type:
-        pprer = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
-        pprer.ppr_walk()
+        sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
+        sampler.ppr_walk()
     print('sample process end..., cost:{} min'.format((time() - t1) / 60))
-    return walker, spreader, pprer
+    return sampler
 
 
 def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
     if us:
-        walker, spreader, pprer = init_sampler(attacker, args)
+        sampler = init_sampler(attacker, args)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     res2 = np.zeros(len(args.targets)).astype('bool')
@@ -164,8 +166,7 @@ def testACC(gcn_model, attacker, args, us=True, verbose=True, verbose_us=False):
         attacker = attacker.reset()
         try:
             if us:
-                attacker.attack(target, walker=walker, spreader=spreader, pprer=pprer,
-                                verbose_us=verbose_us, direct_attack=args.direct_attack)
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
@@ -236,7 +237,6 @@ def run(subgraph_type, cmd=None, with_w_label=False, sample_ratio=0.05, p=2.0, q
     print(args.device)
 
     args.subgraph_type = subgraph_type
-    args.with_w_label = with_w_label
     args.p = p
     args.q = q
     args.alpha = alpha
@@ -288,7 +288,6 @@ if __name__ == '__main__':
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
-
     graph = data.graph
     splits = data.split_nodes(random_state=15)
     random.seed(cmd.seed)

@@ -30,7 +30,6 @@ class PPRer:
         self.sample_nums = int(sample_ratio * adj_matrix.shape[0])
         self.wls = None
         self.wl_cnts = None
-        self.get_all_wl()
 
     def get_wrong_labels(self):
         wrong_labels = []
@@ -80,77 +79,59 @@ class PPRer:
             elif self.subgraph_type == 'ppr_topk_asc':
                 sub_edges, sub_nodes = self.ppr_topk_sample(descending=False)
 
-        self.sample_edges = sub_edges
-        self.sample_nodes = sub_nodes
+        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') for sub_edge in sub_edges]
+        self.sample_nodes = [np.unique(sub_node) for sub_node in sub_nodes]
 
     # alpha >> 1 pay more attention to immediate neighbors
     # alpha >> 0 pay more attention to multi-hop neighbors， 节点也更多
     # 原始ppr，无采样数量限制
     def ppr_sample(self):
-        edges, nodes, weights = calc_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
+        edges, nodes, _ = calc_ppr(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets)
         return edges, nodes
 
     # ppr在采样的时候进行采样数量限制
     def ppr_nums_sample(self):
-        edges, nodes, weights = calc_ppr_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+        edges, nodes, _ = calc_ppr_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                          self.targets, self.sample_nums)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
     # 原始ppr后，再根据weight排序，采样sample_nums(topk)个节点
     def ppr_topk_sample(self, descending):
-        edges, nodes, weights = calc_ppr_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets, self.sample_nums, descending)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
+        edges, nodes, _ = calc_ppr_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets, self.sample_nums, descending)
         return edges, nodes
 
     # 原始ppr后，再根据wl，缩减候选集，无采样数量限制
     def ppr_wl_limit_sample(self):
         edges, nodes, _ = calc_ppr_wl_limit(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets, self.labels, self.wrong_labels, self.wls)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
     # ppr在采样的时候进行采样数量限制+wl阈值，缩减候选集
     def ppr_wl_limit_nums_sample(self):
-        edges, nodes, weights = calc_ppr_wl_limit_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+        edges, nodes, _ = calc_ppr_wl_limit_nums(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                             self.targets, self.labels, self.wrong_labels, self.wls, self.sample_nums)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
     # ppr公式乘wl，无采样数量限制 传wl 或 wl_cnt
     def ppr_wl_sample(self):
-        edges, nodes, weights = calc_ppr_wl(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets, self.wl_cnts)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
+        edges, nodes, _ = calc_ppr_wl(self.indptr, self.indices, self.out_degree, self.alpha, self.eps, self.targets, self.wl_cnts)
         return edges, nodes
 
     # ppr公式乘wl，wl阈值，缩减候选集，无采样数量限制
     def ppr_wl_limit_wl_sample(self):
-        edges, nodes, weights = calc_ppr_wl_limit_wl(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
+        edges, nodes, _ = calc_ppr_wl_limit_wl(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                             self.targets, self.labels, self.wrong_labels, self.wls, self.wl_cnts)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
     # 原始ppr+topk+wl偏好
     def ppr_wl_topk_sample(self, descending):
         edges, nodes, _ = calc_ppr_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                               self.targets, self.sample_nums, self.wls, descending)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
     # ppr公式乘wl+topk+wl阈值偏好
     def ppr_wl_limit_topk_wl_sample(self, descending):
         edges, nodes, _ = calc_ppr_wl_limit_wl_topk(self.indptr, self.indices, self.out_degree, self.alpha, self.eps,
                                               self.targets, self.sample_nums, self.wls, self.wl_cnts, descending)
-        edges = [gf.asedge(edge, shape='row_wise') for edge in edges]
-        nodes = [np.unique(node) for node in nodes]
         return edges, nodes
 
 
