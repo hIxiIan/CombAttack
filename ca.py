@@ -192,9 +192,9 @@ def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
         if perturbed_label == wrong_label:
             res2[i] = True
 
-        if args.subgraph_type != "sga":
-            if attacker._walk_length <= 10:
-                print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
+        # if args.subgraph_type != "sga":
+        #     if attacker._walk_length <= 10:
+        #         print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))

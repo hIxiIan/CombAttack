@@ -34,7 +34,7 @@ if __name__ == '__main__':
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     for dataset in ['cora', 'citeseer', 'citeseer_full', 'flickr',
                     'cora_full', 'pubmed', 'coauthor_cs', 'coauthor_phy']:
-        prefix = "_".join([cmd.dataset, personal])
+        prefix = "_".join([dataset, personal])
         _prefix = rootdir + os.sep + prefix
 
         times = 3

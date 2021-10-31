@@ -172,8 +172,8 @@ class SCA(TargetedAttacker):
                     else:
                         self.non_added_edges.append((u, v))
                     break
-            if potential_times == 0:
-                assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
+            # if potential_times == 0:
+            #     assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
         return self
 
     def subgraph_preprocessing(self, attacker_nodes=None):
