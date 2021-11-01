@@ -108,6 +108,7 @@ class SGA(TargetedAttacker):
         self.added_edges = []
         self.non_added_edges = []
         self.with_w_label = False
+        self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray())
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
@@ -322,6 +323,6 @@ class SGAPD(SGA):
         output = self.SGC(self.XW, self.indices, weights)
         dim_n = output.shape[0]
         z = sigmoid(output[[self.target]].mm(output.t()))
-        loss = - pow(norm(z - self.graph.adj_matrix[self.target], p='fro'), 2) / dim_n
+        loss = - pow(norm(z - self.target_original, p='fro'), 2) / dim_n
         gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
         return gradients
