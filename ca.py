@@ -103,7 +103,7 @@ def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
 
 
 def get_pd(attacked_model, args):
-    embedded_features = attacked_model.predict(args.train_nodes).detach().numpy()
+    embedded_features = attacked_model.predict(args.train_nodes)
     original_features = args.node_attr
     true_labels = args.node_label
     combined_features_labels = np.hstack((original_features, embedded_features, true_labels.reshape(-1,1)))
