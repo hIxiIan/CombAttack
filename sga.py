@@ -306,7 +306,7 @@ class SCA(TargetedAttacker):
 @PyTorch.register()
 class SCAPD(SCA):
     def process(self, surrogate, reset=True):
-        assert isinstance(surrogate, gg.gallery.nodeclas.SGC), surrogate
+        assert isinstance(surrogate, gg.gallery.nodeclas.SGCPDS), surrogate
 
         K = surrogate.cfg.data.K  # NOTE: Be compatible with graphgallery
         # nodes with the same class labels
