@@ -102,7 +102,7 @@ def lgb_train_model(train_x, train_y, random_seed):
     return res
 
 
-def lgb_model(train_x, train_y, random_seed):
+def get_lgb_model(train_x, train_y, random_seed):
     lgb_paras = {
         'objective': 'multiclass',
         'learning_rate': 0.03,
@@ -134,7 +134,7 @@ def lgb_model(train_x, train_y, random_seed):
                           feval=eval_f,
                           callbacks=[lgb.log_evaluation(0)]
                           )
-    original_predict = np.argmax(lgb_model.predict(train_x, num_iteration=lgb_model.best_iteration), axis=1)
+    all_predict = np.argmax(lgb_model.predict(train_x, num_iteration=lgb_model.best_iteration), axis=1)
     y_pred = np.argmax(lgb_model.predict(test_x, num_iteration=lgb_model.best_iteration), axis=1)
     auc_score = metrics.roc_auc_score(test_y, y_pred)
     recall_score = metrics.recall_score(test_y, y_pred, pos_label=1)
@@ -145,8 +145,8 @@ def lgb_model(train_x, train_y, random_seed):
     precision.append(precision_score)
     f1.append(f1_score)
 
-    res = [np.mean(auc), np.mean(recall), np.mean(precision), np.mean(f1)]
-    return res, original_predict
+    test_res = [np.mean(auc), np.mean(recall), np.mean(precision), np.mean(f1)]
+    return test_res, all_predict, lgb_model
 
 
 def print_res(model_name, res):

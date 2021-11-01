@@ -40,14 +40,13 @@ if __name__ == '__main__':
         times = 3
         seeds = [666, 69, 996, 556, 1971, 653, 5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
         for i in range(times):
-            res = pd.DataFrame(columns=['acc', 'wlacc', 'cost'])
+            res = pd.DataFrame(columns=['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost'])
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             # sga
             try:
-                acc, wlacc, cost = run("sga", cmd=cmd, verbose=False)
-                res.loc['sga'] = [acc, wlacc, cost]
+                res.loc['sga'] = run("sga", cmd=cmd, verbose=False)
                 print('-------sga')
                 res.to_csv(filename)
             except Exception as e:
@@ -74,8 +73,7 @@ if __name__ == '__main__':
                 q = 1.0
                 key = '_'.join([subgraph_type, str(p), str(q)])
                 try:
-                    acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                    res.loc[key] = [acc, wlacc, cost]
+                    res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 except Exception as e:
                     res.loc[key] = [-1, -1, -1]
                     print('##################################error', repr(e))
@@ -90,8 +88,7 @@ if __name__ == '__main__':
                     for q in [0.25]:
                         key = '_'.join([subgraph_type, str(p), str(q)])
                         try:
-                            acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                            res.loc[key] = [acc, wlacc, cost]
+                            res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                         except Exception as e:
                             res.loc[key] = [-1, -1, -1]
                             print('##################################error', repr(e))
@@ -105,8 +102,7 @@ if __name__ == '__main__':
                 p = 1.0
                 q = 1.0
                 try:
-                    acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                    res.loc[key] = [acc, wlacc, cost]
+                    res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 except Exception as e:
                     res.loc[key] = [-1, -1, -1]
                     print('##################################error', repr(e))
@@ -122,8 +118,7 @@ if __name__ == '__main__':
                 for alpha in [0.01, 0.001]:
                     key = '_'.join([subgraph_type, str(alpha)])
                     try:
-                        acc, wlacc, cost = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
-                        res.loc[key] = [acc, wlacc, cost]
+                        res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
                     except Exception as e:
                         res.loc[key] = [-1, -1, -1]
                         print('##################################error', repr(e))
