@@ -132,7 +132,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     res = np.zeros(len(args.targets)).astype('bool')
     start = time()
     # targets 都是钓鱼节点
-    print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(len(args.targets)), len(true_phishing_targets), len(surrogate_phishing_targets))
+    print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
     for i, target in enumerate(args.targets):
         start_i = time()
         attacker = attacker.reset()
