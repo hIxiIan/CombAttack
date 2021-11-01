@@ -19,6 +19,8 @@ DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 
 def init_sampler(attacker, args):
+    if not args.us:
+        return None
     t1 = time()
     sampler = None
 
@@ -36,8 +38,7 @@ def init_sampler(attacker, args):
 
 
 def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
-    if args.us:
-        sampler = init_sampler(attacker, args)
+    sampler = init_sampler(attacker, args)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     res2 = np.zeros(len(args.targets)).astype('bool')
@@ -123,14 +124,13 @@ def get_pd(attacked_model, args):
 
 
 def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
-    if args.us:
-        sampler = init_sampler(attacker, args)
-    start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     original_predict = get_pd(attacked_model, args)
     surrogate_phishing_targets = np.where(original_predict == 1)[0]
     true_phishing_targets = np.where(args.node_label == 1)[0]
     args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+    sampler = init_sampler(attacker, args)
+    start = time()
     # targets 都是钓鱼节点
     print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(len(args.targets)), len(true_phishing_targets), len(surrogate_phishing_targets))
     for i, target in enumerate(args.targets):
