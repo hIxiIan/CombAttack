@@ -148,7 +148,8 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
                     None,
                     verbose=args.verbose,
                     epochs=6)
-        true_label = attacker.graph.node_label[target]
+        # attacker.graph.node_label[target]
+        true_label = original_predict[target]
         perturbed_label = get_pd(trainer, args)[target]
         if perturbed_label != true_label:
             res[i] = True
