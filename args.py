@@ -1,10 +1,13 @@
+import os
+
 import torch
 
 
 class ARGS:
     def __init__(self, cmd, targets=None, splits=None,
 
-                 wl_limit=0.5, hops=2, prob=0.8, eps=1e-4):
+                 wl_limit=0.5, hops=2, prob=0.8, eps=1e-4,
+                 node_attr=None, node_label=None):
         # 通用
         self.seed = cmd.seed
         self.verbose = cmd.verbose
@@ -31,3 +34,7 @@ class ARGS:
         # ppr
         self.alpha = cmd.alpha
         self.eps = eps
+
+        # blockchain
+        self.node_attr = node_attr
+        self.node_label = node_label

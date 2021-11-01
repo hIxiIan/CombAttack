@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 import numpy as np
-
+from torch import norm, sigmoid, pow
 import graphgallery as gg
 from utils import get_wrong_rate, get_hop_neighbors, get_hop_rate
 from graphgallery import functional as gf
@@ -282,3 +282,46 @@ def normalize_GCN(indices, weights, degree):
     inv_degree = torch.pow(degree, -0.5)
     normed_weights = weights * inv_degree[row] * inv_degree[col]
     return normed_weights
+
+
+@PyTorch.register()
+class SGAPD(SGA):
+    def process(self, surrogate, reset=True):
+        assert isinstance(surrogate, gg.gallery.nodeclas.SGC), surrogate
+
+        K = surrogate.cfg.data.K  # NOTE: Be compatible with graphgallery
+        # nodes with the same class labels
+        self.similar_nodes = [
+            np.where(self.graph.node_label == c)[0]
+            for c in range(self.num_classes)
+        ]
+
+        W, b = surrogate.model.parameters()
+        W, b = W.to(self.device), b.to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(self.device)
+        self.b = b
+        self.XW = X @ W.T
+        self.SGC = SGConv(K).to(self.device)
+        self.K = K
+        self.logits = surrogate.predict(np.arange(self.num_nodes))
+        # self.loss_fn = nn.CrossEntropyLoss()
+        if reset:
+            self.reset()
+        return self
+
+    def compute_gradient(self, eps=5.0):
+        edge_weights = self.edge_weights
+        non_edge_weights = self.non_edge_weights
+        self_loop_weights = self.self_loop_weights
+        weights = torch.cat([
+            edge_weights, edge_weights, non_edge_weights, non_edge_weights,
+            self_loop_weights
+        ], dim=0)
+
+        weights = normalize_GCN(self.indices, weights, self.selfloop_degree)
+        output = self.SGC(self.XW, self.indices, weights)
+        dim_n = output.shape[0]
+        z = sigmoid(output[[self.target]].mm(output.t()))
+        loss = - pow(norm(z - self.graph.adj_matrix[self.target], p='fro'), 2) / dim_n
+        gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
+        return gradients

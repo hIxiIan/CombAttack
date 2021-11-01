@@ -1,140 +1,21 @@
 import random
 import graphgallery as gg
 import numpy as np
-import networkx as nx
 import pandas as pd
+import gc
 import argparse
 
 from graphgallery.datasets import NPZDataset
-from sga import SCA
-from orisga import SGA
+from sga import SCA, SCAPD
+from orisga import SGA, SGAPD
 from time import time
 from args import ARGS
 from spreader import Spreader
 from walker import Walker
 from ppr import PPRer
+from pd import lgb_model
 
-
-def testSGA(target=1, w_label=None, device="cpu", seed=124):
-    verbose = 0
-    ################### Surrogate model ############################
-    trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-
-    ################### Attacker model ############################
-    attacker = SGA(graph, device=device, seed=seed).process(trainer)
-    attacker.attack(target, direct_attack=True, w_label=w_label)
-    attacker.name = "ori"
-    ################### Victim model ############################
-    # Before attack
-    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(graph).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-    original_predict = trainer.predict(target, transform="softmax")
-
-    # After attack
-    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(attacker.g).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-    perturbed_predict = trainer.predict(target, transform="softmax")
-
-    ################### Results ############################
-    target_label = graph.node_label[target]
-    print('target_label:', target_label)
-    print('w_label', w_label)
-    print('original_predict', original_predict)
-    print('perturbed_predict', perturbed_predict)
-    attacker.original_predict = original_predict
-    attacker.perturbed_predict = perturbed_predict
-    attacker.before = original_predict.max() - original_predict[target_label]
-    attacker.before_label = original_predict.argmax()
-    attacker.after = perturbed_predict.max() - perturbed_predict[target_label]
-    attacker.after_label = perturbed_predict.argmax()
-    # diff = original_predict[target_label] - perturbed_predict[target_label]
-    # attacker.max_label = perturbed_predict.argmax()
-    # diffmax = original_predict[target_label] - perturbed_predict.max()
-    return attacker
-
-
-def testSCA(target=1, w_label=None, subgraph_type='dw', device="cpu", seed=124, prob=0.5, p=2.0, q=0.25, sample_ratio=0.3, hops=2, keep_hops=False):
-    verbose = 0
-    ################### Surrogate model ############################
-    trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-
-    ################### Attacker model ############################
-    attacker = SCA(graph, device=device, seed=seed).process(trainer)
-    attacker.name = subgraph_type
-    attacker.attack(target, direct_attack=True, w_label=w_label, subgraph_type=subgraph_type, prob=prob, p=p, q=q, sample_ratio=sample_ratio, hops=hops, keep_hops=keep_hops)
-    ################### Victim model ############################
-    # Before attack
-    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(graph).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-    original_predict = trainer.predict(target, transform="softmax")
-
-    # After attack
-    trainer = gg.gallery.nodeclas.GCN(device=device, seed=seed).setup_graph(attacker.g).build()
-    his = trainer.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=verbose,
-                      epochs=100)
-    perturbed_predict = trainer.predict(target, transform="softmax")
-
-    ################### Results ############################
-    target_label = graph.node_label[target]
-    print('target_label:', target_label)
-    print('w_label', w_label)
-    print('original_predict', original_predict)
-    print('perturbed_predict', perturbed_predict)
-    attacker.original_predict = original_predict
-    attacker.perturbed_predict = perturbed_predict
-    attacker.before = original_predict.max() - original_predict[target_label]
-    attacker.before_label = original_predict.argmax()
-    attacker.after = perturbed_predict.max() - perturbed_predict[target_label]
-    attacker.after_label = perturbed_predict.argmax()
-    # diff = original_predict[target_label] - perturbed_predict[target_label]
-    # attacker.max_label = perturbed_predict.argmax()
-    # diffmax = original_predict[target_label] - perturbed_predict.max()
-    return attacker
-
-
-def print_(model, labels):
-    print('###################')
-    print('model_name:', model.name)
-    print('true_label:', model.true_label)
-    print('wrong_label:', model.wrong_label)
-    print('model_added_edges', model.added_edges)
-    added_edges_node_labels = [labels[edge[1]] for edge in model.added_edges]
-    print('model_added_edges_labels', added_edges_node_labels)
-    print('model_non_added_edges', model.non_added_edges)
-    non_added_edges_node_labels = [labels[edge[1]] for edge in model.non_added_edges]
-    print('model_non_added_edges_labels', non_added_edges_node_labels)
-    print('original_predict', model.original_predict)
-    print('perturbed_predict', model.perturbed_predict)
-    print('before_atk_effect, classify to label {}, max_prob - target_prob: {}'.format(model.before_label, model.before))
-    print('after_atk_effect, classify to label {}, max_prob - target_prob: {}'.format(model.after_label, model.after))
-    print('')
-
-
-def print_sp(model, sp):
-    print('###################')
-    print('model_name:', model.name)
-    for edge in model.added_edges:
-        print('source {} to target {}: {}'.format(model.target, edge[1], sp[edge[1]]))
-    print('')
+DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 
 def init_sampler(attacker, args):
@@ -150,7 +31,7 @@ def init_sampler(attacker, args):
     elif "ppr" in args.subgraph_type:
         sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
         sampler.ppr_walk()
-    print('sample process end..., cost:{} min'.format((time() - t1) / 60))
+    print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     return sampler
 
 
@@ -177,24 +58,22 @@ def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
         end_i = time()
         # After attack
         trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
-        his = trainer.fit(args.splits.train_nodes,
+        trainer.fit(args.splits.train_nodes,
                           args.splits.val_nodes,
                           verbose=args.verbose,
                           epochs=100)
         perturbed_predict = trainer.predict(target, transform="softmax")
 
-        true_label = attacker.graph.node_label[target]
+        # true_label = attacker.graph.node_label[target]
+        true_label = original_predict.argmax()
         perturbed_label = perturbed_predict.argmax()
         wrong_label = int(attacker.wrong_label[0])
         max_label_prob_sub_perturbed_label_prob = perturbed_predict.max() - perturbed_predict[true_label]
         if perturbed_label != true_label:
             res[i] = True
-        if perturbed_label == wrong_label:
-            res2[i] = True
+            if perturbed_label == wrong_label:
+                res2[i] = True
 
-        # if args.subgraph_type != "sga":
-        #     if attacker._walk_length <= 10:
-        #         print('iter: {}, attack target node {}, subgraph length <= 10'.format(i, target))
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
@@ -203,9 +82,9 @@ def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
             print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
             print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predict[true_label]))
-            print('perturbed_predict, true_label_prob:{}'.format(perturbed_predict[true_label]))
-            print('perturbed_predict, perturbed_label_prob:{}'.format(perturbed_predict[perturbed_label]))
-            print('perturbed_predict, wrong_label_prob:{}'.format(perturbed_predict[wrong_label]))
+            print('perturbed_predict, true_label: {}, true_label_prob: {}'.format(true_label, perturbed_predict[true_label]))
+            print('perturbed_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(perturbed_label, perturbed_predict[perturbed_label]))
+            print('perturbed_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, perturbed_predict[wrong_label]))
             print('target node {}, true_label: {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
                 target, true_label, perturbed_label, max_label_prob_sub_perturbed_label_prob))
             print('current acc: {}'.format(res[:i + 1].sum() / (i + 1)))
@@ -213,14 +92,128 @@ def testACC(gcn_model, attacker, args, verbose=True, verbose_us=False):
             print('\n\n\n')
     acc = res.sum() / len(res)
     wlacc = res2.sum() / len(res2)
-    print('acc: {}'.format(acc))
-    print('wrong label acc: {}'.format(wlacc))
+    print('asr: {}'.format(acc))
+    print('wrong label asr: {}'.format(wlacc))
     end = time()
     cost = (end - start) / 60
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
 
     return acc, wlacc, cost
+
+
+def get_pd(attacked_model, args):
+    embedded_features = attacked_model.predict(args.train_nodes).detach().numpy()
+    original_features = args.node_attr
+    true_labels = args.node_label
+    combined_features_labels = np.hstack((original_features, embedded_features, true_labels.reshape(-1,1)))
+
+    columns_name = ['f%02d' % i for i in range(combined_features_labels.shape[1] - 1)] + ['label']
+    df_combined = pd.DataFrame(data=combined_features_labels, columns=columns_name, dtype=float)
+    df_combined['label'] = df_combined['label'].astype(int)
+
+    y_cols_name = ['label']
+    x_cols_name = [x for x in df_combined.columns if x not in y_cols_name]
+
+    x = df_combined[x_cols_name]
+    y = df_combined[y_cols_name]
+    lgb_res, original_predict = lgb_model(x, y, args.seed)
+    print(lgb_res)
+    return original_predict
+
+
+def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
+    if args.us:
+        sampler = init_sampler(attacker, args)
+    start = time()
+    res = np.zeros(len(args.targets)).astype('bool')
+    original_predict = get_pd(attacked_model, args)
+    for i, target in enumerate(args.targets):
+        start_i = time()
+        attacker = attacker.reset()
+        try:
+            if args.us:
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
+            else:
+                attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
+        except AssertionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+        except PermissionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+
+        end_i = time()
+        # After attack
+        trainer = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(attacker.g, K=1).build()
+        trainer.fit(args.train_nodes,
+                    None,
+                    verbose=args.verbose,
+                    epochs=6)
+        true_label = attacker.graph.node_label[target]
+        perturbed_label = get_pd(trainer, args)[target]
+        if perturbed_label != true_label:
+            res[i] = True
+        if verbose:
+            print('###################')
+            print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
+            print('hop_ratio:{}, hop_length:{}, walk_length:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+            print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
+            print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
+            print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
+            print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predict[true_label]))
+            print('target node {}, mislead to label: {}'.format(target, perturbed_label))
+            print('current acc: {}'.format(res[:i + 1].sum() / (i + 1)))
+            print('\n\n\n')
+    acc = res.sum() / len(res)
+    print('asr: {}'.format(acc))
+    end = time()
+    cost = (end - start) / 60
+    print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
+    print('testACC end, cost time: {} min'.format(cost))
+
+    return acc, 0, cost
+
+
+def get_attack_model(args, graph):
+    if args.dataset not in DATASET_BLOCKCHAIN:
+        surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
+        surrogate_model.fit(args.splits.train_nodes,
+                                  args.splits.val_nodes,
+                                  verbose=args.verbose,
+                                  epochs=100)
+
+        # Before attack
+        attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+        attacked_model.fit(args.splits.train_nodes,
+                            args.splits.val_nodes,
+                            verbose=args.verbose,
+                            epochs=100)
+    else:
+        args.train_nodes = list(range(graph.node_label.shape[0]))
+        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
+        surrogate_model.fit(args.train_nodes,
+                            None,
+                            verbose=args.verbose,
+                            epochs=6)
+
+        # Before attack
+        attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
+        attacked_model.fit(args.train_nodes,
+                            None,
+                            verbose=args.verbose,
+                            epochs=6)
+
+    # attacker
+    if args.us:
+        if args.dataset not in DATASET_BLOCKCHAIN:
+            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        else:
+            attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    else:
+        if args.dataset not in DATASET_BLOCKCHAIN:
+            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        else:
+            attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    return attacked_model, attacker
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
@@ -230,36 +223,27 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
                       transform="standardize")
 
     graph = data.graph
-    splits = data.split_nodes(random_state=15)
     random.seed(cmd.seed)
+    if cmd.dataset not in DATASET_BLOCKCHAIN:
+        splits = data.split_nodes(random_state=15)
+        targets = random.sample(list(splits.test_nodes), cmd.target_nums)
+    else:
+        splits = None
+        targets = random.sample(list(range(graph.node_label.shape[0])), cmd.target_nums)
+
     cmd.subgraph_type = subgraph_type
     cmd.p = p
     cmd.q = q
     cmd.alpha = alpha
-    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-    args = ARGS(cmd=cmd, targets=targets, splits=splits)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     print(args.device)
 
-    surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
-    his = surrogate_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
-    args.surrogate_model = surrogate_model
-    # Before attack
-    gcn_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    his = gcn_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
-
-
-    # attacker
-    if args.us:
-        attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    attacked_model, attacker = get_attack_model(args, graph)
+    if cmd.dataset not in DATASET_BLOCKCHAIN:
+        acc, wlacc, cost = testACC(attacked_model, attacker, args, verbose=verbose)
     else:
-        attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    acc, wlacc, cost = testACC(gcn_model, attacker, args, verbose=verbose)
+        acc, wlacc, cost = testBlockACC(attacked_model, attacker, args, verbose=verbose)
+    gc.collect()
     return acc, wlacc, cost
 
 
@@ -282,46 +266,28 @@ if __name__ == '__main__':
 
     cmd = parser.parse_args()
     # cmd.dataset = "cora_full"
-    # cmd.subgraph_type = "sga"
+    cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
     # cmd.p = 7.0
     # cmd.q = 0.1
-    # cmd.alpha = 0.01
+    cmd.alpha = 0.01
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
     graph = data.graph
-    splits = data.split_nodes(random_state=15)
     random.seed(cmd.seed)
-    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-    args = ARGS(cmd=cmd, targets=targets, splits=splits)
-
-
-    surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
-    his = surrogate_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
-
-    # Before attack
-    gcn_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    his = gcn_model.fit(splits.train_nodes,
-                      splits.val_nodes,
-                      verbose=args.verbose,
-                      epochs=100)
-
-    # attacker
-    if args.us:
-        attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    if cmd.dataset not in DATASET_BLOCKCHAIN:
+        splits = data.split_nodes(random_state=15)
+        targets = random.sample(list(splits.test_nodes), cmd.target_nums)
+        args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+        attacked_model, attacker = get_attack_model(args, graph)
+        acc, wlacc, cost = testACC(attacked_model, attacker, args, verbose_us=False)
     else:
-        attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    acc, wlacc, cost = testACC(gcn_model, attacker, args, verbose_us=False)
-
-    # attacker = SGA(graph, seed=seed).process(surrogate_model)
-    # testACC(gcn_model, attacker, args, us=False)
-
-
-
-
+        splits = None
+        targets = random.sample(list(range(graph.node_label.shape[0])), cmd.target_nums)
+        args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+        attacked_model, attacker = get_attack_model(args, graph)
+        acc, wlacc, cost = testBlockACC(attacked_model, attacker, args, verbose_us=False)
+    gc.collect()

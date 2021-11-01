@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from copy import deepcopy as dcopy
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn import metrics
 from scipy.sparse import coo_matrix
 from tqdm import tqdm
@@ -71,6 +71,7 @@ def lgb_train_model(train_x, train_y, random_seed):
         'num_class': 2,
         'force_col_wise': True,
         'min_data_in_leaf': 20,
+        'verbosity': -1, # 控制训练过程是否输出
         #         'scale_pos_weight':100,
     }
 
@@ -84,7 +85,8 @@ def lgb_train_model(train_x, train_y, random_seed):
                               #                               num_boost_round=100
                               valid_sets=[val_set],
                               # early_stopping_rounds=60,
-                              feval=eval_f
+                              feval=eval_f,
+                              callbacks=[lgb.log_evaluation(0)]
                               )
 
         val_pred = np.argmax(lgb_model.predict(val_x, num_iteration=lgb_model.best_iteration), axis=1)
@@ -98,6 +100,53 @@ def lgb_train_model(train_x, train_y, random_seed):
         f1.append(f1_score)
     res = [np.mean(auc), np.mean(recall), np.mean(precision), np.mean(f1)]
     return res
+
+
+def lgb_model(train_x, train_y, random_seed):
+    lgb_paras = {
+        'objective': 'multiclass',
+        'learning_rate': 0.03,
+        'num_leaves': 50,
+        'lambda_l1': 0.01,
+        'lambda_l2': 0.01,
+        'seed': random_seed,
+        'feature_fraction': 0.8,
+        'bagging_fraction': 0.8,
+        'bagging_freq': 4,
+        'metric': 'multi_logloss',
+        'num_threads': 8,
+        'num_class': 2,
+        'force_col_wise': True,
+        'min_data_in_leaf': 20,
+        'verbosity': -1, # 控制训练过程是否输出
+        #         'scale_pos_weight':100,
+    }
+    tr_x, test_x, tr_y, test_y = train_test_split(train_x, train_y, test_size=0.2, random_state=random_seed) #  stratify=train_y.values.ravel()
+
+    auc, recall, precision, f1, result_proba = [], [], [], [], []
+    train_set = lgb.Dataset(tr_x, tr_y)
+    # test_set = lgb.Dataset(test_x, test_y)
+    lgb_model = lgb.train(lgb_paras,
+                          train_set,
+                          #                               num_boost_round=100
+                          # valid_sets=[val_set],
+                          # early_stopping_rounds=60,
+                          feval=eval_f,
+                          callbacks=[lgb.log_evaluation(0)]
+                          )
+    original_predict = np.argmax(lgb_model.predict(train_x, num_iteration=lgb_model.best_iteration), axis=1)
+    y_pred = np.argmax(lgb_model.predict(test_x, num_iteration=lgb_model.best_iteration), axis=1)
+    auc_score = metrics.roc_auc_score(test_y, y_pred)
+    recall_score = metrics.recall_score(test_y, y_pred, pos_label=1)
+    precision_score = metrics.precision_score(test_y, y_pred, pos_label=1)
+    f1_score = metrics.f1_score(test_y, y_pred, pos_label=1)
+    auc.append(auc_score)
+    recall.append(recall_score)
+    precision.append(precision_score)
+    f1.append(f1_score)
+
+    res = [np.mean(auc), np.mean(recall), np.mean(precision), np.mean(f1)]
+    return res, original_predict
 
 
 def print_res(model_name, res):
@@ -195,14 +244,13 @@ def normalize(A):
     row = [i for i in range(lena)]
     col, data = row.copy(), [1 for i in range(lena)]
     eye_mat = coo_matrix((data, (row, col)), shape=(lena, lena))
-    A = A + eye_mat
-    d = np.array(A.sum(1))
-    d = np.power(A.sum(1), -0.5)
-    d = np.ravel(d)
+    A = A + eye_mat # A + I
+    d = np.power(A.sum(1), -0.5) # D^(-1/2)
+    d = np.ravel(d) # 一维
     i = [j for j in range(lena)]
     D = coo_matrix((d, (i, i)), shape=(lena, lena))
 
-    scipy_mat = (D * A * D).tocoo()
+    scipy_mat = (D * A * D).tocoo() # coo形式的D * A * D
     return scipy_mat
 
 
@@ -267,6 +315,7 @@ def gcn_train(X, Y, A_normed, A, epoch, lr, weight_decay, esize, random_seed):
 
         loss = torch.norm(adj_dec - A, p='fro')
         loss = torch.pow(loss, 2) / (dim_n)
+        print(loss)
         optim.zero_grad()
         loss.backward()
         optim.step()
@@ -318,8 +367,8 @@ class ARGS:
         self.us = not cmd.n_us
 
         self.PUBLICDATA_PATH = '/home/whx/GraphData/datasets/jiaying/publicdata/'
+        self.PUBLICDATA_PATH = 'C://Users/pc/GraphData/datasets/jiaying/publicdata/'
         self.SAMPLE_MULGS_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/SP_MulGs.pkl' % self.sample_size)
-        self.SAMPLE_MULDIGS_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/SP_MulDiGs.pkl' % self.sample_size)
         self.FEATURES_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/features.dat' % self.sample_size)
         self.DATA_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d' % self.sample_size)
         self.lr = cmd.learning_rate
@@ -347,14 +396,12 @@ if __name__ == '__main__':
     RANDOM_SEED = args.seed
 
     df = load_pickle(args.FEATURES_PATH)
-    sp_muldG = load_pickle(args.SAMPLE_MULDIGS_PATH)
     sp_mulG = load_pickle(args.SAMPLE_MULGS_PATH)
 
     y_cols_name = ['label']
     x_cols_name = [x for x in df.columns if x not in y_cols_name]
     train_x = dcopy(df[x_cols_name])
     train_y = dcopy(df[y_cols_name])
-    pos_cnt, neg_cnt = int(train_y.sum()), int(len(train_y) - train_y.sum())
     scipy_adj_matrix = nx.convert_matrix.to_scipy_sparse_matrix(sp_mulG, format='coo')
 
     gcn_res = gcn_tree(epoch=args.epoch, lr=args.lr, weight_decay=args.weight_decay, esize=8, random_seed=args.seed)

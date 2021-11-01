@@ -2,6 +2,7 @@ import random
 import pandas as pd
 import torch
 import numpy as np
+import pickle
 from bisect import bisect_left
 
 from sklearn import preprocessing
@@ -322,3 +323,8 @@ def random_choice(arr, p):
         The generated random sample
     """
     return arr[np.searchsorted(np.cumsum(p), np.random.random(), side="right")]
+
+
+def load_pickle(fileName):
+    with open(fileName, 'rb') as f:
+        return pickle.load(f)

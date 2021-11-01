@@ -1,6 +1,7 @@
 import torch
 import random
 from torch import Tensor
+from torch import norm, sigmoid, pow
 import torch.nn as nn
 import numpy as np
 
@@ -300,3 +301,49 @@ class SCA(TargetedAttacker):
             self.edge_weights[index] = 0.0
             self.selfloop_degree[u] -= 1
             self.selfloop_degree[v] -= 1
+
+
+@PyTorch.register()
+class SCAPD(SCA):
+    def process(self, surrogate, reset=True):
+        assert isinstance(surrogate, gg.gallery.nodeclas.SGC), surrogate
+
+        K = surrogate.cfg.data.K  # NOTE: Be compatible with graphgallery
+        # nodes with the same class labels
+        self.similar_nodes = [
+            np.where(self.graph.node_label == c)[0]
+            for c in range(self.num_classes)
+        ]
+
+        W, b = surrogate.model.parameters()
+        W, b = W.to(self.device), b.to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(self.device)
+
+        self.b = b
+        self.XW = X @ W.T
+        self.SGC = SGConv(K).to(self.device)
+        self.K = K
+        self.logits = surrogate.predict(np.arange(self.num_nodes))
+        self.softmax_logits = surrogate.predict(np.arange(self.num_nodes), transform="softmax")
+        # self.loss_fn = nn.CrossEntropyLoss()
+
+        if reset:
+            self.reset()
+        return self
+
+    def compute_gradient(self, eps=5.0):
+        edge_weights = self.edge_weights
+        non_edge_weights = self.non_edge_weights
+        self_loop_weights = self.self_loop_weights
+        weights = torch.cat([
+            edge_weights, edge_weights, non_edge_weights, non_edge_weights,
+            self_loop_weights
+        ], dim=0)
+
+        weights = normalize_GCN(self.indices, weights, self.selfloop_degree)
+        output = self.SGC(self.XW, self.indices, weights)
+        dim_n = output.shape[0]
+        z = sigmoid(output[[self.target]].mm(output.t()))
+        loss = - pow(norm(z - self.graph.adj_matrix[self.target], p='fro'), 2) / dim_n
+        gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
+        return gradients
