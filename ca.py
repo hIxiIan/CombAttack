@@ -128,6 +128,11 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     start = time()
     res = np.zeros(len(args.targets)).astype('bool')
     original_predict = get_pd(attacked_model, args)
+    surrogate_phishing_targets = np.where(original_predict == 1)[0]
+    true_phishing_targets = np.where(args.node_label == 1)[0]
+    args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+    # targets 都是钓鱼节点
+    print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(len(args.targets)), len(true_phishing_targets), len(surrogate_phishing_targets))
     for i, target in enumerate(args.targets):
         start_i = time()
         attacker = attacker.reset()
@@ -230,7 +235,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     else:
         splits = None
-        targets = random.sample(list(range(graph.node_label.shape[0])), cmd.target_nums)
+        targets = None
 
     cmd.subgraph_type = subgraph_type
     cmd.p = p
@@ -287,8 +292,7 @@ if __name__ == '__main__':
         acc, wlacc, cost = testACC(attacked_model, attacker, args, verbose_us=False)
     else:
         splits = None
-        targets = random.sample(list(range(graph.node_label.shape[0])), cmd.target_nums)
-        args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+        args = ARGS(cmd=cmd, targets=None, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
         attacked_model, attacker = get_attack_model(args, graph)
         acc, wlacc, cost = testBlockACC(attacked_model, attacker, args, verbose_us=False)
     gc.collect()
