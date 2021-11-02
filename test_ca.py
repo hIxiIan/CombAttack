@@ -36,7 +36,7 @@ if __name__ == '__main__':
                     'cora_full', 'pubmed', 'coauthor_cs', 'coauthor_phy']:
         prefix = "_".join([dataset, personal])
         _prefix = rootdir + os.sep + prefix
-
+        cmd.dataset = dataset
         times = 3
         seeds = [666, 69, 996, 556, 1971, 653, 5018, 2413, 97, 56, 44, 94, 2012, 1997, 21, 32]
         for i in range(times):
