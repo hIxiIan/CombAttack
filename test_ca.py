@@ -50,7 +50,7 @@ if __name__ == '__main__':
                 print('-------sga')
                 res.to_csv(filename)
             except Exception as e:
-                res.loc['sga'] = [-1, -1, -1]
+                res.loc['sga'] = [-1, -1, -1, -1, -1]
                 print('##################################error', repr(e))
 
             # us
@@ -75,7 +75,7 @@ if __name__ == '__main__':
                 try:
                     res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 except Exception as e:
-                    res.loc[key] = [-1, -1, -1]
+                    res.loc[key] = [-1, -1, -1, -1, -1]
                     print('##################################error', repr(e))
                 print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                 res.to_csv(filename)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
                         try:
                             res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                         except Exception as e:
-                            res.loc[key] = [-1, -1, -1]
+                            res.loc[key] = [-1, -1, -1, -1, -1]
                             print('##################################error', repr(e))
                         print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
                         res.to_csv(filename)
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 try:
                     res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
                 except Exception as e:
-                    res.loc[key] = [-1, -1, -1]
+                    res.loc[key] = [-1, -1, -1, -1, -1]
                     print('##################################error', repr(e))
                 print('-------subgraph:{}'.format(subgraph_type))
                 res.to_csv(filename)
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                     try:
                         res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
                     except Exception as e:
-                        res.loc[key] = [-1, -1, -1]
+                        res.loc[key] = [-1, -1, -1, -1, -1]
                         print('##################################error', repr(e))
                     print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                     res.to_csv(filename)
