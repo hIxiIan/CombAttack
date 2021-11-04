@@ -65,6 +65,20 @@ if __name__ == '__main__':
                               'dw_ce', 'dw_ce_dynamic'
                               ]
 
+            subgraph_types = ['ppr_wl_topk_asc']
+            for subgraph_type in subgraph_types:
+                p = 1.0
+                q = 1.0
+                for alpha in [0.01, 0.001]:
+                    key = '_'.join([subgraph_type, str(alpha)])
+                    try:
+                        res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
+                    except Exception as e:
+                        res.loc[key] = [-1, -1, -1, -1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
+                    res.to_csv(filename)
+
             subgraph_types = [
                               'dw_wl'
                               ]
@@ -111,19 +125,7 @@ if __name__ == '__main__':
 
             # ppr
             # 和random seed无关
-            subgraph_types = ['ppr_wl_topk_asc']
-            for subgraph_type in subgraph_types:
-                p = 1.0
-                q = 1.0
-                for alpha in [0.01, 0.001]:
-                    key = '_'.join([subgraph_type, str(alpha)])
-                    try:
-                        res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, alpha=alpha, verbose=False)
-                    except Exception as e:
-                        res.loc[key] = [-1, -1, -1, -1, -1]
-                        print('##################################error', repr(e))
-                    print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
-                    res.to_csv(filename)
+
 
         print(_prefix)
         save_test(_prefix, times)
