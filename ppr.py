@@ -79,7 +79,7 @@ class PPRer:
             elif self.subgraph_type == 'ppr_topk_asc':
                 sub_edges, sub_nodes = self.ppr_topk_sample(descending=False)
 
-        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') if len(sub_edge) > 0 else np.array([[],[]], dtype='int64') for sub_edge in sub_edges]
+        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') if len(sub_edge) > 0 else np.array([[], []], dtype='int64') for sub_edge in sub_edges]
         self.sample_nodes = [np.unique(sub_node) for sub_node in sub_nodes]
 
     # alpha >> 1 pay more attention to immediate neighbors

@@ -37,7 +37,7 @@ if __name__ == '__main__':
         prefix = "_".join([dataset, personal])
         _prefix = rootdir + os.sep + prefix
         cmd.dataset = dataset
-        times = 3
+        times = 2
         seeds = [56, 44, 94, 666, 69, 996, 556, 1971, 653, 5018, 2413, 97, 2012, 1997, 21, 32]
         for i in range(times):
             res = pd.DataFrame(columns=['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost'])
@@ -79,49 +79,50 @@ if __name__ == '__main__':
                     print('-------subgraph:{}, alpha={}'.format(subgraph_type, alpha))
                     res.to_csv(filename)
 
-            subgraph_types = [
-                              'dw_wl'
-                              ]
-            for subgraph_type in subgraph_types:
-                p = 1.0
-                q = 1.0
-                key = '_'.join([subgraph_type, str(p), str(q)])
-                try:
-                    res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                except Exception as e:
-                    res.loc[key] = [-1, -1, -1, -1, -1]
-                    print('##################################error', repr(e))
-                print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
-                res.to_csv(filename)
+            if dataset in ['cora_full', 'pubmed', 'coauthor_cs', 'coauthor_phy']:
+                subgraph_types = [
+                                  'dw_wl'
+                                  ]
+                for subgraph_type in subgraph_types:
+                    p = 1.0
+                    q = 1.0
+                    key = '_'.join([subgraph_type, str(p), str(q)])
+                    try:
+                        res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                    except Exception as e:
+                        res.loc[key] = [-1, -1, -1, -1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
+                    res.to_csv(filename)
 
 
-            # n2v
-            subgraph_types = ['dw_biased_wl']
-            for subgraph_type in subgraph_types:
-                for p in [7.0]:
-                    for q in [0.25]:
-                        key = '_'.join([subgraph_type, str(p), str(q)])
-                        try:
-                            res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                        except Exception as e:
-                            res.loc[key] = [-1, -1, -1, -1, -1]
-                            print('##################################error', repr(e))
-                        print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
-                        res.to_csv(filename)
+                # n2v
+                subgraph_types = ['dw_biased_wl']
+                for subgraph_type in subgraph_types:
+                    for p in [7.0]:
+                        for q in [0.25]:
+                            key = '_'.join([subgraph_type, str(p), str(q)])
+                            try:
+                                res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                            except Exception as e:
+                                res.loc[key] = [-1, -1, -1, -1, -1]
+                                print('##################################error', repr(e))
+                            print('-------subgraph:{}, p={}, q={}'.format(subgraph_type, p, q))
+                            res.to_csv(filename)
 
-            # spread
-            subgraph_types = ['spread_wl']
-            for subgraph_type in subgraph_types:
-                key = '_'.join([subgraph_type])
-                p = 1.0
-                q = 1.0
-                try:
-                    res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
-                except Exception as e:
-                    res.loc[key] = [-1, -1, -1, -1, -1]
-                    print('##################################error', repr(e))
-                print('-------subgraph:{}'.format(subgraph_type))
-                res.to_csv(filename)
+                # spread
+                subgraph_types = ['spread_wl']
+                for subgraph_type in subgraph_types:
+                    key = '_'.join([subgraph_type])
+                    p = 1.0
+                    q = 1.0
+                    try:
+                        res.loc[key] = run(subgraph_type, cmd=cmd, p=p, q=q, verbose=False)
+                    except Exception as e:
+                        res.loc[key] = [-1, -1, -1, -1, -1]
+                        print('##################################error', repr(e))
+                    print('-------subgraph:{}'.format(subgraph_type))
+                    res.to_csv(filename)
 
             # ppr
             # 和random seed无关

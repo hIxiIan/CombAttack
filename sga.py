@@ -265,17 +265,23 @@ class SCA(TargetedAttacker):
         return gradients
 
     def construct_sub_adj(self, sub_nodes, sub_edges, non_edges):
-
         edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx) # 边权重，初始化为1
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
         self_loop_weights = np.ones(sub_nodes.shape[0], dtype=self.floatx)
         self_loop = np.row_stack([sub_nodes, sub_nodes])
 
         # sub_edges, sub_edges[[1,0]]是方向相反的边
-        indices = np.hstack([
-            sub_edges, sub_edges[[1, 0]], non_edges,
-            non_edges[[1, 0]], self_loop
-        ])
+        if sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
+            indices = np.hstack([
+                non_edges,
+                non_edges[[1, 0]], self_loop
+            ])
+            edge_weights = np.ones(0, dtype=self.floatx)  # 边权重，初始化为1
+        else:
+            indices = np.hstack([
+                sub_edges, sub_edges[[1, 0]], non_edges,
+                non_edges[[1, 0]], self_loop
+            ])
 
         self.indices = torch.LongTensor(indices).to(self.device)
         self.edge_weights = nn.Parameter(torch.tensor(edge_weights)).to(self.device)
