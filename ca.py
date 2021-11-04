@@ -294,7 +294,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         res = testACC(attacked_model, attacker, args, verbose=verbose)
     else:
         res = testBlockACC(attacked_model, attacker, args, verbose=verbose)
-    gc.collect()
+    # gc.collect()
     return res
 
 
