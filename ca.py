@@ -294,7 +294,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         res = testACC(attacked_model, attacker, args, verbose=verbose)
     else:
         res = testBlockACC(attacked_model, attacker, args, verbose=verbose)
-    # gc.collect()
+    gc.collect()
     return res
 
 
@@ -316,12 +316,12 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
 
     cmd = parser.parse_args()
-    # cmd.dataset = "cora"
-    # cmd.subgraph_type = "dw"
+    # cmd.dataset = "citeseer"
+    # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
     # cmd.p = 7.0
     # cmd.q = 0.1
-    # cmd.alpha = 0.01
+    # cmd.alpha = 0.001
     gg.set_backend("th")
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",

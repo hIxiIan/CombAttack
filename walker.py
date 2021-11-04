@@ -143,7 +143,7 @@ class Walker:
                 self.preprocess_transition_probs()
             sub_edges, sub_nodes = self.node2vec_sample(self.targets, self.sample_nums)
 
-        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') for sub_edge in sub_edges]
+        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') if len(sub_edge) > 0 else np.array([[], []], dtype='int64') for sub_edge in sub_edges]
         self.sample_nodes = [np.unique(sub_node) for sub_node in sub_nodes]
 
     # 纯随机游走
