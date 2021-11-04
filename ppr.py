@@ -398,6 +398,46 @@ def calc_ppr_wl_limit_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk,
     return edges, targets, weights
 
 
+# ppr公式乘wl+topk+wl偏好
+@numba.jit(cache=True, nopython=True)
+def calc_ppr_wl_limit_wl_topk(indptr, indices, deg, alpha, epsilon, nodes, topk, wls, wl_cnts, descending=False):
+    edges = []
+    targets = []
+    weights = []
+    for i, node in enumerate(nodes):
+        node, weight, edge = _calc_ppr_node_wl(wl_cnts[i], node, indptr, indices, deg, alpha, epsilon)
+        node_np, weight_np = np.array(node), np.array(weight)
+        nodes_wl = wls[i][node_np]
+        idx_wl = nodes_wl >= 0.5
+        if idx_wl.sum() >= topk / 2:
+            edge = dict_filter_key(np.array(list(edge.keys())), node_np[~idx_wl])
+            node_np = node_np[idx_wl]
+            weight_np = weight_np[idx_wl]
+
+        # topk大于提取节点数量，退化成calc_ppr
+        if len(node_np) <= topk:
+            # print('calc_ppr_topk back to calc_ppr')
+            targets.append(node_np)
+            weights.append(weight_np)
+            edges.append(list(edge.keys()))
+            continue
+        # weight_np小到大排序
+        idx_sort = np.argsort(weight_np)
+
+        if descending:
+            idx_topk = idx_sort[-topk:] # 取倒序topk个， 最重要
+            idx_topk_rest = idx_sort[:-topk]
+        else:
+            idx_topk = idx_sort[:topk] # 取顺序topk个，最不重要
+            idx_topk_rest = idx_sort[topk:]
+        targets.append(node_np[idx_topk])
+        weights.append(weight_np[idx_topk])
+        edge = dict_filter_key(np.array(list(edge.keys())), node_np[idx_topk_rest])
+        edges.append(list(edge.keys()))
+
+    return edges, targets, weights
+
+
 # 原始ppr+wl阈值
 @numba.jit(cache=True, nopython=True)
 def calc_ppr_wl_limit(indptr, indices, deg, alpha, epsilon, nodes, labels, wrong_labels, wls):
