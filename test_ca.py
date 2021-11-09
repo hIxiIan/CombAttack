@@ -8,6 +8,15 @@ import argparse
 from utils import save_test
 from ca import run
 
+DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
+            'flickr', 'coauthor_cs', 'coauthor_phy']
+
+
+def get_datasets(cmd_d):
+    if len(cmd_d) <= 0:
+        return DATASETS
+    return cmd_d.split(',')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -20,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
     parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
+    parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
@@ -32,8 +41,7 @@ if __name__ == '__main__':
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    for dataset in ['citeseer', 'flickr',
-                    'cora_full', 'pubmed', 'coauthor_cs', 'coauthor_phy']:
+    for dataset in get_datasets(cmd.dataset):
         prefix = "_".join([dataset, personal])
         _prefix = rootdir + os.sep + prefix
         cmd.dataset = dataset
