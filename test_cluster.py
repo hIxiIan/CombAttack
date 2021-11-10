@@ -63,14 +63,14 @@ if __name__ == '__main__':
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            # # sga
-            # try:
-            #     res.loc['sga'] = run("sga", cmd=cmd, verbose=False)
-            #     print('-------sga')
-            #     res.to_csv(filename)
-            # except Exception as e:
-            #     res.loc['sga'] = [-1, -1, -1, -1, -1]
-            #     print('##################################error', repr(e))
+            # sga
+            try:
+                res.loc['sga'] = run("sga", cmd=cmd, verbose=False)
+                print('-------sga')
+                res.to_csv(filename)
+            except Exception as e:
+                res.loc['sga'] = [-1, -1, -1, -1, -1]
+                print('##################################error', repr(e))
 
             # us
             for embed_type in get_embed_types(cmd.embed_type):
