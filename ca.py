@@ -52,6 +52,7 @@ def init_sampler(attacker, args):
         model = get_embed_model(args, attacker.graph)
         sampler = Cluster(args.targets, model, attacker.graph, args.sample_ratio)
         sampler.type_ = args.subgraph_type
+        print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
     return sampler
 
 
