@@ -22,11 +22,11 @@ DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 def get_embed_model(args, graph):
     model = None
     if args.embed_type == "MLP":
-        model = gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr").build()
+        model = gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif args.embed_type == "SGC":
-        model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr", K=2).build()
+        model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif args.embed_type == "GCN":
-        model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr").build()
+        model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
     results = model.evaluate(args.splits.test_nodes)
     print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
