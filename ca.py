@@ -27,9 +27,16 @@ def get_embed_model(args, graph):
         model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif args.embed_type == "GCN":
         model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif args.embed_type == "PPNP":
+        model = gg.gallery.nodeclas.PPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif args.embed_type == "APPNP":
+        model = gg.gallery.nodeclas.APPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif args.embed_type == "SimPGCN":
+        model = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
     results = model.evaluate(args.splits.test_nodes)
     print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+    assert False
     return model
 
 

@@ -11,7 +11,7 @@ from ca import run
 DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
-EMBED_TYPE = ['MLP', 'GCN', 'SGC']
+EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN']
 
 
 def get_datasets(cmd_d):
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
     parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="", type=str, help="dataset")
+    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
