@@ -11,11 +11,19 @@ from ca import run
 DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
+EMBED_TYPE = ['MLP', 'GCN', 'SGC']
+
 
 def get_datasets(cmd_d):
     if len(cmd_d) <= 0:
         return DATASETS
     return cmd_d.split(',')
+
+
+def get_embed_types(cmd_e):
+    if len(cmd_e) <= 0:
+        return EMBED_TYPE
+    return cmd_e.split(',')
 
 
 if __name__ == '__main__':
@@ -27,14 +35,14 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
-    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
+    parser.add_argument("-et", "--embed_type", default="", type=str)
 
     cmd = parser.parse_args()
     gg.set_backend("th")
@@ -48,7 +56,7 @@ if __name__ == '__main__':
         prefix = "_".join([cmd.dataset, personal])
         _prefix = rootdir + os.sep + prefix
         subgraph_type = "cluster"
-        times = 3
+        times = 1
         seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         for i in range(times):
             res = pd.DataFrame(columns=['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost'])
@@ -65,8 +73,7 @@ if __name__ == '__main__':
             #     print('##################################error', repr(e))
 
             # us
-            embed_types = ['MLP']
-            for embed_type in embed_types:
+            for embed_type in get_embed_types(cmd.embed_type):
                 cmd.embed_type = embed_type
                 key = '_'.join([embed_type])
                 try:
