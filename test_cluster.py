@@ -52,7 +52,9 @@ if __name__ == '__main__':
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     dataset_ = get_datasets(cmd.dataset)
+    print(dataset_)
     embed_types_ = get_embed_types(cmd.embed_type)
+    print(embed_types_)
     for dataset in dataset_:
         cmd.dataset = dataset
         prefix = "_".join([cmd.dataset, personal])
