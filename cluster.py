@@ -1,8 +1,11 @@
 import graphgallery as gg
+import pandas as pd
 from graphgallery import functional as gf
 from sklearn.cluster import KMeans
 from numba import njit
 import numpy as np
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 
 class Cluster:
@@ -16,6 +19,7 @@ class Cluster:
         self.n_classes = len(set(graph.node_label))
         self.sample_nums = int(sample_ratio * graph.adj_matrix.shape[0])
         self.z = model.predict(self.n_nodes)
+        self.tsne = TSNE()
         self.cluster_type = "KMeans"
         self.cluser_model = None
         self.cluster_label_pred = None
@@ -36,6 +40,7 @@ class Cluster:
     def do(self):
         self.init_cluster()
         self.get_candidates()
+        self.visualization()
 
     def get_farthest_idx(self):
         farthest_idx = [-1 for _ in range(self.n_classes)]
@@ -50,6 +55,18 @@ class Cluster:
                     farthest_idx[j] = i
                     farthest[j] = distance
         self.farthest_idx = np.asarray(farthest_idx)
+
+    def visualization(self):
+        # print('targets labels:{}'.format(list(self.cluster_label_pred)))
+        self.tsne.fit_transform(self.z)
+        X = pd.DataFrame(self.z)
+        X['labels'] = self.cluster_label_pred
+        tsne = pd.DataFrame(self.tsne.embedding_, index=X.index)  # 转换数据格式
+        for label in range(self.n_classes):
+            d = tsne[X[u'labels'] == label]
+            plt.plot(d[0], d[1], '.', label=str(label))
+        plt.legend()
+        plt.show()
 
     def init_cluster(self):
         if self.cluster_type == "KMeans":
