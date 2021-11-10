@@ -40,7 +40,7 @@ class Cluster:
     def do(self):
         self.init_cluster()
         self.get_candidates()
-        self.visualization()
+        # self.visualization()
 
     def get_farthest_idx(self):
         farthest_idx = [-1 for _ in range(self.n_classes)]
