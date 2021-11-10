@@ -14,6 +14,8 @@ class ARGS:
         self.device = "gpu" if cmd.device == "gpu" and torch.cuda.is_available() else "cpu"
         self.dataset = cmd.dataset
         self.us = False if cmd.subgraph_type in ['sga'] else True
+        self.cluster = True if cmd.subgraph_type == "cluster" else False
+        self.embed_type = cmd.embed_type
 
         # attack
         self.subgraph_type = cmd.subgraph_type
@@ -38,3 +40,4 @@ class ARGS:
         # blockchain
         self.node_attr = node_attr
         self.node_label = node_label
+

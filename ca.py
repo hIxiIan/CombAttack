@@ -14,26 +14,44 @@ from spreader import Spreader
 from walker import Walker
 from ppr import PPRer
 from pd import get_lgb_model
+from cluster import Cluster
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
+
+
+def get_embed_model(args, graph):
+    model = None
+    if args.embed_type == "MLP":
+        model = gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr").build()
+        model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
+        results = model.evaluate(args.splits.test_nodes)
+        print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+
+    return model
 
 
 def init_sampler(attacker, args):
     if not args.us:
         return None
-    t1 = time()
-    sampler = None
 
-    if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
-        sampler = Walker(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits, attacker.softmax_logits, wl_limit=args.wl_limit)
-        sampler.random_walk()
-    elif "spread" in args.subgraph_type:
-        sampler = Spreader(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits, attacker.softmax_logits)
-        sampler.spread_walk()
-    elif "ppr" in args.subgraph_type:
-        sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
-        sampler.ppr_walk()
-    print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
+    sampler = None
+    t1 = time()
+    if not args.cluster:
+        if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
+            sampler = Walker(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits, attacker.softmax_logits, wl_limit=args.wl_limit)
+            sampler.random_walk()
+        elif "spread" in args.subgraph_type:
+            sampler = Spreader(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits, attacker.softmax_logits)
+            sampler.spread_walk()
+        elif "ppr" in args.subgraph_type:
+            sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
+            sampler.ppr_walk()
+        sampler.type_ = args.subgraph_type
+        print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
+    else:
+        model = get_embed_model(args, attacker.graph)
+        sampler = Cluster(args.targets, model, attacker.graph, args.sample_ratio)
+        sampler.type_ = args.subgraph_type
     return sampler
 
 
@@ -238,6 +256,10 @@ def get_attack_model(args, graph):
                             args.splits.val_nodes,
                             verbose=args.verbose,
                             epochs=100)
+        if args.us:
+            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        else:
+            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
         args.train_nodes = list(range(graph.node_label.shape[0]))
         surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
@@ -252,18 +274,11 @@ def get_attack_model(args, graph):
                             None,
                             verbose=args.verbose,
                             epochs=6)
-
-    # attacker
-    if args.us:
-        if args.dataset not in DATASET_BLOCKCHAIN:
-            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-        else:
+        if args.us:
             attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    else:
-        if args.dataset not in DATASET_BLOCKCHAIN:
-            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
             attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+
     return attacked_model, attacker
 
 
@@ -314,8 +329,10 @@ if __name__ == '__main__':
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
+    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
 
     cmd = parser.parse_args()
+    cmd.subgraph_type = "cluster"
     # cmd.dataset = "citeseer"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012

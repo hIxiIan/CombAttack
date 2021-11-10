@@ -25,6 +25,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
+    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
 
     cmd = parser.parse_args()
     gg.set_backend("th")
