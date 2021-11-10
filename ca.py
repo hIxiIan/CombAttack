@@ -350,9 +350,9 @@ if __name__ == '__main__':
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
 
     cmd = parser.parse_args()
-    cmd.subgraph_type = "cluster"
-    cmd.dataset = "blockchain30000"
-    cmd.is_phi = "true"
+    # cmd.subgraph_type = "cluster"
+    # cmd.dataset = "blockchain30000"
+    # cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
     # cmd.p = 7.0
