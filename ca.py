@@ -36,7 +36,6 @@ def get_embed_model(args, graph):
     model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
     results = model.evaluate(args.splits.test_nodes)
     print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
-    assert False
     return model
 
 
