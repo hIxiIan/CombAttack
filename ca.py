@@ -333,7 +333,7 @@ if __name__ == '__main__':
     parser.add_argument("-et", "--embed_type", default="MLP", type=str)
 
     cmd = parser.parse_args()
-    cmd.subgraph_type = "cluster"
+    # cmd.subgraph_type = "cluster"
     # cmd.dataset = "citeseer"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
