@@ -16,6 +16,7 @@ class ARGS:
         self.us = False if cmd.subgraph_type in ['sga'] else True
         self.cluster = True if cmd.subgraph_type == "cluster" else False
         self.embed_type = cmd.embed_type
+        self.is_phi = True if cmd.is_phi == "true" else False
 
         # attack
         self.subgraph_type = cmd.subgraph_type

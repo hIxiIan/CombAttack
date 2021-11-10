@@ -106,7 +106,8 @@ class SCA(TargetedAttacker):
                feature_attack=False,
                disable=False,
                verbose_us=True,
-               sampler=None):
+               sampler=None,
+               blockchain=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
@@ -114,6 +115,7 @@ class SCA(TargetedAttacker):
         self.non_added_edges = []
         self.verbose_us = verbose_us
         self.sampler = sampler
+        self.blockchian = blockchain
         self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray())
         if logit is None:
             logit = self.logits[target]
@@ -298,7 +300,7 @@ class SCA(TargetedAttacker):
         self_loop = np.row_stack([sub_nodes, sub_nodes])
 
         # sub_edges, sub_edges[[1,0]]是方向相反的边
-        if sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
+        if self.blockchian or sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
             indices = np.hstack([
                 non_edges,
                 non_edges[[1, 0]], self_loop

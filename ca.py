@@ -192,21 +192,25 @@ def get_train_x(attacked_model, args, target):
 
 def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     original_predict, lgb_model = get_pd(attacked_model, args)
-    surrogate_phishing_targets = np.where(original_predict == 1)[0]
-    true_phishing_targets = np.where(args.node_label == 1)[0]
-    args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+    if args.is_phi:
+        surrogate_phishing_targets = np.where(original_predict == 1)[0]
+        true_phishing_targets = np.where(args.node_label == 1)[0]
+        args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+        print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(
+            len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
+
     sampler = init_sampler(attacker, args)
     eva_res = np.zeros(len(args.targets)).astype('bool')
     poi_res = np.zeros(len(args.targets)).astype('bool')
     start = time()
-    # targets 都是钓鱼节点
-    print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
+
+    print('attack phishing or non-phishing nodes')
     for i, target in enumerate(args.targets):
         start_i = time()
         attacker = attacker.reset()
         try:
             if args.us:
-                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, blockchain=args.blockchain)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
@@ -258,6 +262,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
 
 def get_attack_model(args, graph):
     if args.dataset not in DATASET_BLOCKCHAIN:
+        args.blockchain = False
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes,
                                   args.splits.val_nodes,
@@ -275,6 +280,7 @@ def get_attack_model(args, graph):
         else:
             attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
+        args.blockchain = True
         args.train_nodes = list(range(graph.node_label.shape[0]))
         surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
         surrogate_model.fit(args.train_nodes,
@@ -304,12 +310,9 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
 
     graph = data.graph
     random.seed(cmd.seed)
-    if cmd.dataset not in DATASET_BLOCKCHAIN:
-        splits = data.split_nodes(random_state=15)
-        targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-    else:
-        splits = None
-        targets = None
+
+    splits = data.split_nodes(random_state=15)
+    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
 
     cmd.subgraph_type = subgraph_type
     cmd.p = p
@@ -343,11 +346,13 @@ if __name__ == '__main__':
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
+    parser.add_argument("-et", "--embed_type", default="GCN", type=str)
+    parser.add_argument('-ip', '--is_phi', default="true", type=str)
 
     cmd = parser.parse_args()
-    # cmd.subgraph_type = "cluster"
-    # cmd.dataset = "citeseer"
+    cmd.subgraph_type = "cluster"
+    cmd.dataset = "blockchain30000"
+    cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
     # cmd.p = 7.0
@@ -360,14 +365,12 @@ if __name__ == '__main__':
                       transform="standardize")
     graph = data.graph
     random.seed(cmd.seed)
+    splits = data.split_nodes(random_state=15)
+    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+    attacked_model, attacker = get_attack_model(args, graph)
     if cmd.dataset not in DATASET_BLOCKCHAIN:
-        splits = data.split_nodes(random_state=15)
-        targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-        args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
-        attacked_model, attacker = get_attack_model(args, graph)
         res = testACC(attacked_model, attacker, args, verbose_us=False)
     else:
-        args = ARGS(cmd=cmd, targets=None, splits=None, node_attr=graph.node_attr, node_label=graph.node_label)
-        attacked_model, attacker = get_attack_model(args, graph)
         res = testBlockACC(attacked_model, attacker, args, verbose_us=False)
     gc.collect()
