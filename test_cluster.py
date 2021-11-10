@@ -11,8 +11,7 @@ from ca import run
 DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
-EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
-              'GCN_E']
+EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN']
 
 
 def get_datasets(cmd_d):
@@ -52,7 +51,9 @@ if __name__ == '__main__':
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    for dataset in get_datasets(cmd.dataset):
+    dataset_ = get_datasets(cmd.dataset)
+    embed_types_ = get_embed_types(cmd.embed_type)
+    for dataset in dataset_:
         cmd.dataset = dataset
         prefix = "_".join([cmd.dataset, personal])
         _prefix = rootdir + os.sep + prefix
@@ -74,7 +75,7 @@ if __name__ == '__main__':
                 print('##################################error', repr(e))
 
             # us
-            for embed_type in get_embed_types(cmd.embed_type):
+            for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 key = '_'.join([embed_type])
                 try:

@@ -190,7 +190,7 @@ class SCA(TargetedAttacker):
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
         self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
 
-        self._hop_ratio, self._hop_length, self._walk_length = len(deleted_edges), len(added_edges), len(sub_nodes)
+        self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
         self._sub_nodes = sub_nodes
         self._sub_edges = deleted_edges
         self._sub_non_edges = added_edges
