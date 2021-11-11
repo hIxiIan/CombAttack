@@ -6,6 +6,7 @@ from numba import njit
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import torch
 
 
 class Cluster:
@@ -18,7 +19,7 @@ class Cluster:
         self.n_nodes = np.array(range(graph.adj_matrix.shape[0]))
         self.n_classes = len(set(graph.node_label))
         self.sample_nums = int(sample_ratio * graph.adj_matrix.shape[0])
-        self.z = model.predict(self.n_nodes)
+        self.z = None
         self.tsne = TSNE()
         self.cluster_type = "KMeans"
         self.cluser_model = None
@@ -36,6 +37,12 @@ class Cluster:
             self.targets_map[target] = i
 
         self.do()
+
+    @torch.no_grad()
+    def get_predict(self):
+        print(self.model.model.conv)
+        self.z = self.model.model.conv[:-3](self.model.X, self.model.A)
+        print('z shape: ', self.z.shape)
 
     def do(self):
         self.init_cluster()
