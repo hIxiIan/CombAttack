@@ -11,7 +11,7 @@ class ARGS:
         # 通用
         self.seed = cmd.seed
         self.verbose = cmd.verbose
-        self.device = "gpu" if cmd.device == "gpu" and torch.cuda.is_available() else "cpu"
+        self.device = cmd.device if cmd.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
         self.dataset = cmd.dataset
         self.us = False if cmd.subgraph_type in ['sga'] else True
         self.cluster = True if cmd.subgraph_type == "cluster" else False
