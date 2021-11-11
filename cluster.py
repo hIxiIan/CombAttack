@@ -41,7 +41,7 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        if "GCN" in self.embed_type:
+        if self.embed_type in ["GCN", "GCN_E"]:
             conv = self.model.model.conv[:-3]
             self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
         elif "MLP" in self.embed_type:
@@ -54,7 +54,7 @@ class Cluster:
             lin = self.model.model.lin[:-3]
             propagation = self.model.model.propagation
             x = lin(self.model.cache.X)
-            self.z = propagation(x, self.model.cache.A)
+            self.z = propagation(x, self.model.cache.A).cpu().numpy()
         else:
             self.z = self.model.predict(self.n_nodes)
         print('z shape: ', self.z.shape)
