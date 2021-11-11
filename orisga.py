@@ -100,7 +100,8 @@ class SGA(TargetedAttacker):
                feature_attack=False,
                disable=False,
                w_label=None,
-               verbose_us=True):
+               verbose_us=True,
+               blockchain=None):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
@@ -108,6 +109,7 @@ class SGA(TargetedAttacker):
         self.added_edges = []
         self.non_added_edges = []
         self.with_w_label = False
+        self.blockchain = blockchain
         self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray())
         if logit is None:
             logit = self.logits[target]
@@ -250,6 +252,12 @@ class SGA(TargetedAttacker):
             sub_edges, sub_edges[[1, 0]], non_edges,
             non_edges[[1, 0]], self_loop
         ])
+        if self.blockchain:
+            indices = np.hstack([
+                non_edges,
+                non_edges[[1, 0]], self_loop
+            ])
+            edge_weights = np.ones(0, dtype=self.floatx)
 
         self.indices = torch.LongTensor(indices).to(self.device)
         self.edge_weights = nn.Parameter(torch.tensor(edge_weights)).to(self.device)

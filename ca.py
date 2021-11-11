@@ -198,13 +198,14 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
         args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
         print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(
             len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
+    else:
+        print('attack phishing or non-phishing nodes')
 
     sampler = init_sampler(attacker, args)
     eva_res = np.zeros(len(args.targets)).astype('bool')
     poi_res = np.zeros(len(args.targets)).astype('bool')
     start = time()
 
-    print('attack phishing or non-phishing nodes')
     for i, target in enumerate(args.targets):
         start_i = time()
         attacker = attacker.reset()
@@ -212,7 +213,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
             if args.us:
                 attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, blockchain=args.blockchain)
             else:
-                attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
+                attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack, blockchain=args.blockchain)
         except AssertionError as e:
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         except PermissionError as e:
