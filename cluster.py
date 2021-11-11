@@ -10,7 +10,8 @@ import torch
 
 
 class Cluster:
-    def __init__(self, targets, model, graph, sample_ratio):
+    def __init__(self, embed_type, targets, model, graph, sample_ratio):
+        self.embed_type = embed_type
         self.targets = np.array(targets)
         self.model = model
         self.graph = graph
@@ -40,11 +41,26 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        print(self.model.model.conv)
-        self.z = self.model.model.conv[:-3](self.model.X, self.model.A)
+        if "GCN" in self.embed_type:
+            conv = self.model.model.conv[:-3]
+            self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
+        elif "MLP" in self.embed_type:
+            lin = self.model.model.lin[:-3]
+            self.z = lin(self.model.cache.X).cpu().numpy()
+        elif "SGC" in self.embed_type:
+            lin = self.model.model.lin
+            self.z = lin(self.model.cache.X).cpu().numpy()
+        elif "PPNP" in self.embed_type:
+            lin = self.model.model.lin[:-3]
+            propagation = self.model.model.propagation
+            x = lin(self.model.cache.X)
+            self.z = propagation(x, self.model.cache.A)
+        else:
+            self.z = self.model.predict(self.n_nodes)
         print('z shape: ', self.z.shape)
 
     def do(self):
+        self.get_predict()
         self.init_cluster()
         self.get_candidates()
         # self.visualization()

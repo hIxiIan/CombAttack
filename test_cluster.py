@@ -11,7 +11,8 @@ from ca import run
 DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
-EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN']
+EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
+              'GCN_E']
 
 
 def get_datasets(cmd_d):
