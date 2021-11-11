@@ -9,7 +9,7 @@ import os
 from utils import save_test
 import pandas as pd
 
-DATASETS = ['blockchian30000', 'blockchain40000', 'blockchain50000']
+DATASETS = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
               'GCN_E']
