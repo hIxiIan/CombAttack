@@ -49,7 +49,10 @@ def get_embed_model(args, graph):
         results = model.evaluate(args.splits.test_nodes)
         print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
     else:
-        model.fit(graph.adj_matrix)
+        if args.embed_type in ["DW", "N2V"]:
+            model.fit(graph.adj_matrix)
+        elif args.embed_type == "BANE":
+            model.fit(graph.adj_matrix, graph.node_attr)
         accuracy = model.evaluate_nodeclas(graph.node_label,
                                              args.splits.train_nodes,
                                              args.splits.test_nodes)
