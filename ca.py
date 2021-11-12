@@ -40,7 +40,7 @@ def get_embed_model(args, graph):
     elif args.embed_type == "DW":
         model = gg.gallery.embedding.DeepWalk()
     elif args.embed_type == "N2V":
-        model = gg.gallery.embedding.Node2Vec()
+        model = gg.gallery.embedding.Node2Vec(p=args.p, q=args.q)
     elif args.embed_type == "BANE":
         model = gg.gallery.embedding.BANE()
 
