@@ -55,6 +55,8 @@ class Cluster:
             propagation = self.model.model.propagation
             x = lin(self.model.cache.X)
             self.z = propagation(x, self.model.cache.A).cpu().numpy()
+        elif self.embed_type in ["DW", 'N2V', 'BANE']:
+            self.z = self.model.get_embedding()
         else:
             self.z = self.model.predict(self.n_nodes)
         print('z shape: ', self.z.shape)

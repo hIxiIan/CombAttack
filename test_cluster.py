@@ -12,7 +12,8 @@ DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
 EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
-              'GCN_E']
+              'GCN_E',
+              'DW', 'N2V', 'BANE']
 
 
 def get_datasets(cmd_d):

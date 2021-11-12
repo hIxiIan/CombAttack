@@ -37,9 +37,23 @@ def get_embed_model(args, graph):
     # embed_nums
     elif args.embed_type == "GCN_E":
         model = gg.gallery.nodeclas.GCN_E(device=args.device, seed=args.seed).setup_graph(graph).build()
-    model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
-    results = model.evaluate(args.splits.test_nodes)
-    print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+    elif args.embed_type == "DW":
+        model = gg.gallery.embedding.DeepWalk()
+    elif args.embed_type == "N2V":
+        model = gg.gallery.embedding.Node2Vec()
+    elif args.embed_type == "BANE":
+        model = gg.gallery.embedding.BANE()
+
+    if args.embed_type not in ["DW", 'N2V', 'BANE']:
+        model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
+        results = model.evaluate(args.splits.test_nodes)
+        print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+    else:
+        model.fit(graph.adj_matrix)
+        accuracy = model.evaluate_nodeclas(graph.node_label,
+                                             args.splits.train_nodes,
+                                             args.splits.test_nodes)
+        print('Test accuracy:{}'.format(accuracy))
     return model
 
 
@@ -173,7 +187,7 @@ def get_pd(attacked_model, args):
     x = df_combined[x_cols_name]
     y = df_combined[y_cols_name]
     test_res, all_predict, lgb_model = get_lgb_model(x, y, args.seed)
-    print(test_res)
+    # print(test_res)
     return all_predict, lgb_model
 
 
