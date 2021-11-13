@@ -276,6 +276,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     cost = (end - start) / 60
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
+    print('embed_acc:{}'.format(sampler.embed_acc))
 
     return [eva_asr, 0, poi_asr, 0, cost, sampler.embed_acc]
 
