@@ -65,7 +65,10 @@ def init_sampler(attacker, args):
     if not args.us:
         return None
 
-    sampler = None
+    class sp:
+        def __init__(self, embed_acc=0):
+            self.embed_acc = embed_acc
+    sampler = sp()
     t1 = time()
     if not args.cluster:
         if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
@@ -84,7 +87,7 @@ def init_sampler(attacker, args):
         sampler = Cluster(args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
         sampler.type_ = args.subgraph_type
         print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
-    sampler.embed_acc = model.embed_acc
+        sampler.embed_acc = model.embed_acc
     return sampler
 
 
@@ -172,6 +175,7 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     cost = (end - start) / 60
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
+    print('embed_acc:{}'.format(sampler.embed_acc))
 
     return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, sampler.embed_acc]
 
