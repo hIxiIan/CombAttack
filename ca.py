@@ -377,7 +377,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_init', default=40, type=int)
 
     cmd = parser.parse_args()
-    cmd.subgraph_type = "sga"
+    # cmd.subgraph_type = "sga"
     # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
