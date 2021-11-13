@@ -10,7 +10,7 @@ import torch
 
 
 class Cluster:
-    def __init__(self, embed_type, targets, model, graph, sample_ratio):
+    def __init__(self, embed_type, targets, model, graph, sample_ratio, parms):
         self.embed_type = embed_type
         self.targets = np.array(targets)
         self.model = model
@@ -20,6 +20,7 @@ class Cluster:
         self.n_nodes = np.array(range(graph.adj_matrix.shape[0]))
         self.n_classes = len(set(graph.node_label))
         self.sample_nums = int(sample_ratio * graph.adj_matrix.shape[0])
+        self.parms = parms
         self.z = None
         self.tsne = TSNE()
         self.cluster_type = "KMeans"
@@ -67,19 +68,21 @@ class Cluster:
         self.get_candidates()
         # self.visualization()
 
+    def compute_distance(self, embed1, embed2):
+        return pow(embed1 - embed2, 2).sum()
+
     def get_farthest_idx(self):
-        farthest_idx = [-1 for _ in range(self.n_classes)]
-        farthest = [0 for _ in range(self.n_classes)]
+        farthest_idx = np.zeros((self.n_classes, self.n_classes))
+        farthest = np.zeros((self.n_classes, self.n_classes))
         for i in range(self.n_classes):
             for j in range(i + 1, self.n_classes):
-                distance = pow(self.cluster_centroidds[i] - self.cluster_centroidds[j], 2).sum()
-                if farthest[i] == 0 or distance > farthest[i]:
-                    farthest_idx[i] = j
-                    farthest[i] = distance
-                if farthest[j] == 0 or distance > farthest[j]:
-                    farthest_idx[j] = i
-                    farthest[j] = distance
-        self.farthest_idx = np.asarray(farthest_idx)
+                distance = self.compute_distance(self.cluster_centroidds[i], self.cluster_centroidds[j])
+                farthest[i][j] = farthest[j][i] = distance
+        df = pd.DataFrame(farthest)
+        for i in range(self.n_classes):
+            farthest_idx[i] = np.array(df.iloc[i].sort_values(ascending=False).index)
+        self.farthest_idx = farthest_idx
+        print('cluster results:{}'.format(self.farthest_idx))
 
     def visualization(self):
         # print('targets labels:{}'.format(list(self.cluster_label_pred)))
@@ -96,9 +99,10 @@ class Cluster:
     def init_cluster(self):
         if self.cluster_type == "KMeans":
             self.cluser_model = KMeans(n_clusters=self.n_classes,
-                                       max_iter=300,
-                                       n_init=40,
-                                       init="k-means++")
+                                       max_iter=self.parms.max_iter,
+                                       n_init=self.parms.n_init,
+                                       init="k-means++",
+                                       random_state=self.parms.seed)
 
         self.cluser_model.fit(self.z)
         self.cluster_label_pred = self.cluser_model.labels_
@@ -117,13 +121,25 @@ class Cluster:
 
     @staticmethod
     @njit(cache=True)
-    def get_added_nodes(targets, label_pred, farthest_idx, n_nodes):
+    def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
         added_nodes = []
         for target in targets:
             target_label_pred = label_pred[target]
-            farthest_label = farthest_idx[target_label_pred]
-            farthest_nodes = n_nodes[label_pred == farthest_label]
-            added_nodes.append(farthest_nodes)
+            added_node = []
+            candidate_labels = farthest_idx[target_label_pred][:topk_cluster]
+            print(target_label_pred, candidate_labels)
+            for i in range(topk_cluster):
+                nnodes = n_nodes[label_pred == candidate_labels[i]]
+                if i > 0:
+                    topk = min(extra_nums_nodes, len(nnodes))
+                    farthest = np.zeros(len(nnodes))
+                    for j in range(len(nnodes)):
+                        farthest[j] = ((z[target] - z[nnodes[j]])**2).sum()
+
+                    idx_topk = np.argsort(farthest)[-topk:]
+                    nnodes = nnodes[idx_topk]
+                added_node.extend(nnodes)
+            added_nodes.append(added_node)
         return added_nodes
 
     @staticmethod
@@ -147,7 +163,7 @@ class Cluster:
 
     def get_candidates(self):
         deleted_nodes = self.get_deleted_nodes(self.targets, self.indices, self.indptr)
-        added_nodes = self.get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes)
+        added_nodes = self.get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
         self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
         self.deleted_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in deleted_edges]
         self.added_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in added_edges]

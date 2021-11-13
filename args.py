@@ -3,6 +3,13 @@ import os
 import torch
 
 
+class ClusterParms:
+    def __init__(self, max_iter=300, n_init=40, seed=2020):
+        self.max_iter = max_iter
+        self.n_init = n_init
+        self.seed = seed
+
+
 class ARGS:
     def __init__(self, cmd, targets=None, splits=None,
 
@@ -41,4 +48,6 @@ class ARGS:
         # blockchain
         self.node_attr = node_attr
         self.node_label = node_label
+
+        self.cluster_parms = ClusterParms(cmd.max_iter, cmd.n_init, self.seed)
 

@@ -5,27 +5,8 @@ import graphgallery as gg
 import pandas as pd
 import argparse
 
-from utils import save_test
+from utils import save_test, get_datasets, get_embed_types, RES_COLUMNS, RES_ERRORS
 from ca import run
-
-DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
-            'flickr', 'coauthor_cs', 'coauthor_phy']
-
-EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
-              'GCN_E',
-              'DW', 'N2V', 'BANE']
-
-
-def get_datasets(cmd_d):
-    if len(cmd_d) <= 0:
-        return DATASETS
-    return cmd_d.split(',')
-
-
-def get_embed_types(cmd_e):
-    if len(cmd_e) <= 0:
-        return EMBED_TYPE
-    return cmd_e.split(',')
 
 
 if __name__ == '__main__':
@@ -47,6 +28,9 @@ if __name__ == '__main__':
     parser.add_argument("-et", "--embed_type", default="", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
 
+    parser.add_argument('--max_iter', default=300, type=int)
+    parser.add_argument('--n_init', default=40, type=int)
+
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -55,40 +39,40 @@ if __name__ == '__main__':
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     dataset_ = get_datasets(cmd.dataset)
-    print(dataset_)
     embed_types_ = get_embed_types(cmd.embed_type)
+    print(dataset_)
     print(embed_types_)
+
     for dataset in dataset_:
         cmd.dataset = dataset
-        prefix = "_".join([cmd.dataset, personal])
-        _prefix = rootdir + os.sep + prefix
+        _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         subgraph_type = "cluster"
         times = 1
         seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         for i in range(times):
-            res = pd.DataFrame(columns=['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost'])
+            res = pd.DataFrame(columns=RES_COLUMNS)
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             # sga
+            print('-------sga')
             try:
                 res.loc['sga'] = run("sga", cmd=cmd, verbose=False)
-                print('-------sga')
                 res.to_csv(filename)
             except Exception as e:
-                res.loc['sga'] = [-1, -1, -1, -1, -1]
+                res.loc['sga'] = RES_ERRORS
                 print('##################################error', repr(e))
 
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 key = '_'.join([embed_type])
+                print('-------embed_type:{}'.format(key))
                 try:
                     res.loc[key] = run(subgraph_type, cmd=cmd, verbose=False)
                 except Exception as e:
-                    res.loc[key] = [-1, -1, -1, -1, -1]
+                    res.loc[key] = RES_ERRORS
                     print('##################################error', repr(e))
-                print('-------embed_type:{}'.format(embed_type))
                 res.to_csv(filename)
 
         print(_prefix)

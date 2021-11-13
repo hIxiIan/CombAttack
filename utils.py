@@ -10,6 +10,29 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
+RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc']
+
+RES_ERRORS = [-1 for _ in RES_COLUMNS]
+
+DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
+            'flickr', 'coauthor_cs', 'coauthor_phy']
+
+EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
+              'GCN_E',
+              'DW', 'N2V', 'BANE']
+
+
+def get_datasets(cmd_d):
+    if len(cmd_d) <= 0:
+        return DATASETS
+    return cmd_d.split(',')
+
+
+def get_embed_types(cmd_e):
+    if len(cmd_e) <= 0:
+        return EMBED_TYPE
+    return cmd_e.split(',')
+
 
 def normalize_GCN(indices, weights, degree):
     row, col = indices

@@ -53,10 +53,11 @@ def get_embed_model(args, graph):
             model.fit(graph.adj_matrix)
         elif args.embed_type == "BANE":
             model.fit(graph.adj_matrix, graph.node_attr)
-        accuracy = model.evaluate_nodeclas(graph.node_label,
+        results = model.evaluate_nodeclas(graph.node_label,
                                              args.splits.train_nodes,
                                              args.splits.test_nodes)
-        print('Test accuracy:{}'.format(accuracy))
+        print('Test accuracy:{}'.format(results.accuracy))
+    model.embed_acc = results.accuracy
     return model
 
 
@@ -80,9 +81,10 @@ def init_sampler(attacker, args):
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
         model = get_embed_model(args, attacker.graph)
-        sampler = Cluster(args.embed_type, args.targets, model, attacker.graph, args.sample_ratio)
+        sampler = Cluster(args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
         sampler.type_ = args.subgraph_type
         print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
+    sampler.embed_acc = model.embed_acc
     return sampler
 
 
@@ -171,7 +173,7 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
 
-    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost]
+    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, sampler.embed_acc]
 
 
 def get_pd(attacked_model, args):
@@ -275,7 +277,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
 
-    return [eva_asr, 0, poi_asr, 0, cost]
+    return [eva_asr, 0, poi_asr, 0, cost, sampler.embed_acc]
 
 
 def get_attack_model(args, graph):
@@ -366,6 +368,9 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
     parser.add_argument("-et", "--embed_type", default="GCN", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
+
+    parser.add_argument('--max_iter', default=300, type=int)
+    parser.add_argument('--n_init', default=40, type=int)
 
     cmd = parser.parse_args()
     # cmd.subgraph_type = "cluster"
