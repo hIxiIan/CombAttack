@@ -127,7 +127,6 @@ class Cluster:
             target_label_pred = label_pred[target]
             added_node = []
             candidate_labels = farthest_idx[target_label_pred][:topk_cluster]
-            print(target_label_pred, candidate_labels)
             for i in range(topk_cluster):
                 nnodes = n_nodes[label_pred == candidate_labels[i]]
                 if i > 0:
