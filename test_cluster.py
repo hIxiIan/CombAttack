@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
-
+    parser.add_argument('--times', default=1, type=int)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -47,8 +47,9 @@ if __name__ == '__main__':
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         subgraph_type = "cluster"
-        times = 1
+        times = cmd.times
         seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
+        times = min(times, len(seeds))
         for i in range(times):
             res = pd.DataFrame(columns=RES_COLUMNS)
             cmd.seed = seeds[i]
