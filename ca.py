@@ -65,10 +65,7 @@ def init_sampler(attacker, args):
     if not args.us:
         return None
 
-    class sp:
-        def __init__(self, embed_acc=0):
-            self.embed_acc = embed_acc
-    sampler = sp()
+    sampler = None
     t1 = time()
     if not args.cluster:
         if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
@@ -175,9 +172,10 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     cost = (end - start) / 60
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
-    print('embed_acc:{}'.format(sampler.embed_acc))
+    embed_acc = sampler.embed_acc if sampler is not None else 0
+    print('embed_acc:{}'.format(embed_acc))
 
-    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, sampler.embed_acc]
+    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, embed_acc]
 
 
 def get_pd(attacked_model, args):
@@ -280,9 +278,10 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     cost = (end - start) / 60
     print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     print('testACC end, cost time: {} min'.format(cost))
-    print('embed_acc:{}'.format(sampler.embed_acc))
+    embed_acc = sampler.embed_acc if sampler is not None else 0
+    print('embed_acc:{}'.format(embed_acc))
 
-    return [eva_asr, 0, poi_asr, 0, cost, sampler.embed_acc]
+    return [eva_asr, 0, poi_asr, 0, cost, embed_acc]
 
 
 def get_attack_model(args, graph):
@@ -364,7 +363,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -378,7 +377,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_init', default=40, type=int)
 
     cmd = parser.parse_args()
-    # cmd.subgraph_type = "cluster"
+    cmd.subgraph_type = "sga"
     # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
