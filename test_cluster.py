@@ -48,7 +48,7 @@ if __name__ == '__main__':
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         subgraph_type = "cluster"
         times = cmd.times
-        seeds = [2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
+        seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         times = min(times, len(seeds))
         for i in range(times):
             res = pd.DataFrame(columns=RES_COLUMNS)
