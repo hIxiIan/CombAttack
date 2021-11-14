@@ -45,8 +45,8 @@ def get_embed_model(args, graph):
         model = gg.gallery.embedding.BANE()
 
     if args.embed_type not in ["DW", 'N2V', 'BANE']:
-        model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=1, epochs=100)
-        results = model.evaluate(args.splits.test_nodes)
+        model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=100)
+        results = model.evaluate(args.splits.test_nodes, verbose=0)
         print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
     else:
         if args.embed_type in ["DW", "N2V"]:
@@ -170,11 +170,12 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     print('poi_asr: {}, poi_asr_wl: {}'.format(poi_asr, poi_asr_wl))
     end = time()
     cost = (end - start) / 60
-    print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
-    print('testACC end, cost time: {} min'.format(cost))
     embed_acc = sampler.embed_acc if sampler is not None else 0
-    print('embed_acc:{}'.format(embed_acc))
-
+    if args.subgraph_type != "cluster":
+        print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
+    else:
+        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+    print('testACC end, cost time: {} min'.format(cost))
     return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, embed_acc]
 
 

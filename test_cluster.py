@@ -9,6 +9,18 @@ from utils import save_test, get_datasets, get_embed_types, RES_COLUMNS, RES_ERR
 from ca import run
 
 
+def do_run(res, key, st, cmd, filename, prefix=""):
+    print()
+    print('====={}: {} start====='.format(prefix, key))
+    try:
+        res.loc[key] = run(st, cmd=cmd, verbose=False)
+        res.to_csv(filename)
+    except Exception as e:
+        res.loc[key] = RES_ERRORS
+        print('##################################error', repr(e))
+    print('====={}: {}   end====='.format(prefix, key))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
@@ -47,36 +59,20 @@ if __name__ == '__main__':
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         subgraph_type = "cluster"
-        times = cmd.times
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
-        times = min(times, len(seeds))
+        times = min(cmd.times, len(seeds))
         for i in range(times):
             res = pd.DataFrame(columns=RES_COLUMNS)
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            # sga
-            print('-------sga')
-            try:
-                res.loc['sga'] = run("sga", cmd=cmd, verbose=False)
-                res.to_csv(filename)
-            except Exception as e:
-                res.loc['sga'] = RES_ERRORS
-                print('##################################error', repr(e))
-
+            # do_run(res, 'sga', 'sga', cmd, filename)
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 key = '_'.join([embed_type])
-                print('-------embed_type:{}'.format(key))
-                try:
-                    res.loc[key] = run(subgraph_type, cmd=cmd, verbose=False)
-                except Exception as e:
-                    res.loc[key] = RES_ERRORS
-                    print('##################################error', repr(e))
-                res.to_csv(filename)
+                do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
-        print(_prefix)
         save_test(_prefix, times)
 
 

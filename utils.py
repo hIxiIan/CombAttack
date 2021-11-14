@@ -266,6 +266,7 @@ def get_target_subgraph_level(target, indices, indptr, N):
 
 
 def save_test(_prefix, times):
+    print(_prefix)
     tdf = None
     for i in range(times):
         filename = "_".join([_prefix, str(i)]) + '.csv'
