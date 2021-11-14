@@ -17,7 +17,7 @@ def do_run(res, key, st, cmd, filename, prefix=""):
         res.to_csv(filename)
     except Exception as e:
         res.loc[key] = RES_ERRORS
-        print('##################################error', repr(e))
+        print('=====ASSERT_ERROR:'.format(repr(e)))
     print('====={}: {}   end====='.format(prefix, key))
 
 
