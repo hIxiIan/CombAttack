@@ -119,9 +119,11 @@ class Cluster:
             deleted_nodes.append(nbrs)
         return deleted_nodes
 
+    # todo 优化效率
     @staticmethod
     @njit(cache=True)
     def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
+        topk_cluster = min(topk_cluster, farthest_idx.shape[1] - 1)
         added_nodes = []
         for target in targets:
             target_label_pred = label_pred[target]

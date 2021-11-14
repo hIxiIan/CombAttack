@@ -78,6 +78,7 @@ def init_sampler(attacker, args):
             sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
             sampler.ppr_walk()
         sampler.type_ = args.subgraph_type
+        sampler.embed_acc = 0
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
         model = get_embed_model(args, attacker.graph)
