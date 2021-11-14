@@ -66,7 +66,7 @@ if __name__ == '__main__':
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            # do_run(res, 'sga', 'sga', cmd, filename)
+            do_run(res, 'sga', 'sga', cmd, filename)
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
