@@ -270,6 +270,8 @@ class SGA(TargetedAttacker):
 
     def top_k_wrong_labels_nodes(self, k):
         _, non_edge_grad = self.compute_gradient()
+        print('non_edge_grad:{}, k:{}'.format(len(non_edge_grad), k))
+        k = min(len(non_edge_grad), k)
         _, index = torch.topk(non_edge_grad, k=k, sorted=False)
 
         wrong_label_nodes = self.non_edge_index[1][index.cpu()]
