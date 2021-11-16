@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
-    parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+    parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")

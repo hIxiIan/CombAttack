@@ -82,7 +82,7 @@ def init_sampler(attacker, args):
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
         model = get_embed_model(args, attacker.graph)
-        sampler = Cluster(args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
+        sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
         sampler.type_ = args.subgraph_type
         print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
         sampler.embed_acc = model.embed_acc
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
-    parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
+    parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
@@ -372,14 +372,16 @@ if __name__ == '__main__':
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="GCN", type=str)
+    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
 
     cmd = parser.parse_args()
-    # cmd.subgraph_type = "sga"
+    cmd.dataset = 'cora'
+    cmd.subgraph_type = "cluster"
+    cmd.direct_attack = ""
     # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"

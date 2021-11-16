@@ -7,10 +7,11 @@ import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import torch
-
+import numba
 
 class Cluster:
-    def __init__(self, embed_type, targets, model, graph, sample_ratio, parms):
+    def __init__(self, direct_attack, embed_type, targets, model, graph, sample_ratio, parms):
+        self.direct_attack = direct_attack
         self.embed_type = embed_type
         self.targets = np.array(targets)
         self.model = model
@@ -64,7 +65,7 @@ class Cluster:
 
     def do(self):
         self.get_predict()
-        self.init_cluster()
+        self.do_cluster()
         self.get_candidates()
         # self.visualization()
 
@@ -96,7 +97,7 @@ class Cluster:
         plt.legend()
         plt.show()
 
-    def init_cluster(self):
+    def do_cluster(self):
         if self.cluster_type == "KMeans":
             self.cluser_model = KMeans(n_clusters=self.n_classes,
                                        max_iter=self.parms.max_iter,
@@ -112,62 +113,103 @@ class Cluster:
 
     @staticmethod
     @njit(cache=True)
-    def get_deleted_nodes(targets, indices, indptr):
+    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z):
         deleted_nodes = []
-        for target in targets:
-            nbrs = indices[indptr[target]:indptr[target + 1]]
-            deleted_nodes.append(nbrs)
-        return deleted_nodes
-
-    # todo 优化效率
-    @staticmethod
-    @njit(cache=True)
-    def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
-        topk_cluster = min(topk_cluster, farthest_idx.shape[1] - 1)
         added_nodes = []
         for target in targets:
-            target_label_pred = label_pred[target]
-            added_node = []
-            candidate_labels = farthest_idx[target_label_pred][:topk_cluster]
-            for i in range(topk_cluster):
-                nnodes = n_nodes[label_pred == candidate_labels[i]]
-                if i > 0:
-                    topk = min(extra_nums_nodes, len(nnodes))
-                    farthest = np.zeros(len(nnodes))
-                    for j in range(len(nnodes)):
-                        farthest[j] = ((z[target] - z[nnodes[j]])**2).sum()
+            indirect_targets = indices[indptr[target]:indptr[target + 1]]
+            indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
+            deleted_nodes.append(indirect_deleted_nodes)
 
-                    idx_topk = np.argsort(farthest)[-topk:]
-                    nnodes = nnodes[idx_topk]
-                added_node.extend(nnodes)
-            added_nodes.append(added_node)
-        return added_nodes
+            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z)
+            added_nodes.append(indirect_added_nodes)
+        return deleted_nodes, added_nodes
 
     @staticmethod
+    # 不规则数组导致没办法njit
+    # @njit(cache=True)
     def get_edges(targets, deleted_nodes, added_nodes):
-        N = len(targets)
         sub_nodes = []
         deleted_edges = []
         added_edges = []
-        # 删边集合
-        for i in range(N):
+        for i, target in enumerate(targets):
+            dn_set = set(deleted_nodes[i])
+            ad_set = set(added_nodes[i])
+            dns = list(dn_set - ad_set)
+            ans = list(ad_set - dn_set)
+
+            sub_nodes.append(np.array(list(dn_set | ad_set)))
+            deleted_edges.append(np.asarray(list(zip([target] * len(dns), dns))))
+            added_edges.append(np.asarray(list(zip([target] * len(ans), ans))))
+        return sub_nodes, deleted_edges, added_edges
+
+    @staticmethod
+    # @njit(cache=True)
+    def get_indirect_edges(targets, deleted_nodes, added_nodes, indices, indptr):
+        sub_nodes = []
+        deleted_edges = []
+        added_edges = []
+        for i, target in enumerate(targets):
             deleted_edges.append([])
             added_edges.append([])
-            sub_nodes.append(np.union1d(deleted_nodes[i], added_nodes[i]))
-            dns = np.setdiff1d(deleted_nodes[i], added_nodes[i])
-            ans = np.setdiff1d(added_nodes[i], deleted_nodes[i])
-            for nbr in dns:
-                deleted_edges[-1].append([targets[i], nbr])
-            for nbr in ans:
-                added_edges[-1].append([targets[i], nbr])
+            indirect_targets = indices[indptr[target]:indptr[target + 1]]
+            sub_node = set()
+            for j, indirect_target in enumerate(indirect_targets):
+                # dn_set = set(deleted_nodes[i][j].astype(np.int32))
+                # ad_set = set(added_nodes[i][j].astype(np.int32))
+                dn_set = set(deleted_nodes[i][j])
+                ad_set = set(added_nodes[i][j])
+                dns = list(dn_set - ad_set)
+                ans = list(ad_set - dn_set)
+
+                sub_node = sub_node | dn_set | ad_set
+                deleted_edges[-1].extend(list(zip([indirect_target] * len(dns), dns)))
+                added_edges[-1].extend(list(zip([indirect_target] * len(ans), ans)))
+
+            sub_nodes.append(np.array(list(sub_node)))
         return sub_nodes, deleted_edges, added_edges
 
     def get_candidates(self):
-        deleted_nodes = self.get_deleted_nodes(self.targets, self.indices, self.indptr)
-        added_nodes = self.get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
-        self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
+        if self.direct_attack:
+            deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
+            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
+        else:
+            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
         self.deleted_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in deleted_edges]
         self.added_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in added_edges]
+        # print(self.sub_nodes)
 
 
+@njit(cache=True)
+def get_deleted_nodes(targets, indices, indptr):
+    deleted_nodes = []
+    for target in targets:
+        nbrs = indices[indptr[target]:indptr[target + 1]]
+        deleted_nodes.append(nbrs)
+    return deleted_nodes
+
+
+@njit(cache=True)
+def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
+    topk_cluster = min(topk_cluster, farthest_idx.shape[1] - 1)
+    added_nodes = []
+    for target in targets:
+        added_node = []
+        target_label_pred = label_pred[target]
+        candidate_labels = farthest_idx[target_label_pred][:topk_cluster]
+        for i in range(topk_cluster):
+            nnodes = n_nodes[label_pred == candidate_labels[i]]
+            if i > 0:
+                topk = min(extra_nums_nodes, len(nnodes))
+                farthest = np.zeros(len(nnodes))
+                for j in range(len(nnodes)):
+                    farthest[j] = ((z[target] - z[nnodes[j]])**2).sum()
+
+                idx_topk = np.argsort(farthest)[-topk:]
+                nnodes = nnodes[idx_topk]
+            added_node.extend(nnodes)
+        added_nodes.append(np.array(added_node))
+    return added_nodes
 

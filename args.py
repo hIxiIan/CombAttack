@@ -30,7 +30,7 @@ class ARGS:
         self.sample_ratio = cmd.sample_ratio
         self.targets = targets
         self.splits = splits
-        self.direct_attack = not cmd.indirect_attack
+        self.direct_attack = True if cmd.direct_attack == "true" else False
 
         # dw
         self.p = cmd.p
