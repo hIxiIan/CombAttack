@@ -157,7 +157,7 @@ class Cluster:
             tmp_deleted_edges = []
             tmp_added_edges = []
             indirect_targets = indices[indptr[target]:indptr[target + 1]]
-            sub_node = set(indirect_targets)
+            sub_node = set()
             dn_set_ = set()
             ad_set_ = set()
             for j, indirect_target in enumerate(indirect_targets):
@@ -167,25 +167,14 @@ class Cluster:
                 ans = ad_set - dn_set
 
                 sub_node = sub_node | dns | ans
-                # print('sub_node', list(sub_node))
                 dns = dns - dn_set_
                 ans = ans - ad_set_
-                # print('iter j: {}'.format(j))
-                # print('len: {}, dn_set_: {}'.format(len(dn_set_), list(dn_set_)))
-                # print('len: {}, ad_set_: {}'.format(len(ad_set_), list(ad_set_)))
-                # print('len: {}, dns: {}'.format(len(dns), list(dns)))
-                # print('len: {}, ans: {}'.format(len(ans), list(ans)))
                 dn_set_ = dn_set_ | dns
                 ad_set_ = ad_set_ | ans
                 tmp_deleted_edges.extend(list(zip([indirect_target] * len(dns), list(dns))))
                 tmp_added_edges.extend(list(zip([indirect_target] * len(ans), list(ans))))
                 deleted_edges.append(tmp_deleted_edges)
                 added_edges.append(tmp_added_edges)
-            # print('iter i: {}, sub_node: {}, tmp_deleted_edges: {}, tmp_added_edges:{}'.format(i, len(sub_node), len(tmp_deleted_edges), len(tmp_added_edges)))
-            # print(tmp_deleted_edges)
-            # print(tmp_added_edges)
-            # print()
-            # exit()
             sub_nodes.append(np.array(list(sub_node)))
         return sub_nodes, deleted_edges, added_edges
 
