@@ -263,7 +263,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
-            print('hop_ratio:{}, hop_length:{}, walk_length:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+            print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
             print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
             print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
