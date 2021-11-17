@@ -125,7 +125,7 @@ class SGA(TargetedAttacker):
         # for indirect attack, the edges related to targeted node should not be considered
         if not direct_attack:
             row, col = self.edge_index
-            mask = torch.FloatTensor(np.logical_and(row != target, col != target))
+            mask = torch.FloatTensor(np.logical_and(row != target, col != target)).to(self.device)
         else:
             mask = 1.0
 
