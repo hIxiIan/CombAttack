@@ -379,9 +379,9 @@ if __name__ == '__main__':
     parser.add_argument('--n_init', default=40, type=int)
 
     cmd = parser.parse_args()
-    cmd.dataset = 'cora'
-    cmd.subgraph_type = "cluster"
-    cmd.direct_attack = ""
+    # cmd.dataset = 'cora'
+    # cmd.subgraph_type = "cluster"
+    # cmd.direct_attack = ""
     # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"
     # cmd.subgraph_type = "ppr_wl_topk_asc"
