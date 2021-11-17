@@ -111,6 +111,9 @@ class Cluster:
         self.intertia = self.cluser_model.inertia_
         self.get_farthest_idx()
 
+        statis = [(self.cluster_label_pred == label).sum() for label in range(self.n_classes)]
+        print(statis)
+
     @staticmethod
     @njit(cache=True)
     def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z):
@@ -126,45 +129,46 @@ class Cluster:
         return deleted_nodes, added_nodes
 
     @staticmethod
-    # 不规则数组导致没办法njit
-    # @njit(cache=True)
+    @njit(cache=True)
     def get_edges(targets, deleted_nodes, added_nodes):
         sub_nodes = []
         deleted_edges = []
         added_edges = []
+        deleted_const = set(np.array([-1], dtype=np.int32))
         for i, target in enumerate(targets):
-            dn_set = set(deleted_nodes[i])
-            ad_set = set(added_nodes[i])
+            dn_set = set(deleted_nodes[i]) - deleted_const
+            ad_set = set(added_nodes[i]) - deleted_const
             dns = list(dn_set - ad_set)
             ans = list(ad_set - dn_set)
 
             sub_nodes.append(np.array(list(dn_set | ad_set)))
-            deleted_edges.append(np.asarray(list(zip([target] * len(dns), dns))))
-            added_edges.append(np.asarray(list(zip([target] * len(ans), ans))))
+            deleted_edges.append(list(zip([target] * len(dns), dns)))
+            added_edges.append(list(zip([target] * len(ans), ans)))
         return sub_nodes, deleted_edges, added_edges
 
     @staticmethod
-    # @njit(cache=True)
+    @njit(cache=True)
     def get_indirect_edges(targets, deleted_nodes, added_nodes, indices, indptr):
         sub_nodes = []
         deleted_edges = []
         added_edges = []
+        deleted_const = set(np.array([-1], dtype=np.int32))
         for i, target in enumerate(targets):
-            deleted_edges.append([])
-            added_edges.append([])
+            tmp_deleted_edges = []
+            tmp_added_edges = []
             indirect_targets = indices[indptr[target]:indptr[target + 1]]
-            sub_node = set()
+            sub_node = set(indirect_targets)
             for j, indirect_target in enumerate(indirect_targets):
-                # dn_set = set(deleted_nodes[i][j].astype(np.int32))
-                # ad_set = set(added_nodes[i][j].astype(np.int32))
-                dn_set = set(deleted_nodes[i][j])
-                ad_set = set(added_nodes[i][j])
+                dn_set = set(deleted_nodes[i][j]) - deleted_const
+                ad_set = set(added_nodes[i][j]) - deleted_const
                 dns = list(dn_set - ad_set)
                 ans = list(ad_set - dn_set)
 
                 sub_node = sub_node | dn_set | ad_set
-                deleted_edges[-1].extend(list(zip([indirect_target] * len(dns), dns)))
-                added_edges[-1].extend(list(zip([indirect_target] * len(ans), ans)))
+                tmp_deleted_edges.extend(list(zip([indirect_target] * len(dns), dns)))
+                tmp_added_edges.extend(list(zip([indirect_target] * len(ans), ans)))
+                deleted_edges.append(tmp_deleted_edges)
+                added_edges.append(tmp_added_edges)
 
             sub_nodes.append(np.array(list(sub_node)))
         return sub_nodes, deleted_edges, added_edges
@@ -173,9 +177,13 @@ class Cluster:
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
             added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            deleted_nodes = make_redundancy(deleted_nodes)
+            added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
         else:
             deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            deleted_nodes = make_redundancy(deleted_nodes, False)
+            added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
         self.deleted_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in deleted_edges]
         self.added_edges = [gf.asedge(sub_edges, shape='row_wise').T if len(sub_edges) > 0 else np.array([[], []], dtype='int64') for sub_edges in added_edges]
@@ -213,3 +221,28 @@ def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_no
         added_nodes.append(np.array(added_node))
     return added_nodes
 
+
+def make_redundancy(arr, direct_attack=True):
+    new_arr = []
+    if direct_attack:
+        col = 0
+        for a in arr:
+            col = max(col, len(a))
+        for a in arr:
+            new_arr.append(list(a) + [-1] * (col - len(a)))
+    else:
+        row = 0
+        col = 0
+        for a in arr:
+            row = max(row, len(a))
+            for b in a:
+                col = max(col, len(b))
+        new_arr = []
+        for a in arr:
+            new_brr = []
+            for b in a:
+                new_brr.append(list(b) + [-1] * (col - len(b)))
+            row_added = - np.ones((row - len(a), col))
+            new_brr.extend(row_added)
+            new_arr.append(new_brr)
+    return np.array(new_arr, dtype=np.int32)
