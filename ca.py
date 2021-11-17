@@ -362,7 +362,7 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
 
-    parser.add_argument("-st", "--subgraph_type", default="dw_wl", type=str, help="sample method")
+    parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
