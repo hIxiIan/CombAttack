@@ -83,7 +83,7 @@ class Cluster:
         for i in range(self.n_classes):
             farthest_idx[i] = np.array(df.iloc[i].sort_values(ascending=False).index)
         self.farthest_idx = farthest_idx
-        # print('cluster results:{}'.format(self.farthest_idx))
+        print('\ncluster results:{}'.format(self.farthest_idx))
 
     def visualization(self):
         # print('targets labels:{}'.format(list(self.cluster_label_pred)))
