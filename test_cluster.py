@@ -43,6 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
     parser.add_argument('--times', default=1, type=int)
+    parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
     cmd = parser.parse_args()
     gg.set_backend("th")
 

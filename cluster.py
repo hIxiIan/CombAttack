@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import torch
-import numba
+
 
 class Cluster:
     def __init__(self, direct_attack, embed_type, targets, model, graph, sample_ratio, parms):
@@ -116,7 +116,7 @@ class Cluster:
 
     @staticmethod
     @njit(cache=True)
-    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z):
+    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z, topk_cluster):
         deleted_nodes = []
         added_nodes = []
         for target in targets:
@@ -124,7 +124,7 @@ class Cluster:
             indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
             deleted_nodes.append(indirect_deleted_nodes)
 
-            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z)
+            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, topk_cluster)
             added_nodes.append(indirect_added_nodes)
         return deleted_nodes, added_nodes
 
@@ -176,12 +176,12 @@ class Cluster:
     def get_candidates(self):
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
-            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, self.parms.topk_cluster)
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
         else:
-            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z)
+            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, self.parms.topk_cluster)
             deleted_nodes = make_redundancy(deleted_nodes, False)
             added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
@@ -201,12 +201,11 @@ def get_deleted_nodes(targets, indices, indptr):
 
 @njit(cache=True)
 def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
-    topk_cluster = min(topk_cluster, farthest_idx.shape[1] - 1)
     added_nodes = []
     for target in targets:
         added_node = []
         target_label_pred = label_pred[target]
-        candidate_labels = farthest_idx[target_label_pred][:topk_cluster]
+        candidate_labels = farthest_idx[target_label_pred][:-1][:topk_cluster]
         for i in range(topk_cluster):
             nnodes = n_nodes[label_pred == candidate_labels[i]]
             if i > 0:
