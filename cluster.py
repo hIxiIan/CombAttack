@@ -158,11 +158,13 @@ class Cluster:
             tmp_added_edges = []
             indirect_targets = indices[indptr[target]:indptr[target + 1]]
             sub_node = set()
+            count = 0
             for j, indirect_target in enumerate(indirect_targets):
                 dn_set = set(deleted_nodes[i][j]) - deleted_const
                 ad_set = set(added_nodes[i][j]) - deleted_const
                 dns = dn_set - ad_set
                 ans = ad_set - dn_set
+                count += len(dns) + len(ans)
                 # print('sub_node', list(sub_node))
                 sub_node = sub_node | dns | ans
                 # print('iter j: {}'.format(j))
