@@ -174,7 +174,7 @@ class Cluster:
                 tmp_added_edges.extend(list(zip([indirect_target] * len(ans), list(ans))))
                 deleted_edges.append(tmp_deleted_edges)
                 added_edges.append(tmp_added_edges)
-            # print('target: {}, iter i: {}, sub_node: {}, tmp_deleted_edges: {}, tmp_added_edges:{}, total_edges: {}'.format(target, i, len(sub_node), len(tmp_deleted_edges), len(tmp_added_edges), len(tmp_deleted_edges) + len(tmp_added_edges) == count))
+            print('target: {}, iter i: {}, sub_node: {}, tmp_deleted_edges: {}, tmp_added_edges:{}, total_edges: {}'.format(target, i, len(sub_node), len(tmp_deleted_edges), len(tmp_added_edges), len(tmp_deleted_edges) + len(tmp_added_edges) == count))
             # print(tmp_deleted_edges)
             # print(tmp_added_edges)
             # print()
