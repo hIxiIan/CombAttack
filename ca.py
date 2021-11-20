@@ -377,12 +377,14 @@ if __name__ == '__main__':
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
-    parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
+    parser.add_argument('-tc', '--topk_cluster', default=1, type=int)
+    parser.add_argument('-r', '--random', default="false", type=str)
 
     cmd = parser.parse_args()
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
-    # cmd.topk_cluster = 1
+    # cmd.random = "true"
+    # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
     # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"

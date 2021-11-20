@@ -4,11 +4,12 @@ import torch
 
 
 class ClusterParms:
-    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3):
+    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3, random=False):
         self.max_iter = max_iter
         self.n_init = n_init
         self.seed = seed
         self.topk_cluster = topk_cluster
+        self.random = random
 
 
 class ARGS:
@@ -50,5 +51,5 @@ class ARGS:
         self.node_attr = node_attr
         self.node_label = node_label
 
-        self.cluster_parms = ClusterParms(cmd.max_iter, cmd.n_init, self.seed, cmd.topk_cluster)
+        self.cluster_parms = ClusterParms(cmd.max_iter, cmd.n_init, self.seed, cmd.topk_cluster, True if cmd.random == "true" else False)
 

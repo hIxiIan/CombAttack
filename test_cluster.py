@@ -43,7 +43,8 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
     parser.add_argument('--times', default=1, type=int)
-    parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
+    parser.add_argument('-tc', '--topk_cluster', default=1, type=int)
+    parser.add_argument('-r', '--random', default="false", type=str)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -55,7 +56,6 @@ if __name__ == '__main__':
     embed_types_ = get_embed_types(cmd.embed_type)
     print(dataset_)
     print(embed_types_)
-
     for dataset in dataset_:
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
@@ -71,7 +71,19 @@ if __name__ == '__main__':
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                key = '_'.join([embed_type])
+                cmd.topk_cluster = 1
+                cmd.random = "false"
+                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
+                do_run(res, key, subgraph_type, cmd, filename, embed_type)
+
+                cmd.topk_cluster = 100
+                cmd.random = "false"
+                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
+                do_run(res, key, subgraph_type, cmd, filename, embed_type)
+
+                cmd.topk_cluster = 100
+                cmd.random = "true"
+                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
         save_test(_prefix, times)

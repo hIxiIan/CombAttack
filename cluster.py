@@ -186,7 +186,7 @@ class Cluster:
     def get_candidates(self):
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
-            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, self.parms.topk_cluster)
+            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster, random=self.parms.random)
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
@@ -210,7 +210,11 @@ def get_deleted_nodes(targets, indices, indptr):
 
 
 @njit(cache=True)
-def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=3):
+def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=1, random=False):
+    if random:
+        topk_cluster = farthest_idx.shape[1]
+    elif topk_cluster == 1:
+        random = False
     added_nodes = []
     for target in targets:
         added_node = []
@@ -220,12 +224,15 @@ def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_no
             nnodes = n_nodes[label_pred == candidate_labels[i]]
             if i > 0:
                 topk = min(extra_nums_nodes, len(nnodes))
-                farthest = np.zeros(len(nnodes))
-                for j in range(len(nnodes)):
-                    farthest[j] = ((z[target] - z[nnodes[j]])**2).sum()
+                if not random:
+                    farthest = np.zeros(len(nnodes))
+                    for j in range(len(nnodes)):
+                        farthest[j] = ((z[target] - z[nnodes[j]])**2).sum()
 
-                idx_topk = np.argsort(farthest)[-topk:]
-                nnodes = nnodes[idx_topk]
+                    idx_topk = np.argsort(farthest)[-topk:]
+                    nnodes = nnodes[idx_topk]
+                else:
+                    nnodes = np.random.choice(nnodes, topk, replace=False)
             added_node.extend(nnodes)
         added_nodes.append(np.array(added_node))
     return added_nodes
