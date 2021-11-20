@@ -73,17 +73,17 @@ if __name__ == '__main__':
                 cmd.embed_type = embed_type
                 cmd.topk_cluster = 1
                 cmd.random = "false"
-                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
+                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
                 cmd.topk_cluster = 100
                 cmd.random = "false"
-                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
+                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
                 cmd.topk_cluster = 100
                 cmd.random = "true"
-                key = '_'.join([embed_type, cmd.topk_cluster, cmd.random])
+                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
         save_test(_prefix, times)
