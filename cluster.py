@@ -220,8 +220,8 @@ def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_no
         added_node = []
         target_label_pred = label_pred[target]
         candidate_labels = farthest_idx[target_label_pred][:-1][:topk_cluster]
-        for i in range(topk_cluster):
-            nnodes = n_nodes[label_pred == candidate_labels[i]]
+        for i, label in enumerate(candidate_labels):
+            nnodes = n_nodes[label_pred == label]
             if i > 0:
                 topk = min(extra_nums_nodes, len(nnodes))
                 if not random:
