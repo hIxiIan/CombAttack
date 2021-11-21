@@ -67,21 +67,31 @@ if __name__ == '__main__':
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            do_run(res, 'sga', 'sga', cmd, filename)
+            # do_run(res, 'sga', 'sga', cmd, filename)
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                cmd.topk_cluster = 1
+                # cmd.topk_cluster = 1
+                # cmd.random = "false"
+                # key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
+                # do_run(res, key, subgraph_type, cmd, filename, embed_type)
+
+                cmd.topk_cluster = 2
                 cmd.random = "false"
                 key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
-                cmd.topk_cluster = 100
+                cmd.topk_cluster = 2
+                cmd.random = "true"
+                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
+                do_run(res, key, subgraph_type, cmd, filename, embed_type)
+
+                cmd.topk_cluster = 3
                 cmd.random = "false"
                 key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
-                cmd.topk_cluster = 100
+                cmd.topk_cluster = 3
                 cmd.random = "true"
                 key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
                 do_run(res, key, subgraph_type, cmd, filename, embed_type)
