@@ -56,6 +56,11 @@ if __name__ == '__main__':
     embed_types_ = get_embed_types(cmd.embed_type)
     print(dataset_)
     print(embed_types_)
+    n_classes_dict = {
+        'cora': 7,
+        'citeseer': 6,
+        'chameleon': 5
+    }
     for dataset in dataset_:
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
@@ -71,32 +76,11 @@ if __name__ == '__main__':
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                # cmd.topk_cluster = 1
-                # cmd.random = "false"
-                # key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                # do_run(res, key, subgraph_type, cmd, filename, embed_type)
-
-                cmd.topk_cluster = 2
-                cmd.random = "false"
-                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                do_run(res, key, subgraph_type, cmd, filename, embed_type)
-
-                cmd.topk_cluster = 2
-                cmd.random = "true"
-                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                do_run(res, key, subgraph_type, cmd, filename, embed_type)
-
-                cmd.topk_cluster = 3
-                cmd.random = "false"
-                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                do_run(res, key, subgraph_type, cmd, filename, embed_type)
-
-                cmd.topk_cluster = 3
-                cmd.random = "true"
-                key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                do_run(res, key, subgraph_type, cmd, filename, embed_type)
+                for rd in ["false", "true"]:
+                    cmd.random = rd
+                    for topk_cluster in range(1, n_classes_dict[dataset]):
+                        cmd.topk_cluster = topk_cluster
+                        key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
+                        do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
         save_test(_prefix, times)
-
-
-
