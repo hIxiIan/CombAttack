@@ -278,9 +278,12 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     print('eva_asr:{}, poi_asr: {}'.format(eva_asr, poi_asr))
     end = time()
     cost = (end - start) / 60
-    print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
-    print('testACC end, cost time: {} min'.format(cost))
     embed_acc = sampler.embed_acc if sampler is not None else 0
+    if args.subgraph_type != "cluster":
+        print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
+    else:
+        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+    print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
     return [eva_asr, 0, poi_asr, 0, cost, embed_acc]
@@ -300,6 +303,9 @@ def get_attack_model(args, graph):
             attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
         elif args.atk_model_type == "SimPGCN":
             attacked_model = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+        # dgl backend
+        elif args.atk_model_type == "MixHop":
+            attacked_model = gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
 
         attacked_model.fit(args.splits.train_nodes,
                            args.splits.val_nodes,
@@ -388,6 +394,7 @@ if __name__ == '__main__':
     cmd = parser.parse_args()
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
+    # cmd.atk_model_type = "MixHop"
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
@@ -399,6 +406,9 @@ if __name__ == '__main__':
     # cmd.q = 0.1
     # cmd.alpha = 0.001
     gg.set_backend("th")
+    # if cmd.atk_model_type == "MixHop":
+    #     gg.set_backend("dgl")
+
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
                       verbose=False,
