@@ -296,11 +296,15 @@ def get_attack_model(args, graph):
                                   epochs=100)
 
         # Before attack
-        attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+        if args.atk_model_type == "GCN":
+            attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+        elif args.atk_model_type == "SimPGCN":
+            attacked_model = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+
         attacked_model.fit(args.splits.train_nodes,
-                            args.splits.val_nodes,
-                            verbose=args.verbose,
-                            epochs=100)
+                           args.splits.val_nodes,
+                           verbose=args.verbose,
+                           epochs=100)
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -315,7 +319,7 @@ def get_attack_model(args, graph):
                             epochs=6)
 
         # Before attack
-        attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
+        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
         attacked_model.fit(args.train_nodes,
                             None,
                             verbose=args.verbose,
@@ -374,6 +378,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
     parser.add_argument("-et", "--embed_type", default="MLP", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
+    parser.add_argument('-atk', '--atk_model_type', default="GCN", type=str)
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
