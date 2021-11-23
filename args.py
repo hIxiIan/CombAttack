@@ -54,7 +54,8 @@ class ARGS:
         self.node_label = node_label
 
         random = True if cmd.random == "true" else False
-        is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False
+        is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False # 无效
+        is_het = True
         self.cluster_parms = ClusterParms(cmd.max_iter,
                                           cmd.n_init,
                                           self.seed,
