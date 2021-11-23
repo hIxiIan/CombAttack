@@ -73,11 +73,11 @@ if __name__ == '__main__':
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            do_run(res, 'sga', 'sga', cmd, filename)
+            # do_run(res, 'sga', 'sga', cmd, filename)
             # us
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for rd in ["false", "true"]:
+                for rd in ["false"]:
                     cmd.random = rd
                     for topk_cluster in range(1, n_classes_dict[dataset]):
                         cmd.topk_cluster = topk_cluster
