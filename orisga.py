@@ -110,7 +110,7 @@ class SGA(TargetedAttacker):
         self.non_added_edges = []
         self.with_w_label = False
         self.blockchain = blockchain
-        self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray())
+        self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray()).to(self.device)
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))

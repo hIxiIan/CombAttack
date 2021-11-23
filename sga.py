@@ -116,7 +116,7 @@ class SCA(TargetedAttacker):
         self.verbose_us = verbose_us
         self.sampler = sampler
         self.blockchian = blockchain
-        self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray())
+        self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray()).to(self.device)
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
