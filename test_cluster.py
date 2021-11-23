@@ -44,8 +44,9 @@ if __name__ == '__main__':
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
     parser.add_argument('--times', default=1, type=int)
-    parser.add_argument('-tc', '--topk_cluster', default=1, type=int)
+    parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
     parser.add_argument('-r', '--random', default="false", type=str)
+    parser.add_argument('--run_sga', default="true", type=str)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -73,15 +74,21 @@ if __name__ == '__main__':
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
-            # do_run(res, 'sga', 'sga', cmd, filename)
-            # us
+            if cmd.run_sga == "true":
+                do_run(res, 'sga', 'sga', cmd, filename)
+            # 消融实验
+            # for embed_type in embed_types_:
+            #     cmd.embed_type = embed_type
+            #     for rd in ["false"]:
+            #         cmd.random = rd
+            #         for topk_cluster in range(1, n_classes_dict[dataset]):
+            #             cmd.topk_cluster = topk_cluster
+            #             key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
+            #             do_run(res, key, subgraph_type, cmd, filename, embed_type)
+
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for rd in ["false"]:
-                    cmd.random = rd
-                    for topk_cluster in range(1, n_classes_dict[dataset]):
-                        cmd.topk_cluster = topk_cluster
-                        key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-                        do_run(res, key, subgraph_type, cmd, filename, embed_type)
+                key = '_'.join([embed_type])
+                do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
         save_test(_prefix, times)
