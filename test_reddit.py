@@ -3,7 +3,7 @@ from graphgallery import functional as gf
 from graphgallery.datasets import NPZDataset
 import torch
 
-gg.set_backend("th")
+gg.set_backend("tf")
 
 data = NPZDataset('reddit',
                   root="~/GraphData/datasets/",
@@ -13,7 +13,7 @@ data = NPZDataset('reddit',
 graph = data.graph
 splits = data.split_nodes(random_state=15)
 device = "gpu" if torch.cuda.is_available() else "cpu"
-
+print(device)
 ################### Surrogate model ############################
 trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build(lr=0.01)
 trainer.fit(splits.train_nodes,
