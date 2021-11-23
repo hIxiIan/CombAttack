@@ -1,6 +1,7 @@
 import graphgallery as gg
 from graphgallery import functional as gf
 from graphgallery.datasets import NPZDataset
+import torch
 
 gg.set_backend("th")
 
@@ -11,9 +12,10 @@ data = NPZDataset('reddit',
 
 graph = data.graph
 splits = data.split_nodes(random_state=15)
+device = "gpu" if torch.cuda.is_available() else "cpu"
 
 ################### Surrogate model ############################
-trainer = gg.gallery.nodeclas.SGC(seed=1000).setup_graph(graph, K=2).build(lr=0.01)
+trainer = gg.gallery.nodeclas.SGC(device=device, seed=1000).setup_graph(graph, K=2).build(lr=0.01)
 trainer.fit(splits.train_nodes,
             splits.val_nodes,
             verbose=2,
@@ -21,12 +23,12 @@ trainer.fit(splits.train_nodes,
 
 ################### Attacker model ############################
 target = 1
-attacker = gg.attack.targeted.SGA(graph, seed=123).process(trainer)
+attacker = gg.attack.targeted.SGA(graph, device=device, seed=123).process(trainer)
 attacker.attack(target)
 
 ################### Victim model ############################
 # Before attack
-trainer = gg.gallery.nodeclas.GCN(seed=123).setup_graph(graph).build()
+trainer = gg.gallery.nodeclas.GCN(device=device, seed=123).setup_graph(graph).build()
 trainer.fit(splits.train_nodes,
             splits.val_nodes,
             verbose=1,
@@ -34,7 +36,7 @@ trainer.fit(splits.train_nodes,
 original_predict = trainer.predict(target, transform="softmax")
 
 # After attack
-trainer = gg.gallery.nodeclas.GCN(seed=123).setup_graph(attacker.g).build()
+trainer = gg.gallery.nodeclas.GCN(device=device, seed=123).setup_graph(attacker.g).build()
 trainer.fit(splits.train_nodes,
             splits.val_nodes,
             verbose=1,
