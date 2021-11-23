@@ -3,7 +3,7 @@ from graphgallery import functional as gf
 from graphgallery.datasets import NPZDataset
 import torch
 
-gg.set_backend("th")
+gg.set_backend("tf")
 
 data = NPZDataset('reddit',
                   root="~/GraphData/datasets/",
