@@ -319,7 +319,7 @@ def get_attack_model(args, graph):
                             epochs=6)
 
         # Before attack
-        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
+        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
         attacked_model.fit(args.train_nodes,
                             None,
                             verbose=args.verbose,
