@@ -39,6 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
     parser.add_argument("-et", "--embed_type", default="", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
+    parser.add_argument('-atk', '--atk_model_type', default="GCN", type=str)
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)

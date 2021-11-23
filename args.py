@@ -4,12 +4,13 @@ import torch
 
 
 class ClusterParms:
-    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3, random=False):
+    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3, random=False, is_het=False):
         self.max_iter = max_iter
         self.n_init = n_init
         self.seed = seed
         self.topk_cluster = topk_cluster
         self.random = random
+        self.is_het = is_het
 
 
 class ARGS:
@@ -33,6 +34,7 @@ class ARGS:
         self.targets = targets
         self.splits = splits
         self.direct_attack = True if cmd.direct_attack == "true" else False
+        self.atk_model_type = cmd.atk_model_type
 
         # dw
         self.p = cmd.p
@@ -51,5 +53,12 @@ class ARGS:
         self.node_attr = node_attr
         self.node_label = node_label
 
-        self.cluster_parms = ClusterParms(cmd.max_iter, cmd.n_init, self.seed, cmd.topk_cluster, True if cmd.random == "true" else False)
+        random = True if cmd.random == "true" else False
+        is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False
+        self.cluster_parms = ClusterParms(cmd.max_iter,
+                                          cmd.n_init,
+                                          self.seed,
+                                          cmd.topk_cluster,
+                                          random,
+                                          is_het)
 
