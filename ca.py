@@ -116,6 +116,8 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
         wrong_label = int(attacker.wrong_label[0])
         # evasion
         attacked_model.setup_graph(attacker.g)
+        if args.atk_model_type == "SimPGCN":
+            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
         eva_predict = attacked_model.predict(target, transform="softmax")
         eva_perturbed_label = eva_predict.argmax()
         eva_max_label_prob_sub_perturbed_label_prob = eva_predict.max() - eva_predict[true_label]
@@ -247,6 +249,8 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
         true_label = original_predict[target]
         # evasion
         attacked_model.setup_graph(attacker.g)
+        if args.atk_model_type == "SimPGCN":
+            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
         eva_perturbed_label = np.argmax(lgb_model.predict(get_train_x(attacked_model, args, target), num_iteration=lgb_model.best_iteration), axis=1)
         if eva_perturbed_label != true_label:
             eva_res[i] = True
@@ -398,13 +402,8 @@ if __name__ == '__main__':
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
-    # cmd.dataset = "blockchain30000"
     # cmd.is_phi = "true"
-    # cmd.subgraph_type = "ppr_wl_topk_asc"
     # cmd.seed = 2012
-    # cmd.p = 7.0
-    # cmd.q = 0.1
-    # cmd.alpha = 0.001
     gg.set_backend("th")
     # if cmd.atk_model_type == "MixHop":
     #     gg.set_backend("dgl")
