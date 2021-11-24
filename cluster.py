@@ -124,7 +124,7 @@ class Cluster:
             indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
             deleted_nodes.append(indirect_deleted_nodes)
 
-            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, topk_cluster)
+            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, topk_cluster=topk_cluster)
             added_nodes.append(indirect_added_nodes)
         return deleted_nodes, added_nodes
 
@@ -147,7 +147,7 @@ class Cluster:
         return sub_nodes, deleted_edges, added_edges
 
     @staticmethod
-    # @njit(cache=True)
+    @njit(cache=True)
     def get_indirect_edges(targets, deleted_nodes, added_nodes, indices, indptr):
         sub_nodes = []
         deleted_edges = []
@@ -157,29 +157,22 @@ class Cluster:
             tmp_deleted_edges = []
             tmp_added_edges = []
             indirect_targets = indices[indptr[target]:indptr[target + 1]]
-            sub_node = set()
-            count = 0
+            sub_node = set(indirect_targets)
+            # count = 0
             for j, indirect_target in enumerate(indirect_targets):
                 dn_set = set(deleted_nodes[i][j]) - deleted_const
                 ad_set = set(added_nodes[i][j]) - deleted_const
                 dns = dn_set - ad_set
                 ans = ad_set - dn_set
-                count += len(dns) + len(ans)
-                # print('sub_node', list(sub_node))
+                # count += len(dns) + len(ans)
                 sub_node = sub_node | dns | ans
-                # print('iter j: {}'.format(j))
-                # print('len: {}, dn_set_: {}'.format(len(dn_set_), list(dn_set_)))
-                # print('len: {}, ad_set_: {}'.format(len(ad_set_), list(ad_set_)))
-                # print('len: {}, dns: {}'.format(len(dns), list(dns)))
-                # print('len: {}, ans: {}'.format(len(ans), list(ans)))
                 tmp_deleted_edges.extend(list(zip([indirect_target] * len(dns), list(dns))))
                 tmp_added_edges.extend(list(zip([indirect_target] * len(ans), list(ans))))
-                deleted_edges.append(tmp_deleted_edges)
-                added_edges.append(tmp_added_edges)
-            print('target: {}, iter i: {}, sub_node: {}, tmp_deleted_edges: {}, tmp_added_edges:{}, total_edges: {}'.format(target, i, len(sub_node), len(tmp_deleted_edges), len(tmp_added_edges), len(tmp_deleted_edges) + len(tmp_added_edges) == count))
-            # print(tmp_deleted_edges)
-            # print(tmp_added_edges)
-            # print()
+            deleted_edges.append(tmp_deleted_edges)
+            added_edges.append(tmp_added_edges)
+            # print('target: {}, iter i: {}, sub_node: {}, tmp_deleted_edges: {}, tmp_added_edges:{}, total_edges: {}'.format(
+            #     target, i, len(sub_node), len(tmp_deleted_edges), len(tmp_added_edges),
+            #     len(tmp_deleted_edges) + len(tmp_added_edges) == count))
             sub_nodes.append(np.array(list(sub_node)))
         return sub_nodes, deleted_edges, added_edges
 
@@ -191,7 +184,7 @@ class Cluster:
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
         else:
-            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, self.parms.topk_cluster)
+            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster)
             deleted_nodes = make_redundancy(deleted_nodes, False)
             added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
