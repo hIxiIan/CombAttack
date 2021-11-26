@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import random
 import graphgallery as gg
 import numpy as np
