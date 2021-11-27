@@ -5,7 +5,7 @@ import graphgallery as gg
 import pandas as pd
 import argparse
 
-from utils import save_test, get_datasets, get_embed_types, RES_COLUMNS, RES_ERRORS
+from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
 from ca import run
 
 
@@ -56,8 +56,10 @@ if __name__ == '__main__':
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
+    atked_types_ = get_attacked_types(cmd.atk_model_type)
     print(dataset_)
     print(embed_types_)
+    print(atked_types_)
     n_classes_dict = {
         'cora': 7,
         'citeseer': 6,
@@ -76,19 +78,12 @@ if __name__ == '__main__':
             print(filename)
             if cmd.run_sga == "true":
                 do_run(res, 'sga', 'sga', cmd, filename)
-            # 消融实验
-            # for embed_type in embed_types_:
-            #     cmd.embed_type = embed_type
-            #     for rd in ["false"]:
-            #         cmd.random = rd
-            #         for topk_cluster in range(1, n_classes_dict[dataset]):
-            #             cmd.topk_cluster = topk_cluster
-            #             key = '_'.join([embed_type, str(cmd.topk_cluster), str(cmd.random)])
-            #             do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                key = '_'.join([embed_type])
-                do_run(res, key, subgraph_type, cmd, filename, embed_type)
+                for atked_type in atked_types_:
+                    cmd.atk_model_type = atked_type
+                    key = '_'.join([embed_type, atked_type])
+                    do_run(res, key, subgraph_type, cmd, filename, embed_type)
 
         save_test(_prefix, times)

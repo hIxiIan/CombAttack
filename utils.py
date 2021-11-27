@@ -18,8 +18,11 @@ DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
             'flickr', 'coauthor_cs', 'coauthor_phy']
 
 EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
+              'FastGCN', 'GraphMLP', 'GAT', 'ClusterGCN',
               'GCN_E',
               'DW', 'N2V', 'BANE']
+
+ATTACKED_TYPE = ['GCN', 'SimPGCN', 'RobustGCN', 'GCN_Jaccard']
 
 
 def get_datasets(cmd_d):
@@ -32,6 +35,12 @@ def get_embed_types(cmd_e):
     if len(cmd_e) <= 0:
         return EMBED_TYPE
     return cmd_e.split(',')
+
+
+def get_attacked_types(cmd_a):
+    if len(cmd_a) <= 0:
+        return ATTACKED_TYPE
+    return cmd_a.split(',')
 
 
 def normalize_GCN(indices, weights, degree):

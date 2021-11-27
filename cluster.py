@@ -43,9 +43,11 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        if self.embed_type in ["GCN", "GCN_E"]:
+        if self.embed_type in ["GCN", "GCN_E", "GAT", "FastGCN", "ClusterGCN"]:
             conv = self.model.model.conv[:-3]
             self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
+        elif self.embed_type in ["GraphMLP"]:
+            self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
         elif "MLP" in self.embed_type:
             lin = self.model.model.lin[:-3]
             self.z = lin(self.model.cache.X).cpu().numpy()
@@ -179,12 +181,17 @@ class Cluster:
     def get_candidates(self):
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
-            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster, random=self.parms.random, is_het=self.parms.is_het)
+            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx,
+                                          self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster,
+                                          random=self.parms.random, is_het=self.parms.is_het)
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
         else:
-            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices, self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster)
+            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
+                                            self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes,
+                                            self.z, topk_cluster=self.parms.topk_cluster, random=self.parms.random,
+                                            is_het=self.parms.is_het)
             deleted_nodes = make_redundancy(deleted_nodes, False)
             added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
