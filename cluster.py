@@ -43,9 +43,22 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        if self.embed_type in ["GCN", "GCN_E", "GAT", "FastGCN", "ClusterGCN"]:
+        if self.embed_type in ["GCN", "GCN_E", "GAT", "FastGCN"]:
             conv = self.model.model.conv[:-3]
             self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
+        elif self.embed_type == "ClusterGCN":
+            conv = self.model.model.conv[:-3]
+            nums_cluster = len(self.model.cache.cluster_member)
+            z = []
+            z_idx = []
+            for cluster in range(nums_cluster):
+                tmp_z = conv(self.model.cache.batch_x[cluster], self.model.cache.batch_adj[cluster]).cpu().numpy()
+                z.extend(tmp_z)
+                z_idx.extend(self.model.cache.cluster_member[cluster])
+            z = np.array(z)
+            z_idx = np.array(z_idx)
+            idx_ = np.argsort(z_idx)
+            self.z = z[idx_]
         elif self.embed_type in ["GraphMLP"]:
             self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
         elif "MLP" in self.embed_type:
