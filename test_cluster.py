@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
     parser.add_argument("-et", "--embed_type", default="", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
-    parser.add_argument('-atk', '--atk_model_type', default="GCN", type=str)
+    parser.add_argument('-atk', '--atk_model_type', default="", type=str)
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
@@ -77,7 +77,9 @@ if __name__ == '__main__':
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             if cmd.run_sga == "true":
-                do_run(res, 'sga', 'sga', cmd, filename)
+                for atked_type in atked_types_:
+                    cmd.atk_model_type = atked_type
+                    do_run(res, 'sga', 'sga', cmd, filename)
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type

@@ -148,7 +148,15 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
                 eva_res_wl[i] = True
 
         # poisoning
-        trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
+        if args.atk_model_type == "GCN":
+            trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
+        elif args.atk_model_type == "GCN_Jaccard":
+            trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g, graph_transform="jaccard_detection").build()
+        elif args.atk_model_type == "SimPGCN":
+            trainer = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
+        elif args.atk_model_type == "RobustGCN":
+            trainer = gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
+
         trainer.fit(args.splits.train_nodes,
                           args.splits.val_nodes,
                           verbose=args.verbose,
