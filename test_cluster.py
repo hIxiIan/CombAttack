@@ -79,7 +79,8 @@ if __name__ == '__main__':
             if cmd.run_sga == "true":
                 for atked_type in atked_types_:
                     cmd.atk_model_type = atked_type
-                    do_run(res, 'sga', 'sga', cmd, filename)
+                    key = '_'.join(['sga', atked_type])
+                    do_run(res, key, 'sga', cmd, filename)
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
