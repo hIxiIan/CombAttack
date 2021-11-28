@@ -10,7 +10,7 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
-RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc']
+RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
 RES_ERRORS = [-1 for _ in RES_COLUMNS]
 

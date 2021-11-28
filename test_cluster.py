@@ -8,6 +8,22 @@ import argparse
 from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
 from ca import run
 
+n_classes_dict = {
+        'cora': 7,
+        'cora_full': 70,
+        'citeseer': 6,
+        'ogbn-arxiv': 40,
+        'reddit': 41,
+
+        'coauthor_phy': 5,
+
+        'chameleon': 5,
+        'squirrel': 5,
+        'blockchain30000': 2,
+        'blockchain40000': 2,
+        'blockchain50000': 2,
+    }
+
 
 def do_run(res, key, st, cmd, filename, prefix=""):
     print()
@@ -30,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -60,12 +76,10 @@ if __name__ == '__main__':
     print(dataset_)
     print(embed_types_)
     print(atked_types_)
-    n_classes_dict = {
-        'cora': 7,
-        'citeseer': 6,
-        'chameleon': 5
-    }
+
     for dataset in dataset_:
+        if dataset in ["cora_full", "ogbn-arxiv", "reddit"]:
+            cmd.topk_cluster = int(n_classes_dict[dataset] / 2)
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         subgraph_type = "cluster"
