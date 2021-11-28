@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import torch
+from time import time
 
 
 class Cluster:
@@ -79,10 +80,13 @@ class Cluster:
         # print('z shape: ', self.z.shape)
 
     def do(self):
+        start = time()
         self.get_predict()
         self.do_cluster()
         self.get_candidates()
         # self.visualization()
+        end = time()
+        self.cluster_cost_time = end - start
 
     def compute_distance(self, embed1, embed2):
         return pow(embed1 - embed2, 2).sum()
