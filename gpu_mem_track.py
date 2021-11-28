@@ -133,10 +133,10 @@ if __name__ == '__main__':
                       transform="standardize")
 
     graph = data.graph
-    random.seed(cmd.seed)
+    random.seed(123)
 
     splits = data.split_nodes(random_state=15)
-    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
+    targets = random.sample(list(splits.test_nodes), 5)
 
     gpu_tracker.track()  # run function between the code line where uses GPU
 
