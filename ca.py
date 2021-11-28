@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import gc
 import argparse
+import inspect
 
 from graphgallery.datasets import NPZDataset
 from sga import SCA, SCAPD
@@ -15,6 +16,7 @@ from walker import Walker
 from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
+from gpu_mem_track import MemTracker
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
@@ -100,6 +102,7 @@ def init_sampler(attacker, args):
             sampler.ppr_walk()
         sampler.type_ = args.subgraph_type
         sampler.embed_acc = 0
+        sampler.cluster_cost_time = 0
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
         model = get_embed_model(args, attacker.graph)
@@ -118,9 +121,10 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     poi_res = np.zeros(len(args.targets)).astype('bool')
     poi_res_wl = np.zeros(len(args.targets)).astype('bool')
     original_predict = attacked_model.predict(args.targets, transform="softmax")
+    cost_targets = 0.
     for i, target in enumerate(args.targets):
-        start_i = time()
         attacker = attacker.reset()
+        start_i = time()
         try:
             if args.us:
                 attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
@@ -130,8 +134,8 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         except PermissionError as e:
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
-
         end_i = time()
+        cost_targets = end_i - start_i
         # After attack
         true_label = original_predict[i].argmax()
         wrong_label = int(attacker.wrong_label[0])
@@ -203,12 +207,13 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     end = time()
     cost = (end - start) / 60
     embed_acc = sampler.embed_acc if sampler is not None else 0
+    cluster_cost_time = sampler.cluster_cost_time if sampler is not None else 0
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
-    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, embed_acc]
+    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]
 
 
 def get_pd(attacked_model, args):
@@ -259,10 +264,10 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     eva_res = np.zeros(len(args.targets)).astype('bool')
     poi_res = np.zeros(len(args.targets)).astype('bool')
     start = time()
-
+    cost_targets = 0.0
     for i, target in enumerate(args.targets):
-        start_i = time()
         attacker = attacker.reset()
+        start_i = time()
         try:
             if args.us:
                 attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, blockchain=args.blockchain)
@@ -272,8 +277,8 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         except PermissionError as e:
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
-
         end_i = time()
+        cost_targets = end_i - start_i
         # After attack
         true_label = original_predict[target]
         # evasion
@@ -312,6 +317,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     end = time()
     cost = (end - start) / 60
     embed_acc = sampler.embed_acc if sampler is not None else 0
+    cluster_cost_time = sampler.cluster_cost_time if sampler is not None else 0
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
@@ -319,7 +325,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
-    return [eva_asr, 0, poi_asr, 0, cost, embed_acc]
+    return [eva_asr, 0, poi_asr, 0, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]
 
 
 def get_attack_model(args, graph):
@@ -406,6 +412,8 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
 
 
 if __name__ == '__main__':
+    frame = inspect.currentframe()  # define a frame to track
+    gpu_tracker = MemTracker(frame)  # define a GPU tracker
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
@@ -454,8 +462,10 @@ if __name__ == '__main__':
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     attacked_model, attacker = get_attack_model(args, graph)
+    gpu_tracker.track()
     if cmd.dataset not in DATASET_BLOCKCHAIN:
         res = testACC(attacked_model, attacker, args, verbose_us=False)
     else:
         res = testBlockACC(attacked_model, attacker, args, verbose_us=False)
+    gpu_tracker.track()
     gc.collect()
