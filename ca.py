@@ -190,7 +190,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                 # print('eva_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, eva_predict[wrong_label]))
                 # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
                 #     target, eva_perturbed_label, eva_max_label_prob_sub_perturbed_label_prob))
-                print('current eva_asr: {}, eva_asr_wl: {}'.format(eva_res[:i + 1].sum() / (i + 1), eva_res_wl[:i + 1].sum() / (i + 1)))
+                # print('current eva_asr: {}, eva_asr_wl: {}'.format(eva_res[:i + 1].sum() / (i + 1), eva_res_wl[:i + 1].sum() / (i + 1)))
+                print('current eva_asr: {}'.format(eva_res[:i + 1].sum() / (i + 1)))
 
                 print('#####poisoning')
                 # print('perturbed_predict, true_label: {}, true_label_prob: {}'.format(true_label, perturbed_predict[true_label]))
@@ -198,7 +199,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                 # print('perturbed_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, perturbed_predict[wrong_label]))
                 # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
                 #     target, perturbed_label, max_label_prob_sub_perturbed_label_prob))
-                print('current poi_asr: {}, poi_asr_wl: {}'.format(poi_res[:i + 1].sum() / (i + 1), poi_res_wl[:i + 1].sum() / (i + 1)))
+                # print('current poi_asr: {}, poi_asr_wl: {}'.format(poi_res[:i + 1].sum() / (i + 1), poi_res_wl[:i + 1].sum() / (i + 1)))
+                print('current poi_asr: {}'.format(poi_res[:i + 1].sum() / (i + 1)))
                 print('\n\n\n')
 
     end = time()
@@ -261,7 +263,8 @@ def get_train_x(attacked_model, args, target):
     return train_x
 
 
-def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
+def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
+    attacked_model = attacked_models[0]
     original_predict, lgb_model = get_pd(attacked_model, args)
     if args.is_phi:
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
@@ -295,8 +298,6 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
         true_label = original_predict[target]
         # evasion
         attacked_model.setup_graph(attacker.g)
-        if args.atk_model_type == "SimPGCN":
-            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
         eva_perturbed_label = np.argmax(lgb_model.predict(get_train_x(attacked_model, args, target), num_iteration=lgb_model.best_iteration), axis=1)
         if eva_perturbed_label != true_label:
             eva_res[i] = True
@@ -337,7 +338,7 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
-    return [eva_asr, 0, poi_asr, 0, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]
+    return [[eva_asr, poi_asr, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]]
 
 
 def get_model(atked_type, args, graph):
