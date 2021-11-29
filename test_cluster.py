@@ -29,7 +29,9 @@ def do_run(res, key, st, cmd, filename, prefix=""):
     print()
     print('====={}: {} start====='.format(prefix, key))
     try:
-        res.loc[key] = run(st, cmd=cmd, verbose=False)
+        rsps = run(st, cmd=cmd, verbose=False)
+        for rsp in rsps:
+            res.loc['_'.join([key, rsp[0]])] = rsp
         res.to_csv(filename)
     except Exception as e:
         res.loc[key] = RES_ERRORS
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=1000, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -82,7 +84,6 @@ if __name__ == '__main__':
             cmd.topk_cluster = int(n_classes_dict[dataset] / 2)
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
-        subgraph_type = "cluster"
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         times = min(cmd.times, len(seeds))
         for i in range(times):
@@ -91,16 +92,12 @@ if __name__ == '__main__':
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             if cmd.run_sga == "true":
-                for atked_type in atked_types_:
-                    cmd.atk_model_type = atked_type
-                    key = '_'.join(['sga', atked_type])
-                    do_run(res, key, 'sga', cmd, filename)
+                key = '_'.join(['sga'])
+                do_run(res, key, 'sga', cmd, filename)
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for atked_type in atked_types_:
-                    cmd.atk_model_type = atked_type
-                    key = '_'.join([embed_type, atked_type])
-                    do_run(res, key, subgraph_type, cmd, filename, embed_type)
+                key = '_'.join([embed_type])
+                do_run(res, key, 'cluster', cmd, filename, embed_type)
 
-        save_test(_prefix, times)
+        save_test(_prefix, times, seeds[:times])

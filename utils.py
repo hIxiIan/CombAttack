@@ -10,17 +10,23 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
-RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
+# RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
+
+RES_COLUMNS = ['atked_model', 'eva_asr', 'poi_asr', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
 RES_ERRORS = [-1 for _ in RES_COLUMNS]
 
-DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
-            'flickr', 'coauthor_cs', 'coauthor_phy']
+# DATASETS = ['cora', 'citeseer', 'cora_full', 'citeseer_full', 'pubmed',
+#             'flickr', 'coauthor_cs', 'coauthor_phy']
 
-EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
-              'FastGCN', 'GraphMLP', 'GAT', 'ClusterGCN',
-              'GCN_E',
-              'DW', 'N2V', 'BANE']
+# EMBED_TYPE = ['MLP', 'GCN', 'SGC', 'PPNP', 'APPNP', 'SimPGCN',
+#               'FastGCN', 'GraphMLP', 'GAT', 'ClusterGCN',
+#               'GCN_E',
+#               'DW', 'N2V', 'BANE']
+
+DATASETS = ['cora', 'citeseer', 'chameleon', 'squirrel', 'cora_full', 'coauthor_phy', 'ogbn-arxiv']
+
+EMBED_TYPE = ['MLP', 'SGC', 'GCN', 'FastGCN']
 
 ATTACKED_TYPE = ['GCN', 'SimPGCN', 'RobustGCN', 'GCN_Jaccard']
 
@@ -274,7 +280,7 @@ def get_target_subgraph_level(target, indices, indptr, N):
     return seen
 
 
-def save_test(_prefix, times):
+def save_test(_prefix, times, seeds):
     print(_prefix)
     tdf = None
     for i in range(times):
@@ -285,6 +291,7 @@ def save_test(_prefix, times):
         else:
             tdf += df
     tdf /= times
+    tdf.index.name = ','.join([np.array(seeds).astype('str')])
     tdf.to_csv(_prefix + '_total.csv')
 
 

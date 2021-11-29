@@ -17,6 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
+from utils import get_attacked_types
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
@@ -113,14 +114,22 @@ def init_sampler(attacker, args):
     return sampler
 
 
-def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
+def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     start = time()
-    eva_res = np.zeros(len(args.targets)).astype('bool')
-    eva_res_wl = np.zeros(len(args.targets)).astype('bool')
-    poi_res = np.zeros(len(args.targets)).astype('bool')
-    poi_res_wl = np.zeros(len(args.targets)).astype('bool')
-    original_predict = attacked_model.predict(args.targets, transform="softmax")
+    eva_res = {}
+    # eva_res_wl = {}
+    poi_res = {}
+    # poi_res_wl = {}
+    original_predicts = {}
+    for attacked_model in attacked_models:
+        name = attacked_model.name
+        original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
+        eva_res[name] = np.zeros(len(args.targets)).astype('bool')
+        # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
+        poi_res[name] = np.zeros(len(args.targets)).astype('bool')
+        # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
+
     cost_targets = 0.
     for i, target in enumerate(args.targets):
         attacker = attacker.reset()
@@ -137,75 +146,78 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
         end_i = time()
         cost_targets = end_i - start_i
         # After attack
-        true_label = original_predict[i].argmax()
-        wrong_label = int(attacker.wrong_label[0])
-        # evasion
-        attacked_model.setup_graph(attacker.g)
-        if args.atk_model_type == "SimPGCN":
-            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
-        eva_predict = attacked_model.predict(target, transform="softmax")
-        eva_perturbed_label = eva_predict.argmax()
-        eva_max_label_prob_sub_perturbed_label_prob = eva_predict.max() - eva_predict[true_label]
-        if eva_perturbed_label != true_label:
-            eva_res[i] = True
-            if eva_perturbed_label == wrong_label:
-                eva_res_wl[i] = True
+        # wrong_label = int(attacker.wrong_label[0])
 
-        # poisoning
-        if args.atk_model_type == "GCN":
-            trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
-        elif args.atk_model_type == "GCN_Jaccard":
-            trainer = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(attacker.g, graph_transform="jaccard_detection").build()
-        elif args.atk_model_type == "SimPGCN":
-            trainer = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
-        elif args.atk_model_type == "RobustGCN":
-            trainer = gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(attacker.g).build()
+        for ai in range(len(attacked_models)):
+            attacked_model = attacked_models[ai]
 
-        trainer.fit(args.splits.train_nodes,
-                          args.splits.val_nodes,
-                          verbose=args.verbose,
-                          epochs=100)
-        perturbed_predict = trainer.predict(target, transform="softmax")
-        perturbed_label = perturbed_predict.argmax()
-        max_label_prob_sub_perturbed_label_prob = perturbed_predict.max() - perturbed_predict[true_label]
-        if perturbed_label != true_label:
-            poi_res[i] = True
-            if perturbed_label == wrong_label:
-                poi_res_wl[i] = True
+            # evasion
+            attacked_model.setup_graph(attacker.g)
+            name = attacked_model.name
+            if name == "SimPGCN":
+                attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
+            true_label = original_predicts[name][i].argmax()
+            eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
+            if eva_perturbed_label != true_label:
+                eva_res[name][i] = True
+                # if eva_perturbed_label == wrong_label:
+                #     eva_res_wl[name][i] = True
 
-        if verbose:
-            print('###################')
-            print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
-            print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
-            print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
-            print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
-            print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
-            print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predict[i][true_label]))
+            # poisoning
+            trainer = get_model(name, args, attacker.g)
+            trainer.fit(args.splits.train_nodes,
+                              args.splits.val_nodes,
+                              verbose=args.verbose,
+                              epochs=100)
+            perturbed_label = trainer.predict(target, transform="softmax").argmax()
+            if perturbed_label != true_label:
+                poi_res[name][i] = True
+                # if perturbed_label == wrong_label:
+                #     poi_res_wl[name][i] = True
 
-            print('#####evasion')
-            print('eva_predict, true_label: {}, true_label_prob: {}'.format(true_label, eva_predict[true_label]))
-            print('eva_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(eva_perturbed_label, eva_predict[eva_perturbed_label]))
-            print('eva_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, eva_predict[wrong_label]))
-            print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
-                target, eva_perturbed_label, eva_max_label_prob_sub_perturbed_label_prob))
-            print('current eva_asr: {}, eva_asr_wl: {}'.format(eva_res[:i + 1].sum() / (i + 1), eva_res_wl[:i + 1].sum() / (i + 1)))
+            if verbose:
+                print('###################')
+                print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
+                print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+                print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
+                print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
+                print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
+                print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predicts[name][i][true_label]))
 
-            print('#####poisoning')
-            print('perturbed_predict, true_label: {}, true_label_prob: {}'.format(true_label, perturbed_predict[true_label]))
-            print('perturbed_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(perturbed_label, perturbed_predict[perturbed_label]))
-            print('perturbed_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, perturbed_predict[wrong_label]))
-            print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
-                target, perturbed_label, max_label_prob_sub_perturbed_label_prob))
-            print('current poi_asr: {}, poi_asr_wl: {}'.format(poi_res[:i + 1].sum() / (i + 1), poi_res_wl[:i + 1].sum() / (i + 1)))
-            print('\n\n\n')
-    eva_asr = eva_res.sum() / len(eva_res)
-    eva_asr_wl = eva_res_wl.sum() / len(eva_res_wl)
-    poi_asr = poi_res.sum() / len(poi_res)
-    poi_asr_wl = poi_res_wl.sum() / len(poi_res_wl)
-    print('eva_asr: {}, eva_asr_wl: {}'.format(eva_asr, eva_asr_wl))
-    print('poi_asr: {}, poi_asr_wl: {}'.format(poi_asr, poi_asr_wl))
+                print('#####evasion')
+                # print('eva_predict, true_label: {}, true_label_prob: {}'.format(true_label, eva_predict[true_label]))
+                # print('eva_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(eva_perturbed_label, eva_predict[eva_perturbed_label]))
+                # print('eva_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, eva_predict[wrong_label]))
+                # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
+                #     target, eva_perturbed_label, eva_max_label_prob_sub_perturbed_label_prob))
+                print('current eva_asr: {}, eva_asr_wl: {}'.format(eva_res[:i + 1].sum() / (i + 1), eva_res_wl[:i + 1].sum() / (i + 1)))
+
+                print('#####poisoning')
+                # print('perturbed_predict, true_label: {}, true_label_prob: {}'.format(true_label, perturbed_predict[true_label]))
+                # print('perturbed_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(perturbed_label, perturbed_predict[perturbed_label]))
+                # print('perturbed_predict, wrong_label: {}, wrong_label_prob:{}'.format(wrong_label, perturbed_predict[wrong_label]))
+                # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
+                #     target, perturbed_label, max_label_prob_sub_perturbed_label_prob))
+                print('current poi_asr: {}, poi_asr_wl: {}'.format(poi_res[:i + 1].sum() / (i + 1), poi_res_wl[:i + 1].sum() / (i + 1)))
+                print('\n\n\n')
+
     end = time()
     cost = (end - start) / 60
+    eva_asr = {}
+    # eva_asr_wl = {}
+    poi_asr = {}
+    # poi_asr_wl = {}
+    for attacked_model in attacked_models:
+        name = attacked_model.name
+        eva_asr[name] = eva_res[name].sum() / len(eva_res[name])
+        # eva_asr_wl[name] = eva_res_wl[name].sum() / len(eva_res_wl[name])
+        poi_asr[name] = poi_res[name].sum() / len(poi_res[name])
+        # poi_asr_wl[name] = poi_res_wl[name].sum() / len(poi_res_wl[name])
+        # print('eva_asr: {}, eva_asr_wl: {}'.format(eva_asr, eva_asr_wl))
+        # print('poi_asr: {}, poi_asr_wl: {}'.format(poi_asr, poi_asr_wl))
+        print('attack {} model, eva_asr: {}'.format(name, eva_asr[name]))
+        print('attack {} model, poi_asr: {}'.format(name, poi_asr[name]))
+
     embed_acc = sampler.embed_acc if sampler is not None else 0
     cluster_cost_time = sampler.cluster_cost_time if sampler is not None else 0
     if args.subgraph_type != "cluster":
@@ -213,7 +225,7 @@ def testACC(attacked_model, attacker, args, verbose=True, verbose_us=False):
     else:
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
-    return [eva_asr, eva_asr_wl, poi_asr, poi_asr_wl, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]
+    return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time] for attacked_model in attacked_models]
 
 
 def get_pd(attacked_model, args):
@@ -328,6 +340,34 @@ def testBlockACC(attacked_model, attacker, args, verbose=True, verbose_us=False)
     return [eva_asr, 0, poi_asr, 0, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]
 
 
+def get_model(atked_type, args, graph):
+    if atked_type == "GCN":
+        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif atked_type == "GCN_Jaccard":
+        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
+    elif atked_type == "SimPGCN":
+        return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif atked_type == "RobustGCN":
+        return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    # dgl backend
+    elif atked_type == "MixHop":
+        return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
+    return None
+
+
+def get_attacked_models(atked_types, args, graph):
+    # attr_transform = "normalize_attr"
+    attacked_models = []
+    for atked_type in atked_types:
+        attacked_model = get_model(atked_type, args, graph)
+        attacked_model.fit(args.splits.train_nodes,
+                           args.splits.val_nodes,
+                           verbose=args.verbose,
+                           epochs=100)
+        attacked_models.append(attacked_model)
+    return attacked_models
+
+
 def get_attack_model(args, graph):
     if args.dataset not in DATASET_BLOCKCHAIN:
         args.blockchain = False
@@ -338,24 +378,9 @@ def get_attack_model(args, graph):
                                   epochs=100)
 
         # Before attack
-        if args.atk_model_type == "GCN":
-            attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-        elif args.atk_model_type == "GCN_Jaccard":
-            attacked_model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
-        elif args.atk_model_type == "SimPGCN":
-            attacked_model = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-        elif args.atk_model_type == "RobustGCN":
-            attacked_model = gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+        atked_types = get_attacked_types(args.atk_model_type)
+        attacked_models = get_attacked_models(atked_types, args, graph)
 
-
-        # dgl backend
-        elif args.atk_model_type == "MixHop":
-            attacked_model = gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
-
-        attacked_model.fit(args.splits.train_nodes,
-                           args.splits.val_nodes,
-                           verbose=args.verbose,
-                           epochs=100)
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -375,12 +400,13 @@ def get_attack_model(args, graph):
                             None,
                             verbose=args.verbose,
                             epochs=6)
+        attacked_models = [attacked_model]
         if args.us:
             attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
             attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
 
-    return attacked_model, attacker
+    return attacked_models, attacker
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
@@ -402,18 +428,18 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     print(args.device)
 
-    attacked_model, attacker = get_attack_model(args, graph)
+    attacked_models, attacker = get_attack_model(args, graph)
     if cmd.dataset not in DATASET_BLOCKCHAIN:
-        res = testACC(attacked_model, attacker, args, verbose=verbose)
+        res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
-        res = testBlockACC(attacked_model, attacker, args, verbose=verbose)
+        res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
     gc.collect()
     return res
 
 
 if __name__ == '__main__':
-    frame = inspect.currentframe()  # define a frame to track
-    gpu_tracker = MemTracker(frame)  # define a GPU tracker
+    # frame = inspect.currentframe()  # define a frame to track
+    # gpu_tracker = MemTracker(frame)  # define a GPU tracker
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
@@ -461,11 +487,11 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
-    attacked_model, attacker = get_attack_model(args, graph)
-    gpu_tracker.track()
+    attacked_models, attacker = get_attack_model(args, graph)
+    # gpu_tracker.track()
     if cmd.dataset not in DATASET_BLOCKCHAIN:
-        res = testACC(attacked_model, attacker, args, verbose_us=False)
+        res = testACC(attacked_models, attacker, args, verbose_us=False)
     else:
-        res = testBlockACC(attacked_model, attacker, args, verbose_us=False)
-    gpu_tracker.track()
+        res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
+    # gpu_tracker.track()
     gc.collect()
