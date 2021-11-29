@@ -191,7 +191,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                 # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
                 #     target, eva_perturbed_label, eva_max_label_prob_sub_perturbed_label_prob))
                 # print('current eva_asr: {}, eva_asr_wl: {}'.format(eva_res[:i + 1].sum() / (i + 1), eva_res_wl[:i + 1].sum() / (i + 1)))
-                print('current eva_asr: {}'.format(eva_res[:i + 1].sum() / (i + 1)))
+                print('current eva_asr: {}'.format(eva_res[name][:i + 1].sum() / (i + 1)))
 
                 print('#####poisoning')
                 # print('perturbed_predict, true_label: {}, true_label_prob: {}'.format(true_label, perturbed_predict[true_label]))
@@ -200,7 +200,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                 # print('target node {}, mislead to label: {}, max_label_prob_sub_perturbed_label_prob: {}'.format(
                 #     target, perturbed_label, max_label_prob_sub_perturbed_label_prob))
                 # print('current poi_asr: {}, poi_asr_wl: {}'.format(poi_res[:i + 1].sum() / (i + 1), poi_res_wl[:i + 1].sum() / (i + 1)))
-                print('current poi_asr: {}'.format(poi_res[:i + 1].sum() / (i + 1)))
+                print('current poi_asr: {}'.format(poi_res[name][:i + 1].sum() / (i + 1)))
                 print('\n\n\n')
 
     end = time()
