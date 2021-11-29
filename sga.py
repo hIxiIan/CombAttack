@@ -190,22 +190,22 @@ class SCA(TargetedAttacker):
 
         wrong_label = self.wrong_label  # 分类概率次大的label
         wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
-        self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
+        # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
 
-        self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
-        self._sub_nodes = sub_nodes
-        self._sub_edges = deleted_edges
-        self._sub_non_edges = added_edges
+        # self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
+        # self._sub_nodes = sub_nodes
+        # self._sub_edges = deleted_edges
+        # self._sub_non_edges = added_edges
 
         self.construct_sub_adj(sub_nodes, deleted_edges, added_edges)
 
-        if self.verbose_us:
-            print('sub_edges:', self._sub_edges.shape)
-            print('sub_non_edges:', self._sub_non_edges.shape)
-            print('sub_nodes:', self._sub_nodes.shape)
-            print('sub_nodes:', self._sub_nodes)
-            print('sub_edges:', self._sub_edges)
-            print('sub_non_edges:', self._sub_non_edges)
+        # if self.verbose_us:
+        #     print('sub_edges:', self._sub_edges.shape)
+        #     print('sub_non_edges:', self._sub_non_edges.shape)
+        #     print('sub_nodes:', self._sub_nodes.shape)
+        #     print('sub_nodes:', self._sub_nodes)
+        #     print('sub_edges:', self._sub_edges)
+        #     print('sub_non_edges:', self._sub_non_edges)
 
     def subgraph_preprocessing(self, attacker_nodes=None):
         wrong_label = self.wrong_label # 分类概率次大的label
@@ -213,30 +213,30 @@ class SCA(TargetedAttacker):
         sub_edges = self.sampler.sample_edges[self.sampler.targets_map[self.target]]
         sub_nodes = self.sampler.sample_nodes[self.sampler.targets_map[self.target]]
         sub_edges = sub_edges.T  # shape [2, M]
-        self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
+        # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
         # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
 
         non_edges = self.get_non_edges(sub_nodes)
 
-        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
+        # hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
-        self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
+        # self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
         # print(self._hop_ratio, self._hop_length)
-        self._sub_nodes = sub_nodes
-        self._sub_edges = sub_edges
-        self._sub_non_edges = non_edges
+        # self._sub_nodes = sub_nodes
+        # self._sub_edges = sub_edges
+        # self._sub_non_edges = non_edges
 
         # 构造子图，这一步是为了top_k_wrong_labels_nodes中计算梯度的时候有indices可用
         self.construct_sub_adj(sub_nodes, sub_edges, non_edges)
 
-        if self.verbose_us:
-            print('sub_edges:', self._sub_edges.shape)
-            print('sub_non_edges:', self._sub_non_edges.shape)
-            print('sub_nodes:', self._sub_nodes.shape)
-            print('sub_nodes:', self._sub_nodes)
-            print('sub_edges:', self._sub_edges)
-            print('sub_non_edges:', self._sub_non_edges)
+        # if self.verbose_us:
+        #     print('sub_edges:', self._sub_edges.shape)
+        #     print('sub_non_edges:', self._sub_non_edges.shape)
+        #     print('sub_nodes:', self._sub_nodes.shape)
+        #     print('sub_nodes:', self._sub_nodes)
+        #     print('sub_edges:', self._sub_edges)
+        #     print('sub_non_edges:', self._sub_non_edges)
 
     def get_non_edges(self, sub_nodes, wrong_label_nodes=[]):
         target = self.target

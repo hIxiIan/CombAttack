@@ -165,20 +165,20 @@ class SGA(TargetedAttacker):
         wrong_label_nodes = self.similar_nodes[wrong_label]
         sub_edges, sub_nodes = self.ego_subgraph()
         sub_edges = sub_edges.T  # shape [2, M]
-        self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
-        self._sub_edges = sub_edges
-        self._sub_nodes = sub_nodes
-        self._neighbors = neighbors
+        # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
+        # self._sub_edges = sub_edges
+        # self._sub_nodes = sub_nodes
+        # self._neighbors = neighbors
         if self.direct_attack or attacker_nodes is not None:
             influence_nodes = [target]
             wrong_label_nodes = np.setdiff1d(wrong_label_nodes, neighbors)
         else:
             influence_nodes = neighbors
 
-        hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
+        # hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
-        self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
+        # self._hop_ratio, self._hop_length, self._walk_length = get_hop_rate(sub_nodes, hop_nodes)
         self.construct_sub_adj(influence_nodes, wrong_label_nodes, sub_nodes, sub_edges)
         # if self.verbose_us:
         # print('sub_non_edges:', self._sub_non_edges.shape)
@@ -196,13 +196,13 @@ class SGA(TargetedAttacker):
                 # print(wrong_label_nodes)
             self.construct_sub_adj(influence_nodes, wrong_label_nodes,
                                    sub_nodes, sub_edges)
-        if self.verbose_us:
-            print('sub_edges:', self._sub_edges.shape)
-            print('sub_non_edges:', self._sub_non_edges.shape)
-            print('sub_nodes:', self._sub_nodes.shape)
-            print('sub_nodes:', self._sub_nodes)
-            print('sub_edges:', self._sub_edges)
-            print('sub_non_edges:', self._sub_non_edges)
+        # if self.verbose_us:
+        #     print('sub_edges:', self._sub_edges.shape)
+        #     print('sub_non_edges:', self._sub_non_edges.shape)
+        #     print('sub_nodes:', self._sub_nodes.shape)
+        #     print('sub_nodes:', self._sub_nodes)
+        #     print('sub_edges:', self._sub_edges)
+        #     print('sub_non_edges:', self._sub_non_edges)
 
     def compute_gradient(self, eps=5.0):
 
@@ -240,9 +240,9 @@ class SGA(TargetedAttacker):
             mask = self.graph.adj_matrix[non_edges[0],
                                          non_edges[1]].A1 == 0
             non_edges = non_edges[:, mask]
-        self._sub_non_edges = non_edges
+        # self._sub_non_edges = non_edges
         nodes = np.union1d(sub_nodes, wrong_label_nodes)
-        self._sub_nodes = nodes
+        # self._sub_nodes = nodes
         edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx)
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
         self_loop_weights = np.ones(nodes.shape[0], dtype=self.floatx)

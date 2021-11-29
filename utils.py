@@ -26,7 +26,7 @@ RES_ERRORS = [-1 for _ in RES_COLUMNS]
 
 DATASETS = ['cora', 'citeseer', 'chameleon', 'squirrel', 'cora_full', 'coauthor_phy', 'ogbn-arxiv']
 
-EMBED_TYPE = ['MLP', 'SGC', 'GCN', 'FastGCN']
+EMBED_TYPE = ['MLP', 'SGC2', 'GCN2', 'FastGCN']
 
 ATTACKED_TYPE = ['GCN', 'SimPGCN', 'RobustGCN', 'GCN_Jaccard']
 

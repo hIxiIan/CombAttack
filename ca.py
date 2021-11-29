@@ -41,8 +41,12 @@ def get_embed_model(args, graph):
         model = gg.gallery.nodeclas.GraphMLP(device=args.device, seed=args.seed).setup_graph(graph).build(tau=tau, alpha=alpha)
     elif args.embed_type == "SGC":
         model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+    elif args.embed_type == "SGC2":
+        model = gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif args.embed_type == "GCN":
         model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif args.embed_type == "GCN2":
+        model = gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif args.embed_type == "PPNP":
         model = gg.gallery.nodeclas.PPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif args.embed_type == "APPNP":
@@ -178,8 +182,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
             if verbose:
                 print('###################')
                 print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
-                print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
-                print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
+                # print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+                # print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
                 print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
                 print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
                 print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predicts[name][i][true_label]))
@@ -314,8 +318,8 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
         if verbose:
             print('###################')
             print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
-            print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
-            print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
+            # print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
+            # print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
             print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
             print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
             print('original_predict, true_label: {}'.format(true_label))
@@ -341,17 +345,19 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     return [[eva_asr, poi_asr, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]]
 
 
-def get_model(atked_type, args, graph):
-    if atked_type == "GCN":
+def get_model(model_name, args, graph):
+    if model_name == "GCN":
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif atked_type == "GCN_Jaccard":
+    if model_name == "GCN2":
+        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "GCN_Jaccard":
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
-    elif atked_type == "SimPGCN":
+    elif model_name == "SimPGCN":
         return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif atked_type == "RobustGCN":
+    elif model_name == "RobustGCN":
         return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     # dgl backend
-    elif atked_type == "MixHop":
+    elif model_name == "MixHop":
         return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
     return None
 
