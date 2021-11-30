@@ -291,7 +291,7 @@ def save_test(_prefix, times, seeds):
         else:
             tdf += df
     tdf /= times
-    tdf.index.name = ','.join([np.array(seeds).astype('str')])
+    tdf.index.name = ','.join(np.array(seeds).astype('str'))
     tdf.to_csv(_prefix + '_total.csv')
 
 

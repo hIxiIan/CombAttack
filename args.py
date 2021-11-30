@@ -62,4 +62,8 @@ class ARGS:
                                           cmd.topk_cluster,
                                           random,
                                           is_het)
-
+        # test_parms
+        self.hids = cmd.hids
+        self.acts = cmd.acts
+        self.weight_decay = cmd.weight_decay
+        self.lr = cmd.lr

@@ -31,10 +31,10 @@ def do_run(res, key, st, cmd, filename, prefix=""):
     try:
         rsps = run(st, cmd=cmd, verbose=False)
         for rsp in rsps:
-            res.loc['_'.join([key, rsp[0]])] = rsp[1:]
+            res.loc['_'.join([key, rsp[0], str(len(cmd.hids)), str(cmd.weight_decay, str(cmd.lr))])] = rsp
         res.to_csv(filename)
     except Exception as e:
-        res.loc[key] = RES_ERRORS[1:]
+        res.loc[key] = RES_ERRORS
         print('=====ASSERT_ERROR:'.format(repr(e)))
     print('====={}: {}   end====='.format(prefix, key))
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -66,10 +66,6 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     cmd = parser.parse_args()
-    cmd.hids = None
-    cmd.acts = None
-    cmd.weight_decay = None
-    cmd.lr = None
     gg.set_backend("th")
 
     rootdir = "result/test_cluster"
@@ -82,6 +78,15 @@ if __name__ == '__main__':
     print(dataset_)
     print(embed_types_)
     print(atked_types_)
+
+    hids_ = [[512, 256, 128, 64],
+            [512, 256, 128, 64, 32],
+            [512, 256, 128, 64, 32, 16]]
+    acts_ = [['relu', 'relu', 'relu', 'relu'],
+            ['relu', 'relu', 'relu', 'relu', 'relu'],
+            ['relu', 'relu', 'relu', 'relu', 'relu', 'relu']]
+    weight_decay_ = [5e-2, 5e-3, 5e-4, 5e-5]
+    lr_ = [0.05, 0.01, 0.005, 0.001]
 
     for dataset in dataset_:
         if dataset in ["cora_full", "ogbn-arxiv", "reddit"]:
@@ -101,7 +106,15 @@ if __name__ == '__main__':
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                key = '_'.join([embed_type])
-                do_run(res, key, 'cluster', cmd, filename, embed_type)
+                for hids in hids_:
+                    cmd.hids = hids
+                    for acts in acts_:
+                        cmd.acts = acts
+                        for weight_decay in weight_decay_:
+                            cmd.weight_decay = weight_decay
+                            for lr in lr_:
+                                cmd.lr = lr
+                                key = '_'.join([embed_type])
+                                do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
