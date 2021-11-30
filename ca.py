@@ -33,16 +33,22 @@ def get_model(model_name, args, graph):
     elif model_name == "SGC2":
         # weight_decay = 5e-4
         # lr = 0.05
+        # return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+        if args.hids is not None:
+            return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
-        # return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=hids, acts=acts, dropout=dropout, weight_decay=weight_decay, lr=lr, bias=bias)
     elif model_name == "GCN":
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     if model_name == "GCN2":
         # weight_decay = 5e-4
         # lr = 0.01
+        # return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
+        if args.hids is not None:
+            return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
-        # return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=dropout, weight_decay=weight_decay, lr=lr, bias=bias)
     elif model_name == "FastGCN":
+        if args.hids is not None:
+            return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "ClusterGCN":
         return gg.gallery.nodeclas.ClusterGCN(device=args.device, seed=args.seed).setup_graph(graph, num_clusters=10).build()
@@ -65,6 +71,8 @@ def get_model(model_name, args, graph):
 
     # NN
     elif model_name == "MLP":
+        if args.hids is not None:
+            return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "GraphMLP":
         tau = 2.0
