@@ -48,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         times = min(cmd.times, len(seeds))
         for i in range(times):
-            res = pd.DataFrame(columns=RES_COLUMNS)
+            res = pd.DataFrame(columns=RES_COLUMNS[1:])
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
