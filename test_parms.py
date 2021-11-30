@@ -31,7 +31,7 @@ def do_run(res, key, st, cmd, filename, prefix=""):
     try:
         rsps = run(st, cmd=cmd, verbose=False)
         for rsp in rsps:
-            res.loc['_'.join([key, rsp[0], str(len(cmd.hids)), str(cmd.weight_decay, str(cmd.lr))])] = rsp[1:]
+            res.loc['_'.join([key, rsp[0], str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])] = rsp[1:]
         res.to_csv(filename)
     except Exception as e:
         res.loc[key] = RES_ERRORS[1:]
