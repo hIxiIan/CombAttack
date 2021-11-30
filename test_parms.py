@@ -113,15 +113,14 @@ if __name__ == '__main__':
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for hids in hids_:
+                for i, hids in enumerate(hids_):
                     cmd.hids = hids
-                    for acts in acts_:
-                        cmd.acts = acts
-                        for weight_decay in weight_decay_:
-                            cmd.weight_decay = weight_decay
-                            for lr in lr_:
-                                cmd.lr = lr
-                                key = '_'.join([embed_type])
-                                do_run(res, key, 'cluster', cmd, filename, embed_type)
+                    cmd.acts = acts_[i]
+                    for weight_decay in weight_decay_:
+                        cmd.weight_decay = weight_decay
+                        for lr in lr_:
+                            cmd.lr = lr
+                            key = '_'.join([embed_type])
+                            do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
