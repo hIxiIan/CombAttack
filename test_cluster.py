@@ -101,7 +101,9 @@ if __name__ == '__main__':
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                key = '_'.join([embed_type])
-                do_run(res, key, 'cluster', cmd, filename, embed_type)
+                for topk_cluster in range(1, n_classes_dict[dataset]):
+                    cmd.topk_cluster = topk_cluster
+                    key = '_'.join([embed_type, str(topk_cluster)])
+                    do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
