@@ -31,10 +31,10 @@ def do_run(res, key, st, cmd, filename, prefix=""):
     try:
         rsps = run(st, cmd=cmd, verbose=False)
         for rsp in rsps:
-            res.loc['_'.join([key, rsp[0], str(len(cmd.hids)), str(cmd.weight_decay, str(cmd.lr))])] = rsp
+            res.loc['_'.join([key, rsp[0], str(len(cmd.hids)), str(cmd.weight_decay, str(cmd.lr))])] = rsp[1:]
         res.to_csv(filename)
     except Exception as e:
-        res.loc[key] = RES_ERRORS
+        res.loc[key] = RES_ERRORS[1:]
         print('=====ASSERT_ERROR:'.format(repr(e)))
     print('====={}: {}   end====='.format(prefix, key))
 
@@ -96,7 +96,7 @@ if __name__ == '__main__':
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         times = min(cmd.times, len(seeds))
         for i in range(times):
-            res = pd.DataFrame(columns=RES_COLUMNS)
+            res = pd.DataFrame(columns=RES_COLUMNS[1:])
             cmd.seed = seeds[i]
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
