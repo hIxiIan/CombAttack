@@ -23,15 +23,25 @@ DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 
 def get_model(model_name, args, graph):
+    # hids = [512, 256, 128, 64]
+    # acts = ['relu', 'relu', 'relu', 'relu']
+    # dropout = 0
+    # bias = True
     # GCN
     if model_name == "SGC":
         return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif model_name == "SGC2":
+        # weight_decay = 5e-4
+        # lr = 0.05
         return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+        # return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=hids, acts=acts, dropout=dropout, weight_decay=weight_decay, lr=lr, bias=bias)
     elif model_name == "GCN":
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     if model_name == "GCN2":
+        # weight_decay = 5e-4
+        # lr = 0.01
         return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
+        # return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=dropout, weight_decay=weight_decay, lr=lr, bias=bias)
     elif model_name == "FastGCN":
         return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "ClusterGCN":
