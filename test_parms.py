@@ -101,6 +101,10 @@ if __name__ == '__main__':
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             if cmd.run_sga == "true":
+                cmd.hids = None
+                cmd.acts = None
+                cmd.weight_decay = None
+                cmd.lr = None
                 key = '_'.join(['sga'])
                 do_run(res, key, 'sga', cmd, filename)
 
