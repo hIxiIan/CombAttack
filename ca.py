@@ -22,11 +22,41 @@ from utils import get_attacked_types
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 
-def get_embed_model(args, graph):
-    model = None
-    if args.embed_type == "MLP":
-        model = gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "GraphMLP":
+def get_model(model_name, args, graph):
+    # GCN
+    if model_name == "SGC":
+        return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+    elif model_name == "SGC2":
+        return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+    elif model_name == "GCN":
+        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    if model_name == "GCN2":
+        return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "FastGCN":
+        return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "ClusterGCN":
+        return gg.gallery.nodeclas.ClusterGCN(device=args.device, seed=args.seed).setup_graph(graph, num_clusters=10).build()
+
+    # 鲁棒GCN
+    elif model_name == "GCN_Jaccard":
+        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
+    elif model_name == "RobustGCN":
+        return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+
+    # 异质GCN
+    elif model_name == "SimPGCN":
+        return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
+
+    # 空域GCN
+    elif model_name == "GraphSAGE":
+        return gg.gallery.nodeclas.GraphSAGE(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "GAT":
+        return gg.gallery.nodeclas.GAT(device=args.device, seed=args.seed).setup_graph(graph).build()
+
+    # NN
+    elif model_name == "MLP":
+        return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "GraphMLP":
         tau = 2.0
         alpha = 10.0
         if args.dataset == "cora":
@@ -38,40 +68,28 @@ def get_embed_model(args, graph):
         elif args.dataset == "pubmed":
             tau = 1
             alpha = 100
-        model = gg.gallery.nodeclas.GraphMLP(device=args.device, seed=args.seed).setup_graph(graph).build(tau=tau, alpha=alpha)
-    elif args.embed_type == "SGC":
-        model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
-    elif args.embed_type == "SGC2":
-        model = gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
-    elif args.embed_type == "GCN":
-        model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "GCN2":
-        model = gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "PPNP":
-        model = gg.gallery.nodeclas.PPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "APPNP":
-        model = gg.gallery.nodeclas.APPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "SimPGCN":
-        model = gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "GraphSAGE":
-        model = gg.gallery.nodeclas.GraphSAGE(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "GAT":
-        model = gg.gallery.nodeclas.GAT(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "FastGCN":
-        model = gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "ClusterGCN":
-        model = gg.gallery.nodeclas.ClusterGCN(device=args.device, seed=args.seed).setup_graph(graph, num_clusters=10).build()
+        return gg.gallery.nodeclas.GraphMLP(device=args.device, seed=args.seed).setup_graph(graph).build(tau=tau, alpha=alpha)
+    elif model_name == "PPNP":
+        return gg.gallery.nodeclas.PPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
+    elif model_name == "APPNP":
+        return gg.gallery.nodeclas.APPNP(device=args.device, seed=args.seed).setup_graph(graph).build()
 
-    # embed_nums
-    elif args.embed_type == "GCN_E":
-        model = gg.gallery.nodeclas.GCN_E(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif args.embed_type == "DW":
-        model = gg.gallery.embedding.DeepWalk()
-    elif args.embed_type == "N2V":
-        model = gg.gallery.embedding.Node2Vec(p=args.p, q=args.q)
-    elif args.embed_type == "BANE":
-        model = gg.gallery.embedding.BANE()
+    # 随机游走
+    elif model_name == "DW":
+        return gg.gallery.embedding.DeepWalk()
+    elif model_name == "N2V":
+        return gg.gallery.embedding.Node2Vec(p=args.p, q=args.q)
+    elif model_name == "BANE":
+        return gg.gallery.embedding.BANE()
 
+    # dgl backend
+    elif model_name == "MixHop":
+        return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
+    return None
+
+
+def get_embed_model(args, graph):
+    model = get_model(args.embed_type, args, graph)
     if args.embed_type not in ["DW", 'N2V', 'BANE']:
         model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=100)
         results = model.evaluate(args.splits.test_nodes, verbose=0)
@@ -343,23 +361,6 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     print('embed_acc:{}'.format(embed_acc))
 
     return [[eva_asr, poi_asr, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]]
-
-
-def get_model(model_name, args, graph):
-    if model_name == "GCN":
-        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    if model_name == "GCN2":
-        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif model_name == "GCN_Jaccard":
-        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
-    elif model_name == "SimPGCN":
-        return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    elif model_name == "RobustGCN":
-        return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
-    # dgl backend
-    elif model_name == "MixHop":
-        return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
-    return None
 
 
 def get_attacked_models(atked_types, args, graph):
