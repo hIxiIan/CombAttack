@@ -55,7 +55,9 @@ def get_model(model_name, args, graph):
 
     # 鲁棒GCN
     elif model_name == "GCN_Jaccard":
-        return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
+        model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
+        model.name = "GCN_Jaccard"
+        return model
     elif model_name == "RobustGCN":
         return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
 
