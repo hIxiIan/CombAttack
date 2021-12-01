@@ -4,7 +4,8 @@ from time import strftime, localtime
 import graphgallery as gg
 import pandas as pd
 import argparse
-
+import warnings
+warnings.filterwarnings("ignore")
 from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
 from ca import run
 
