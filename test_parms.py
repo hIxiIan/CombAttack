@@ -31,10 +31,7 @@ def do_run(res, key, st, cmd, filename, prefix=""):
     try:
         rsps = run(st, cmd=cmd, verbose=False)
         for rsp in rsps:
-            hids = "" if cmd.hids is None else str(len(cmd.hids))
-            weight_decay = "" if cmd.weight_decay is None else str(cmd.weight_decay)
-            lr = "" if cmd.lr is None else str(cmd.lr)
-            res.loc['_'.join([key, rsp[0], hids, weight_decay, lr])] = rsp[1:]
+            res.loc['_'.join([key, rsp[0]])] = rsp[1:]
         res.to_csv(filename)
     except Exception as e:
         res.loc[key] = RES_ERRORS[1:]
@@ -110,7 +107,8 @@ if __name__ == '__main__':
                 cmd.lr = None
                 key = '_'.join(['sga'])
                 do_run(res, key, 'sga', cmd, filename)
-
+            count = 0
+            total = len(embed_types_) * len(hids_) * len(weight_decay_) * len(lr_)
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 for i, hids in enumerate(hids_):
@@ -119,8 +117,10 @@ if __name__ == '__main__':
                     for weight_decay in weight_decay_:
                         cmd.weight_decay = weight_decay
                         for lr in lr_:
+                            total += 1
+                            print(dataset + ", {}/{}".format(count, total))
                             cmd.lr = lr
-                            key = '_'.join([embed_type])
+                            key = '_'.join([embed_type, str(len(hids)), str(weight_decay), str(lr)])
                             do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
