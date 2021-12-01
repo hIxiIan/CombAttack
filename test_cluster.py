@@ -84,8 +84,6 @@ if __name__ == '__main__':
     print(atked_types_)
 
     for dataset in dataset_:
-        if dataset in ["cora_full", "ogbn-arxiv", "reddit"]:
-            cmd.topk_cluster = int(n_classes_dict[dataset] / 2)
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
