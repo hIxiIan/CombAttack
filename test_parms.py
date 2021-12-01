@@ -1,29 +1,13 @@
 import os
-from time import strftime, localtime
-
 import graphgallery as gg
 import pandas as pd
 import argparse
 import warnings
-warnings.filterwarnings("ignore")
+
+from time import strftime, localtime
 from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
 from ca import run
-
-n_classes_dict = {
-        'cora': 7,
-        'cora_full': 70,
-        'citeseer': 6,
-        'ogbn-arxiv': 40,
-        'reddit': 41,
-
-        'coauthor_phy': 5,
-
-        'chameleon': 5,
-        'squirrel': 5,
-        'blockchain30000': 2,
-        'blockchain40000': 2,
-        'blockchain50000': 2,
-    }
+warnings.filterwarnings("ignore")
 
 
 def do_run(res, key, st, cmd, filename, prefix=""):
@@ -90,8 +74,6 @@ if __name__ == '__main__':
     lr_ = [0.05, 0.01, 0.005, 0.001]
 
     for dataset in dataset_:
-        if dataset in ["cora_full", "ogbn-arxiv", "reddit"]:
-            cmd.topk_cluster = int(n_classes_dict[dataset] / 2)
         cmd.dataset = dataset
         _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
@@ -118,8 +100,8 @@ if __name__ == '__main__':
                     for weight_decay in weight_decay_:
                         cmd.weight_decay = weight_decay
                         for lr in lr_:
-                            total += 1
-                            print(dataset + ", {}/{}".format(count, total))
+                            count += 1
+                            print('\n' + dataset + ", {}/{}".format(count, total))
                             cmd.lr = lr
                             key = '_'.join([embed_type, str(len(hids)), str(weight_decay), str(lr)])
                             do_run(res, key, 'cluster', cmd, filename, embed_type)
