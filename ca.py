@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS
 
 
 def get_model(model_name, args, graph, is_embed=False):
@@ -28,7 +28,7 @@ def get_model(model_name, args, graph, is_embed=False):
         if args.hids is not None:
             return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
 
-        if is_embed:
+        if is_embed and args.dataset in MODEL_PARAMS:
             hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
             return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
@@ -38,7 +38,7 @@ def get_model(model_name, args, graph, is_embed=False):
         if args.hids is not None:
             return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
 
-        if is_embed:
+        if is_embed and args.dataset in MODEL_PARAMS:
             hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
             return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
@@ -46,7 +46,7 @@ def get_model(model_name, args, graph, is_embed=False):
         if args.hids is not None:
             return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
 
-        if is_embed:
+        if is_embed and args.dataset in MODEL_PARAMS:
             hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
             return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
@@ -76,7 +76,7 @@ def get_model(model_name, args, graph, is_embed=False):
         if args.hids is not None:
             return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
 
-        if is_embed:
+        if is_embed and args.dataset in MODEL_PARAMS:
             hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
             return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()

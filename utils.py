@@ -550,110 +550,110 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [],
         },
     },
-    CORA_FULL: {
-        EMBED_FGCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_GCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_MLP: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_SGC: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-    },
-    COAUTHOR_PHY: {
-        EMBED_FGCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_GCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_MLP: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_SGC: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-    },
-    OGBN_ARXIV: {
-        EMBED_FGCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_GCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_MLP: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_SGC: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-    },
-    REDDIT: {
-        EMBED_FGCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_GCN: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_MLP: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-        EMBED_SGC: {
-            ATKED_GCN: [],
-            ATKED_JGCN: [],
-            ATKED_RGCN: [],
-            ATKED_SIMPGCN: [],
-        },
-    },
+    # CORA_FULL: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    # },
+    # COAUTHOR_PHY: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    # },
+    # OGBN_ARXIV: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    # },
+    # REDDIT: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [],
+    #         ATKED_JGCN: [],
+    #         ATKED_RGCN: [],
+    #         ATKED_SIMPGCN: [],
+    #     },
+    # },
 }
 
 
@@ -662,4 +662,5 @@ def get_model_parms(dataset, embed_model, atked_model):
     embed_model = embed_model.lower()
     atked_model = atked_model.lower()
     parms = MODEL_PARAMS[dataset][embed_model][atked_model]
+    assert len(parms) < 4, 'get_model_parms error'
     return parms[0], ['relu' for _ in parms[0]], parms[1], parms[2]
