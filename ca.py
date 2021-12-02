@@ -17,38 +17,38 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types
-
-DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x
 
 
-def get_model(model_name, args, graph):
-    # hids = [512, 256, 128, 64]
-    # acts = ['relu', 'relu', 'relu', 'relu']
-    # dropout = 0
-    # bias = True
+def get_model(model_name, args, graph, is_embed=False):
     # GCN
     if model_name == "SGC":
         return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif model_name == "SGC2":
-        # weight_decay = 5e-4
-        # lr = 0.05
-        # return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
         if args.hids is not None:
             return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+
+        if is_embed:
+            hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
+            return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif model_name == "GCN":
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     if model_name == "GCN2":
-        # weight_decay = 5e-4
-        # lr = 0.01
-        # return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
         if args.hids is not None:
             return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+
+        if is_embed:
+            hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
+            return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.GCN2(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "FastGCN":
         if args.hids is not None:
             return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+
+        if is_embed:
+            hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
+            return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.FastGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "ClusterGCN":
         return gg.gallery.nodeclas.ClusterGCN(device=args.device, seed=args.seed).setup_graph(graph, num_clusters=10).build()
@@ -75,6 +75,10 @@ def get_model(model_name, args, graph):
     elif model_name == "MLP":
         if args.hids is not None:
             return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+
+        if is_embed:
+            hids, acts, weight_decay, lr = get_model_parms(args.dataset, model_name, args.atked_model_)
+            return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.MLP(device=args.device, seed=args.seed).setup_graph(graph).build()
     elif model_name == "GraphMLP":
         tau = 2.0
@@ -108,8 +112,53 @@ def get_model(model_name, args, graph):
     return None
 
 
+def get_attacked_models(atked_types, args, graph):
+    attacked_models = []
+    for atked_type in atked_types:
+        attacked_model = get_model(atked_type, args, graph)
+        attacked_model.fit(args.splits.train_nodes,
+                           args.splits.val_nodes,
+                           verbose=args.verbose,
+                           epochs=100)
+        attacked_models.append(attacked_model)
+    return attacked_models
+
+
+def get_attacker_attacked_models(args, graph):
+    if not args.blockchain:
+        surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
+        surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=100)
+
+        # Before attack
+        atked_types = get_attacked_types(args.atk_model_type)
+        attacked_models = get_attacked_models(atked_types, args, graph)
+        # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
+
+        # 限定只攻击一个模型，认为控制args.atk_model_type唯一才有用
+        args.atked_model_ = atked_types[0]
+        if args.us:
+            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        else:
+            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    else:
+        args.train_nodes = list(range(graph.node_label.shape[0]))
+        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
+        surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+
+        # Before attack
+        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
+        attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+        attacked_models = [attacked_model]
+        if args.us:
+            attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        else:
+            attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+
+    return attacked_models, attacker
+
+
 def get_embed_model(args, graph):
-    model = get_model(args.embed_type, args, graph)
+    model = get_model(args.embed_type, args, graph, is_embed=True)
     if args.embed_type not in ["DW", 'N2V', 'BANE']:
         model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=100)
         results = model.evaluate(args.splits.test_nodes, verbose=0)
@@ -119,9 +168,7 @@ def get_embed_model(args, graph):
             model.fit(graph.adj_matrix)
         elif args.embed_type == "BANE":
             model.fit(graph.adj_matrix, graph.node_attr)
-        results = model.evaluate_nodeclas(graph.node_label,
-                                             args.splits.train_nodes,
-                                             args.splits.test_nodes)
+        results = model.evaluate_nodeclas(graph.node_label, args.splits.train_nodes, args.splits.test_nodes)
         print('Test accuracy:{}'.format(results.accuracy))
     model.embed_acc = results.accuracy
     return model
@@ -272,39 +319,6 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time] for attacked_model in attacked_models]
 
 
-def get_pd(attacked_model, args):
-    embedded_features = attacked_model.predict(args.train_nodes)
-    original_features = args.node_attr
-    true_labels = args.node_label
-    combined_features_labels = np.hstack((original_features, embedded_features, true_labels.reshape(-1,1)))
-
-    columns_name = ['f%02d' % i for i in range(combined_features_labels.shape[1] - 1)] + ['label']
-    df_combined = pd.DataFrame(data=combined_features_labels, columns=columns_name, dtype=float)
-    df_combined['label'] = df_combined['label'].astype(int)
-
-    y_cols_name = ['label']
-    x_cols_name = [x for x in df_combined.columns if x not in y_cols_name]
-
-    x = df_combined[x_cols_name]
-    y = df_combined[y_cols_name]
-    test_res, all_predict, lgb_model = get_lgb_model(x, y, args.seed)
-    # print(test_res)
-    return all_predict, lgb_model
-
-
-def get_train_x(attacked_model, args, target):
-    embedded_features = attacked_model.predict(args.train_nodes)
-    original_features = args.node_attr
-    combined_features_labels = np.hstack((original_features, embedded_features))
-
-    columns_name = ['f%02d' % i for i in range(combined_features_labels.shape[1])]
-    df_combined = pd.DataFrame(data=combined_features_labels, columns=columns_name, dtype=float)
-
-    x_cols_name = [x for x in df_combined.columns if x != 'label']
-    train_x = df_combined[x_cols_name].iloc[[target]]
-    return train_x
-
-
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     attacked_model = attacked_models[0]
     original_predict, lgb_model = get_pd(attacked_model, args)
@@ -383,60 +397,6 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     return [[eva_asr, poi_asr, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]]
 
 
-def get_attacked_models(atked_types, args, graph):
-    # attr_transform = "normalize_attr"
-    attacked_models = []
-    for atked_type in atked_types:
-        attacked_model = get_model(atked_type, args, graph)
-        attacked_model.fit(args.splits.train_nodes,
-                           args.splits.val_nodes,
-                           verbose=args.verbose,
-                           epochs=100)
-        attacked_models.append(attacked_model)
-    return attacked_models
-
-
-def get_attack_model(args, graph):
-    if args.dataset not in DATASET_BLOCKCHAIN:
-        args.blockchain = False
-        surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
-        surrogate_model.fit(args.splits.train_nodes,
-                                  args.splits.val_nodes,
-                                  verbose=args.verbose,
-                                  epochs=100)
-
-        # Before attack
-        atked_types = get_attacked_types(args.atk_model_type)
-        attacked_models = get_attacked_models(atked_types, args, graph)
-
-        if args.us:
-            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-        else:
-            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
-    else:
-        args.blockchain = True
-        args.train_nodes = list(range(graph.node_label.shape[0]))
-        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
-        surrogate_model.fit(args.train_nodes,
-                            None,
-                            verbose=args.verbose,
-                            epochs=6)
-
-        # Before attack
-        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
-        attacked_model.fit(args.train_nodes,
-                            None,
-                            verbose=args.verbose,
-                            epochs=6)
-        attacked_models = [attacked_model]
-        if args.us:
-            attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
-        else:
-            attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
-
-    return attacked_models, attacker
-
-
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     data = NPZDataset(cmd.dataset,
                       root="~/GraphData/datasets/",
@@ -456,8 +416,8 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     print(args.device)
 
-    attacked_models, attacker = get_attack_model(args, graph)
-    if cmd.dataset not in DATASET_BLOCKCHAIN:
+    attacked_models, attacker = get_attacker_attacked_models(args, graph)
+    if not args.blockchain:
         res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
@@ -515,9 +475,9 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
-    attacked_models, attacker = get_attack_model(args, graph)
+    attacked_models, attacker = get_attacker_attacked_models(args, graph)
     # gpu_tracker.track()
-    if cmd.dataset not in DATASET_BLOCKCHAIN:
+    if not args.blockchain:
         res = testACC(attacked_models, attacker, args, verbose_us=False)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose_us=False)

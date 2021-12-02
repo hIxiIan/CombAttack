@@ -1,28 +1,14 @@
 import os
-from time import strftime, localtime
-
 import graphgallery as gg
 import pandas as pd
 import argparse
+import warnings
 
+from time import strftime, localtime
 from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
 from ca import run
-
-n_classes_dict = {
-        'cora': 7,
-        'cora_full': 70,
-        'citeseer': 6,
-        'ogbn-arxiv': 40,
-        'reddit': 41,
-
-        'coauthor_phy': 5,
-
-        'chameleon': 5,
-        'squirrel': 5,
-        'blockchain30000': 2,
-        'blockchain40000': 2,
-        'blockchain50000': 2,
-    }
+from tqdm import tqdm
+warnings.filterwarnings("ignore")
 
 
 def do_run(res, key, st, cmd, filename, prefix=""):
@@ -99,9 +85,9 @@ if __name__ == '__main__':
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for topk_cluster in range(1, n_classes_dict[dataset]):
-                    cmd.topk_cluster = topk_cluster
-                    key = '_'.join([embed_type, str(topk_cluster)])
+                for atked_type in tqdm(atked_types_, desc="_".join(dataset, str(i), embed_type)):
+                    cmd.atk_model_type = atked_type
+                    key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])

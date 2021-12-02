@@ -1,6 +1,7 @@
 import os
 
 import torch
+from utils import DATASET_BLOCKCHAIN
 
 
 class ClusterParms:
@@ -35,6 +36,7 @@ class ARGS:
         self.splits = splits
         self.direct_attack = True if cmd.direct_attack == "true" else False
         self.atk_model_type = cmd.atk_model_type
+        self.blockchain = True if cmd.dataset in DATASET_BLOCKCHAIN else False
 
         # dw
         self.p = cmd.p

@@ -4,11 +4,13 @@ import torch
 import numpy as np
 import pickle
 from bisect import bisect_left
-
+from pd import get_lgb_model
 from sklearn import preprocessing
 
 from graphgallery import functional as gf
 from numba import jit, int32, int64
+
+DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 # RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
@@ -29,6 +31,23 @@ DATASETS = ['cora', 'citeseer', 'chameleon', 'squirrel', 'cora_full', 'coauthor_
 EMBED_TYPE = ['MLP', 'SGC2', 'GCN2', 'FastGCN']
 
 ATTACKED_TYPE = ['GCN', 'SimPGCN', 'RobustGCN', 'GCN_Jaccard']
+
+
+n_classes_dict = {
+        'cora': 7,
+        'cora_full': 70,
+        'citeseer': 6,
+        'ogbn-arxiv': 40,
+        'reddit': 41,
+
+        'coauthor_phy': 5,
+
+        'chameleon': 5,
+        'squirrel': 5,
+        'blockchain30000': 2,
+        'blockchain40000': 2,
+        'blockchain50000': 2,
+    }
 
 
 def get_datasets(cmd_d):
@@ -368,3 +387,279 @@ def random_choice(arr, p):
 def load_pickle(fileName):
     with open(fileName, 'rb') as f:
         return pickle.load(f)
+
+
+def get_pd(attacked_model, args):
+    embedded_features = attacked_model.predict(args.train_nodes)
+    original_features = args.node_attr
+    true_labels = args.node_label
+    combined_features_labels = np.hstack((original_features, embedded_features, true_labels.reshape(-1,1)))
+
+    columns_name = ['f%02d' % i for i in range(combined_features_labels.shape[1] - 1)] + ['label']
+    df_combined = pd.DataFrame(data=combined_features_labels, columns=columns_name, dtype=float)
+    df_combined['label'] = df_combined['label'].astype(int)
+
+    y_cols_name = ['label']
+    x_cols_name = [x for x in df_combined.columns if x not in y_cols_name]
+
+    x = df_combined[x_cols_name]
+    y = df_combined[y_cols_name]
+    test_res, all_predict, lgb_model = get_lgb_model(x, y, args.seed)
+    # print(test_res)
+    return all_predict, lgb_model
+
+
+def get_train_x(attacked_model, args, target):
+    embedded_features = attacked_model.predict(args.train_nodes)
+    original_features = args.node_attr
+    combined_features_labels = np.hstack((original_features, embedded_features))
+
+    columns_name = ['f%02d' % i for i in range(combined_features_labels.shape[1])]
+    df_combined = pd.DataFrame(data=combined_features_labels, columns=columns_name, dtype=float)
+
+    x_cols_name = [x for x in df_combined.columns if x != 'label']
+    train_x = df_combined[x_cols_name].iloc[[target]]
+    return train_x
+
+
+HIDS = [[512, 256, 128, 64],
+        [512, 256, 128, 64, 32],
+        [512, 256, 128, 64, 32, 16]]
+
+CORA = 'cora'
+CITESEER = 'citeseer'
+CHAMELEON = 'chameleon'
+SQUIRREL = 'squirrel'
+CORA_FULL = 'cora_full'
+COAUTHOR_PHY = 'coauthor_phy'
+OGBN_ARXIV = 'ogbn-arxiv'
+REDDIT = 'reddit'
+
+EMBED_SGC = 'sgc2'
+EMBED_GCN = 'gcn2'
+EMBED_FGCN = 'fastgcn'
+EMBED_MLP = 'mlp'
+
+ATKED_GCN = 'gcn'
+ATKED_RGCN = 'robustgcn'
+ATKED_JGCN = 'gcn_jaccard'
+ATKED_SIMPGCN = 'simpgcn'
+
+MODEL_PARAMS = {
+    CORA: {
+        EMBED_FGCN: {
+            ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
+            ATKED_JGCN: [HIDS[2], 5e-2, 1e-2],
+            ATKED_RGCN: [HIDS[1], 5e-3, 5e-2],
+            ATKED_SIMPGCN: [HIDS[1], 5e-3, 5e-2],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
+            ATKED_JGCN: [HIDS[1], 5e-5, 5e-3],
+            ATKED_RGCN: [HIDS[0], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [HIDS[0], 5e-5, 5e-3],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [HIDS[2], 5e-4, 1e-2],
+            ATKED_JGCN: [HIDS[2], 5e-4, 1e-3],
+            ATKED_RGCN: [HIDS[2], 5e-4, 1e-2],
+            ATKED_SIMPGCN: [HIDS[2], 5e-4, 1e-2],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_JGCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_RGCN: [HIDS[0], 5e-4, 5e-2],
+            ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+        },
+    },
+    CITESEER: {
+        EMBED_FGCN: {
+            ATKED_GCN: [HIDS[1], 5e-4, 5e-2],
+            ATKED_JGCN: [HIDS[2], 5e-3, 5e-3],
+            ATKED_RGCN: [HIDS[1], 5e-5, 5e-2],
+            ATKED_SIMPGCN: [HIDS[2], 5e-2, 1e-2],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [HIDS[1], 5e-2, 5e-2],
+            ATKED_JGCN: [HIDS[0], 5e-2, 5e-2],
+            ATKED_RGCN: [HIDS[0], 5e-3, 1e-2],
+            ATKED_SIMPGCN: [HIDS[1], 5e-4, 5e-3],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [HIDS[1], 5e-4, 5e-2],
+            ATKED_JGCN: [HIDS[1], 5e-4, 5e-2] ,
+            ATKED_RGCN: [HIDS[1], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [HIDS[1], 5e-2, 1e-2],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [HIDS[1], 5e-5, 1e-2],
+            ATKED_JGCN: [HIDS[1], 5e-2, 1e-2],
+            ATKED_RGCN: [HIDS[0], 5e-5, 5e-2],
+            ATKED_SIMPGCN: [HIDS[0], 5e-2, 5e-3],
+        },
+    },
+    CHAMELEON: {
+        EMBED_FGCN: {
+            ATKED_GCN: [HIDS[1], 5e-2, 1e-3],
+            ATKED_JGCN: [HIDS[0], 5e-5, 1e-3],
+            ATKED_RGCN: [HIDS[1], 5e-4, 5e-3],
+            ATKED_SIMPGCN: [HIDS[1], 5e-3, 1e-3],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [HIDS[0], 5e-3, 1e-3],
+            ATKED_JGCN: [HIDS[1], 5e-2, 1e-2],
+            ATKED_RGCN: [HIDS[1], 5e-2, 5e-2],
+            ATKED_SIMPGCN: [HIDS[0], 5e-3, 1e-2],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_JGCN: [HIDS[0], 5e-2, 5e-3],
+            ATKED_RGCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [HIDS[0], 5e-5, 1e-3],
+            ATKED_JGCN: [HIDS[2], 5e-5, 5e-2],
+            ATKED_RGCN: [HIDS[1], 5e-4, 1e-2],
+            ATKED_SIMPGCN: [HIDS[2], 5e-5, 1e-2],
+        },
+    },
+    SQUIRREL: {
+        EMBED_FGCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+    },
+    CORA_FULL: {
+        EMBED_FGCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+    },
+    COAUTHOR_PHY: {
+        EMBED_FGCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+    },
+    OGBN_ARXIV: {
+        EMBED_FGCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+    },
+    REDDIT: {
+        EMBED_FGCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_GCN: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_MLP: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+        EMBED_SGC: {
+            ATKED_GCN: [],
+            ATKED_JGCN: [],
+            ATKED_RGCN: [],
+            ATKED_SIMPGCN: [],
+        },
+    },
+}
+
+
+def get_model_parms(dataset, embed_model, atked_model):
+    dataset = dataset.lower()
+    embed_model = embed_model.lower()
+    atked_model = atked_model.lower()
+    parms = MODEL_PARAMS[dataset][embed_model][atked_model]
+    return parms[0], ['relu' for _ in parms[0]], parms[1], parms[2]
