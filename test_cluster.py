@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for atked_type in tqdm(atked_types_, desc="_".join(dataset, str(i), embed_type)):
+                for atked_type in tqdm(atked_types_, desc="_".join([dataset, str(i), embed_type])):
                     cmd.atk_model_type = atked_type
                     key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, filename, embed_type)
