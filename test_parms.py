@@ -70,7 +70,8 @@ if __name__ == '__main__':
     acts_ = [['relu', 'relu', 'relu', 'relu'],
             ['relu', 'relu', 'relu', 'relu', 'relu'],
             ['relu', 'relu', 'relu', 'relu', 'relu', 'relu']]
-    weight_decay_ = [5e-2, 5e-3, 5e-4, 5e-5]
+    # weight_decay_ = [5e-2, 5e-3, 5e-4, 5e-5]
+    weight_decay_ = [5e-5, 5e-4, 5e-3, 5e-2]
     lr_ = [0.05, 0.01, 0.005, 0.001]
 
     for dataset in dataset_:
