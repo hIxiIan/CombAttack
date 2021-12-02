@@ -57,7 +57,7 @@ if __name__ == '__main__':
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    dataset_ = [get_datasets(cmd.dataset)[-1]]
+    dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
     print(dataset_)
