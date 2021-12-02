@@ -453,6 +453,10 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--random', default="false", type=str)
 
     cmd = parser.parse_args()
+    cmd.hids = None
+    cmd.acts = None
+    cmd.weight_decay = None
+    cmd.lr = None
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
