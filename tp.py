@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
     personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    dataset_ = [get_datasets(cmd.dataset)[-1]]
+    dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
     print(dataset_)
