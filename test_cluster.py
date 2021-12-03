@@ -34,9 +34,9 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="", type=str, help="dataset")
+    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
@@ -51,6 +51,7 @@ if __name__ == '__main__':
     parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
+    parser.add_argument('--run_us', default="false", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -81,8 +82,12 @@ if __name__ == '__main__':
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             if cmd.run_sga == "true":
+                cmd.atk_model_type = ','.join(atked_types_)
                 key = '_'.join(['sga'])
                 do_run(res, key, 'sga', cmd, filename)
+
+            if cmd.run_us != "true":
+                continue
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type

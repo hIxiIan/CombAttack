@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('-tc', '--topk_cluster', default=3, type=int)
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
+    parser.add_argument('--run_us', default="true", type=str)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -89,8 +90,13 @@ if __name__ == '__main__':
                 cmd.acts = None
                 cmd.weight_decay = None
                 cmd.lr = None
+                cmd.atk_model_type = ','.join(atked_types_)
                 key = '_'.join(['sga'])
                 do_run(res, key, 'sga', cmd, filename)
+
+            if cmd.run_us != "true":
+                continue
+
             count = 0
             total = len(embed_types_) * len(hids_) * len(weight_decay_) * len(lr_)
             for embed_type in embed_types_:
