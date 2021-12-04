@@ -492,7 +492,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
-    print(res)
+    # print(res)
     gc.collect()
     return res
 
@@ -557,6 +557,6 @@ if __name__ == '__main__':
         res = testACC(attacked_models, attacker, args, verbose_us=False)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
-    print(res)
+    # print(res)
     # gpu_tracker.track()
     gc.collect()
