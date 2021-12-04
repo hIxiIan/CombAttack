@@ -664,3 +664,14 @@ def get_model_parms(dataset, embed_model, atked_model):
     parms = MODEL_PARAMS[dataset][embed_model][atked_model]
     assert len(parms) < 4, 'get_model_parms error'
     return parms[0], ['relu' for _ in parms[0]], parms[1], parms[2]
+
+
+def accuracy(output, labels):
+    if not hasattr(labels, '__len__'):
+        labels = [labels]
+    if type(labels) is not torch.Tensor:
+        labels = torch.LongTensor(labels)
+    preds = output.max(1)[1].type_as(labels)
+    correct = preds.eq(labels).double()
+    correct = correct.sum()
+    return correct / len(labels)

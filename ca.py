@@ -5,7 +5,7 @@ import pandas as pd
 import gc
 import argparse
 import inspect
-
+import torch
 from graphgallery.datasets import NPZDataset
 from sga import SCA, SCAPD
 from orisga import SGA, SGAPD
@@ -17,7 +17,9 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy
+from deeprobust.graph.defense import RGCN
+import scipy.sparse as sp
 
 
 def get_model(model_name, args, graph, is_embed=False):
@@ -112,10 +114,38 @@ def get_model(model_name, args, graph, is_embed=False):
     return None
 
 
+def get_dr_model(model_name, args, graph):
+    adj = graph.adj_matrix
+    features = graph.node_attr
+    labels = graph.node_label
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    idx_train = args.splits.train_nodes
+    idx_val = args.splits.val_nodes
+    idx_test = args.splits.test_nodes
+
+    if model_name == "RobustGCN":
+        attacked_model = RGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
+                              nhid=32, device=device)
+
+    attacked_model.to(device)
+    attacked_model.fit(sp.csr_matrix(features), sp.csr_matrix(adj), labels, idx_train, idx_val, train_iters=200,
+                       verbose=False)
+    attacked_model.eval()
+    output = attacked_model.output
+    acc_test = accuracy(output[idx_test], labels[idx_test])
+    return attacked_model, acc_test.item()
+
+
 def get_attacked_models(atked_types, args, graph):
     attacked_models = []
     attacked_models_acc = []
     for atked_type in atked_types:
+        if atked_type == "RobustGCN":
+            attacked_model, acc = get_dr_model(atked_type, args, graph)
+            attacked_models.append(attacked_model)
+            attacked_models_acc.append(acc)
+            print('atked_model :{}, clean_acc: {}'.format(atked_type, acc))
+            continue
         attacked_model = get_model(atked_type, args, graph)
         attacked_model.fit(args.splits.train_nodes,
                            args.splits.val_nodes,
@@ -217,8 +247,11 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     # poi_res_wl = {}
     original_predicts = {}
     for attacked_model in attacked_models:
-        name = attacked_model.name
-        original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
+        name = str(attacked_model).split('(')[0]
+        if name == "RGCN":
+            original_predicts[name] = attacked_model.output.max(1)[1].numpy()
+        else:
+            original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
@@ -244,26 +277,45 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
         for ai in range(len(attacked_models)):
             attacked_model = attacked_models[ai]
+            # name = attacked_model.name
+            name = str(attacked_model).split('(')[0]
 
             # evasion
-            attacked_model.setup_graph(attacker.g)
-            name = attacked_model.name
+            if name == "RGCN":
+                adj = sp.csr_matrix(attacker.g.adj_matrix)
+                attacked_model.adj_norm1 = attacked_model._normalize_adj(adj, power=-1/2)
+                attacked_model.adj_norm2 = attacked_model._normalize_adj(adj, power=-1)
+            else:
+                attacked_model.setup_graph(attacker.g)
+
             if name == "SimPGCN":
                 attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
             true_label = original_predicts[name][i].argmax()
-            eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
+            if name == "RGCN":
+                attacked_model.eval()
+                output = attacked_model.forward()
+                eva_perturbed_label = output.max(1)[1].numpy()[target]
+            else:
+                eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
             if eva_perturbed_label != true_label:
                 eva_res[name][i] = True
                 # if eva_perturbed_label == wrong_label:
                 #     eva_res_wl[name][i] = True
 
             # poisoning
-            trainer = get_model(name, args, attacker.g)
-            trainer.fit(args.splits.train_nodes,
-                              args.splits.val_nodes,
-                              verbose=args.verbose,
-                              epochs=100)
-            perturbed_label = trainer.predict(target, transform="softmax").argmax()
+            if name != "RGCN":
+                trainer = get_model(name, args, attacker.g)
+                trainer.fit(args.splits.train_nodes,
+                                  args.splits.val_nodes,
+                                  verbose=args.verbose,
+                                  epochs=100)
+                perturbed_label = trainer.predict(target, transform="softmax").argmax()
+            else:
+                trainer = get_dr_model("RobustGCN", args, attacker.g)
+                trainer.eval()
+                output = trainer.output
+                perturbed_label = output.max(1)[1].numpy()[target]
+
             if perturbed_label != true_label:
                 poi_res[name][i] = True
                 # if perturbed_label == wrong_label:
@@ -442,7 +494,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
@@ -466,7 +518,7 @@ if __name__ == '__main__':
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
-    # cmd.atk_model_type = "MixHop"
+    # cmd.atk_model_type = "RobustGCN"
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
