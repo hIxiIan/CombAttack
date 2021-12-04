@@ -270,7 +270,7 @@ def get_gf_results(attacked_model, attacker, args, target):
     eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
 
     # poisoning
-    trainer = get_model(name, args, attacker.g)
+    trainer = get_model(attacked_model.name, args, attacker.g)
     trainer.fit(args.splits.train_nodes,
                 args.splits.val_nodes,
                 verbose=args.verbose,
