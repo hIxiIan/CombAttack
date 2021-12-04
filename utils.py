@@ -11,7 +11,7 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
-DP_MODELS = ['robustgcn']
+DP_MODELS = ['RobustGCN']
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 

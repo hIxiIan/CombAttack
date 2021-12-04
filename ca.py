@@ -142,7 +142,7 @@ def get_attacked_models(atked_types, args, graph):
     attacked_models = []
     attacked_models_acc = []
     for atked_type in atked_types:
-        if atked_type.lower() in DP_MODELS:
+        if atked_type in DP_MODELS:
             attacked_model, acc = get_dr_model(atked_type, args, graph)
             attacked_model.name = atked_type
             attacked_model.is_dr = True
