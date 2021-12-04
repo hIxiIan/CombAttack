@@ -17,9 +17,10 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, sparse_mx_to_torch_sparse_tensor, accuracy
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy
 from deeprobust.graph.defense import RGCN
 import scipy.sparse as sp
+import graphgallery.functional as gf
 
 
 def get_model(model_name, args, graph, is_embed=False):
@@ -119,6 +120,7 @@ def get_dr_model(model_name, args, graph):
     features = graph.node_attr
     labels = graph.node_label
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    args.dr_device = device
     idx_train = args.splits.train_nodes
     idx_val = args.splits.val_nodes
     idx_test = args.splits.test_nodes
@@ -249,7 +251,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     for attacked_model in attacked_models:
         name = str(attacked_model).split('(')[0]
         if name == "RGCN":
-            original_predicts[name] = attacked_model.output.max(1)[1].cpu().numpy()
+            original_predicts[name] = gf.get('softmax')(attacked_model.predict().detach().cpu().numpy())[args.targets]
         else:
             original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
@@ -282,13 +284,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
             # evasion
             if name == "RGCN":
-                adj = sp.csr_matrix(attacker.g.adj_matrix.todense())
-                if sp.issparse(adj):
-                    adj = sparse_mx_to_torch_sparse_tensor(adj)
-                else:
-                    adj = torch.FloatTensor(adj)
-                attacked_model.adj_norm1 = attacked_model._normalize_adj(adj, power=-1/2)
-                attacked_model.adj_norm2 = attacked_model._normalize_adj(adj, power=-1)
+                attacked_model.adj_norm1 = attacked_model._normalize_adj(attacker.g.adj_matrix, power=-1/2)
+                attacked_model.adj_norm2 = attacked_model._normalize_adj(attacker.g.adj_matrix, power=-1)
             else:
                 attacked_model.setup_graph(attacker.g)
 
@@ -315,16 +312,16 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                                   epochs=100)
                 perturbed_label = trainer.predict(target, transform="softmax").argmax()
             else:
-                trainer = get_dr_model("RobustGCN", args, attacker.g)
+                trainer, _ = get_dr_model("RobustGCN", args, attacker.g)
                 trainer.eval()
                 output = trainer.output
-                perturbed_label = output.max(1)[1].numpy()[target]
+                perturbed_label = output.max(1)[1].cpu().numpy()[target]
 
             if perturbed_label != true_label:
                 poi_res[name][i] = True
                 # if perturbed_label == wrong_label:
                 #     poi_res_wl[name][i] = True
-
+            print(original_predicts)
             if verbose:
                 print('###################')
                 print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
@@ -360,7 +357,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     poi_asr = {}
     # poi_asr_wl = {}
     for attacked_model in attacked_models:
-        name = attacked_model.name
+        name = str(attacked_model).split('(')[0]
         eva_asr[name] = eva_res[name].sum() / len(eva_res[name])
         # eva_asr_wl[name] = eva_res_wl[name].sum() / len(eva_res_wl[name])
         poi_asr[name] = poi_res[name].sum() / len(poi_res[name])
@@ -377,7 +374,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     else:
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
-    return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
+    return [[str(attacked_model).split('(')[0], eva_asr[str(attacked_model).split('(')[0]], poi_asr[str(attacked_model).split('(')[0]], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
 
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):

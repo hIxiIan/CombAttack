@@ -685,3 +685,17 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     sparseconcat=torch.cat((sparserow, sparsecol),1)
     sparsedata=torch.FloatTensor(sparse_mx.data)
     return torch.sparse.FloatTensor(sparseconcat.t(),sparsedata,torch.Size(sparse_mx.shape))
+
+
+def _normalize_adj(adj, power=-1/2, device="cpu"):
+    """Row-normalize sparse matrix"""
+    adj = sp.csr_matrix(adj).todense()
+    if sp.issparse(adj):
+        adj = sparse_mx_to_torch_sparse_tensor(adj)
+    else:
+        adj = torch.FloatTensor(adj)
+    A = adj.to(device) + torch.eye(len(adj)).to(device)
+    D_power = (A.sum(1)).pow(power)
+    D_power[torch.isinf(D_power)] = 0.
+    D_power = torch.diag(D_power)
+    return D_power @ A @ D_power
