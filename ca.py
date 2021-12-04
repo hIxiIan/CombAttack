@@ -289,7 +289,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     original_predicts = {}
     for attacked_model in attacked_models:
         name = attacked_model.name
-        if name == "RGCN":
+        if attacked_model.is_dr:
             original_predicts[name] = gf.get('softmax')(attacked_model.predict().detach().cpu().numpy())[args.targets]
         else:
             original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
