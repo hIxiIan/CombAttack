@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy, _normalize_adj
 from deeprobust.graph.defense import RGCN
 import scipy.sparse as sp
 import graphgallery.functional as gf
@@ -284,8 +284,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
             # evasion
             if name == "RGCN":
-                attacked_model.adj_norm1 = attacked_model._normalize_adj(attacker.g.adj_matrix, power=-1/2)
-                attacked_model.adj_norm2 = attacked_model._normalize_adj(attacker.g.adj_matrix, power=-1)
+                attacked_model.adj_norm1 = _normalize_adj(attacker.g.adj_matrix, power=-1/2)
+                attacked_model.adj_norm2 = _normalize_adj(attacker.g.adj_matrix, power=-1)
             else:
                 attacked_model.setup_graph(attacker.g)
 
