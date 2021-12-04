@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy, _normalize_adj
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj
 from deeprobust.graph.defense import RGCN
 import scipy.sparse as sp
 import graphgallery.functional as gf
@@ -142,7 +142,7 @@ def get_attacked_models(atked_types, args, graph):
     attacked_models = []
     attacked_models_acc = []
     for atked_type in atked_types:
-        if atked_type == "RobustGCN":
+        if atked_type.lower() in DP_MODELS:
             attacked_model, acc = get_dr_model(atked_type, args, graph)
             attacked_model.name = atked_type
             attacked_model.is_dr = True
