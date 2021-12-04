@@ -284,8 +284,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
             # evasion
             if name == "RGCN":
-                attacked_model.adj_norm1 = _normalize_adj(attacker.g.adj_matrix, power=-1/2)
-                attacked_model.adj_norm2 = _normalize_adj(attacker.g.adj_matrix, power=-1)
+                attacked_model.adj_norm1 = _normalize_adj(attacker.g.adj_matrix, power=-1/2, device=args.dr_device)
+                attacked_model.adj_norm2 = _normalize_adj(attacker.g.adj_matrix, power=-1, device=args.dr_device)
             else:
                 attacked_model.setup_graph(attacker.g)
 
@@ -375,7 +375,6 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
     return [[str(attacked_model).split('(')[0], eva_asr[str(attacked_model).split('(')[0]], poi_asr[str(attacked_model).split('(')[0]], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
-
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     attacked_model = attacked_models[0]

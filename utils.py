@@ -3,6 +3,7 @@ import pandas as pd
 import torch
 import numpy as np
 import pickle
+import scipy.sparse as sp
 from bisect import bisect_left
 from pd import get_lgb_model
 from sklearn import preprocessing
