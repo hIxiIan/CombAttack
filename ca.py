@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, accuracy
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, sparse_mx_to_torch_sparse_tensor, accuracy
 from deeprobust.graph.defense import RGCN
 import scipy.sparse as sp
 
@@ -249,7 +249,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     for attacked_model in attacked_models:
         name = str(attacked_model).split('(')[0]
         if name == "RGCN":
-            original_predicts[name] = attacked_model.output.max(1)[1].numpy()
+            original_predicts[name] = attacked_model.output.max(1)[1].cpu().numpy()
         else:
             original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
@@ -282,7 +282,11 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
             # evasion
             if name == "RGCN":
-                adj = sp.csr_matrix(attacker.g.adj_matrix)
+                adj = sp.csr_matrix(attacker.g.adj_matrix.todense())
+                if sp.issparse(adj):
+                    adj = sparse_mx_to_torch_sparse_tensor(adj)
+                else:
+                    adj = torch.FloatTensor(adj)
                 attacked_model.adj_norm1 = attacked_model._normalize_adj(adj, power=-1/2)
                 attacked_model.adj_norm2 = attacked_model._normalize_adj(adj, power=-1)
             else:
@@ -294,7 +298,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
             if name == "RGCN":
                 attacked_model.eval()
                 output = attacked_model.forward()
-                eva_perturbed_label = output.max(1)[1].numpy()[target]
+                eva_perturbed_label = output.max(1)[1].cpu().numpy()[target]
             else:
                 eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
             if eva_perturbed_label != true_label:
@@ -518,7 +522,7 @@ if __name__ == '__main__':
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
-    # cmd.atk_model_type = "RobustGCN"
+    cmd.atk_model_type = "RobustGCN"
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
