@@ -114,13 +114,18 @@ def get_model(model_name, args, graph, is_embed=False):
 
 def get_attacked_models(atked_types, args, graph):
     attacked_models = []
+    attacked_models_acc = []
     for atked_type in atked_types:
         attacked_model = get_model(atked_type, args, graph)
         attacked_model.fit(args.splits.train_nodes,
                            args.splits.val_nodes,
                            verbose=args.verbose,
                            epochs=100)
+        results = attacked_model.evaluate(args.splits.test_nodes, verbose=0)
         attacked_models.append(attacked_model)
+        attacked_models_acc.append(results.accuracy)
+        print('atked_model :{}, clean_acc: {}'.format(atked_type, results.accuracy))
+    args.attacked_models_acc = attacked_models_acc
     return attacked_models
 
 
@@ -316,7 +321,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     else:
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
-    return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time] for attacked_model in attacked_models]
+    return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
 
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
@@ -394,7 +399,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
-    return [[eva_asr, poi_asr, cost, embed_acc, cost_targets / len(args.targets), cluster_cost_time]]
+    return [[eva_asr, poi_asr, cost, embed_acc, args.attacked_models_acc[0], cost_targets / len(args.targets), cluster_cost_time]]
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
@@ -421,6 +426,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
+    print(res)
     gc.collect()
     return res
 
@@ -485,5 +491,6 @@ if __name__ == '__main__':
         res = testACC(attacked_models, attacker, args, verbose_us=False)
     else:
         res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
+    print(res)
     # gpu_tracker.track()
     gc.collect()

@@ -14,7 +14,7 @@ DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
 # RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
-RES_COLUMNS = ['atked_model', 'eva_asr', 'poi_asr', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
+RES_COLUMNS = ['atked_model', 'eva_asr', 'poi_asr', 'cost', 'embed_acc', 'clean_acc', 'average_atk_time', 'cluster_cost_time']
 
 RES_ERRORS = [-1 for _ in RES_COLUMNS]
 
