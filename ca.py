@@ -244,9 +244,9 @@ def init_sampler(attacker, args):
 
 
 def get_dr_results(attacked_model, attacker, args, target):
-    name = attacked_model.name.lower()
+    name = attacked_model.name
     # evasion
-    if name == "robustgcn":
+    if name == "RobustGCN":
         attacked_model.adj_norm1 = _normalize_adj(attacker.g.adj_matrix, power=-1 / 2, device=args.dr_device)
         attacked_model.adj_norm2 = _normalize_adj(attacker.g.adj_matrix, power=-1, device=args.dr_device)
     attacked_model.eval()
@@ -262,15 +262,15 @@ def get_dr_results(attacked_model, attacker, args, target):
 
 
 def get_gf_results(attacked_model, attacker, args, target):
-    name = attacked_model.name.lower()
+    name = attacked_model.name
     # evasion
     attacked_model.setup_graph(attacker.g)
-    if name == "simpgcn":
+    if name == "SimPGCN":
         attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
     eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
 
     # poisoning
-    trainer = get_model(attacked_model.name, args, attacker.g)
+    trainer = get_model(name, args, attacker.g)
     trainer.fit(args.splits.train_nodes,
                 args.splits.val_nodes,
                 verbose=args.verbose,
