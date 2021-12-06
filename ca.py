@@ -127,7 +127,7 @@ def get_dr_model(model_name, args, graph):
 
     if model_name == "RobustGCN":
         attacked_model = RGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
-                              nhid=32, device=device)
+                              nhid=32, lr=0.01, dropout=0, device=device)
 
     attacked_model.to(device)
     attacked_model.fit(sp.csr_matrix(features), sp.csr_matrix(adj), labels, idx_train, idx_val, train_iters=200,

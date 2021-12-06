@@ -428,6 +428,8 @@ def get_train_x(attacked_model, args, target):
 HIDS = [[512, 256, 128, 64],
         [512, 256, 128, 64, 32],
         [512, 256, 128, 64, 32, 16]]
+HIDS2 = [[128, 64],
+         [512, 256, 128, 64, 32, 16]]
 
 CORA = 'cora'
 CITESEER = 'citeseer'
@@ -449,30 +451,58 @@ ATKED_JGCN = 'gcn_jaccard'
 ATKED_SIMPGCN = 'simpgcn'
 
 MODEL_PARAMS = {
+    # 目标模型4层的参数
+    # CORA: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
+    #         ATKED_JGCN: [HIDS[2], 5e-2, 1e-2],
+    #         ATKED_RGCN: [HIDS[1], 5e-3, 5e-2],
+    #         ATKED_SIMPGCN: [HIDS[1], 5e-3, 5e-2],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
+    #         ATKED_JGCN: [HIDS[1], 5e-5, 5e-3],
+    #         ATKED_RGCN: [HIDS[0], 5e-5, 1e-2],
+    #         ATKED_SIMPGCN: [HIDS[0], 5e-5, 5e-3],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [HIDS[2], 5e-4, 1e-2],
+    #         ATKED_JGCN: [HIDS[2], 5e-4, 1e-3],
+    #         ATKED_RGCN: [HIDS[2], 5e-4, 1e-2],
+    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 1e-2],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
+    #         ATKED_JGCN: [HIDS[2], 5e-4, 5e-3],
+    #         ATKED_RGCN: [HIDS[0], 5e-4, 5e-2],
+    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+    #     },
+    # },
+    # 目标模型2层的参数
     CORA: {
         EMBED_FGCN: {
-            ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
-            ATKED_JGCN: [HIDS[2], 5e-2, 1e-2],
-            ATKED_RGCN: [HIDS[1], 5e-3, 5e-2],
-            ATKED_SIMPGCN: [HIDS[1], 5e-3, 5e-2],
+            ATKED_GCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_JGCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_RGCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-2],
         },
         EMBED_GCN: {
-            ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
-            ATKED_JGCN: [HIDS[1], 5e-5, 5e-3],
-            ATKED_RGCN: [HIDS[0], 5e-5, 1e-2],
-            ATKED_SIMPGCN: [HIDS[0], 5e-5, 5e-3],
+            ATKED_GCN: [HIDS2[0], 5e-4, 5e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-4, 1e-2],
+            ATKED_RGCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-3],
         },
         EMBED_MLP: {
-            ATKED_GCN: [HIDS[2], 5e-4, 1e-2],
-            ATKED_JGCN: [HIDS[2], 5e-4, 1e-3],
-            ATKED_RGCN: [HIDS[2], 5e-4, 1e-2],
-            ATKED_SIMPGCN: [HIDS[2], 5e-4, 1e-2],
+            ATKED_GCN: [HIDS2[1], 5e-3, 5e-3],
+            ATKED_JGCN: [HIDS2[1], 5e-3, 5e-3],
+            ATKED_RGCN: [HIDS2[1], 5e-3, 5e-3],
+            ATKED_SIMPGCN: [HIDS2[1], 5e-3, 5e-3],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
-            ATKED_JGCN: [HIDS[2], 5e-4, 5e-3],
-            ATKED_RGCN: [HIDS[0], 5e-4, 5e-2],
-            ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_GCN: [HIDS2[0], 5e-5, 1e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-4, 1e-2],
+            ATKED_RGCN: [HIDS2[0], 5e-4, 1e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-4, 1e-3],
         },
     },
     CITESEER: {
@@ -501,30 +531,58 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS[0], 5e-2, 5e-3],
         },
     },
+    # 4层
+    # CHAMELEON: {
+    #     EMBED_FGCN: {
+    #         ATKED_GCN: [HIDS[1], 5e-2, 1e-3],
+    #         ATKED_JGCN: [HIDS[0], 5e-5, 1e-3],
+    #         ATKED_RGCN: [HIDS[1], 5e-4, 5e-3],
+    #         ATKED_SIMPGCN: [HIDS[1], 5e-3, 1e-3],
+    #     },
+    #     EMBED_GCN: {
+    #         ATKED_GCN: [HIDS[0], 5e-3, 1e-3],
+    #         ATKED_JGCN: [HIDS[1], 5e-2, 1e-2],
+    #         ATKED_RGCN: [HIDS[1], 5e-2, 5e-2],
+    #         ATKED_SIMPGCN: [HIDS[0], 5e-3, 1e-2],
+    #     },
+    #     EMBED_MLP: {
+    #         ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
+    #         ATKED_JGCN: [HIDS[0], 5e-2, 5e-3],
+    #         ATKED_RGCN: [HIDS[2], 5e-4, 5e-3],
+    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+    #     },
+    #     EMBED_SGC: {
+    #         ATKED_GCN: [HIDS[0], 5e-5, 1e-3],
+    #         ATKED_JGCN: [HIDS[2], 5e-5, 5e-2],
+    #         ATKED_RGCN: [HIDS[1], 5e-4, 1e-2],
+    #         ATKED_SIMPGCN: [HIDS[2], 5e-5, 1e-2],
+    #     },
+    # },
+    # 2层
     CHAMELEON: {
         EMBED_FGCN: {
-            ATKED_GCN: [HIDS[1], 5e-2, 1e-3],
-            ATKED_JGCN: [HIDS[0], 5e-5, 1e-3],
-            ATKED_RGCN: [HIDS[1], 5e-4, 5e-3],
-            ATKED_SIMPGCN: [HIDS[1], 5e-3, 1e-3],
+            ATKED_GCN: [HIDS2[0], 5e-5, 5e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-5, 5e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-5, 5e-3],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 5e-3],
         },
         EMBED_GCN: {
-            ATKED_GCN: [HIDS[0], 5e-3, 1e-3],
-            ATKED_JGCN: [HIDS[1], 5e-2, 1e-2],
-            ATKED_RGCN: [HIDS[1], 5e-2, 5e-2],
-            ATKED_SIMPGCN: [HIDS[0], 5e-3, 1e-2],
+            ATKED_GCN: [HIDS2[0], 5e-3, 1e-2],
+            ATKED_JGCN: [HIDS2[0], 5e-3, 1e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-3, 1e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-2],
         },
         EMBED_MLP: {
-            ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
-            ATKED_JGCN: [HIDS[0], 5e-2, 5e-3],
-            ATKED_RGCN: [HIDS[2], 5e-4, 5e-3],
-            ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
+            ATKED_GCN: [HIDS2[0], 5e-3, 5e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-2, 1e-2],
+            ATKED_RGCN: [HIDS2[0], 5e-3, 5e-3],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-3, 1e-2],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS[0], 5e-5, 1e-3],
-            ATKED_JGCN: [HIDS[2], 5e-5, 5e-2],
-            ATKED_RGCN: [HIDS[1], 5e-4, 1e-2],
-            ATKED_SIMPGCN: [HIDS[2], 5e-5, 1e-2],
+            ATKED_GCN: [HIDS2[0], 5e-4, 1e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-2, 1e-2],
+            ATKED_RGCN: [HIDS2[0], 5e-5, 5e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-2],
         },
     },
     SQUIRREL: {
@@ -702,3 +760,41 @@ def _normalize_adj(adj, power=-1/2, device="cpu"):
     D_power[torch.isinf(D_power)] = 0.
     D_power = torch.diag(D_power)
     return D_power @ A @ D_power
+
+
+we_lr_dic = {
+    '5e-5':'5e-5',
+    '5e-05':'5e-5',
+    '0.05':'5e-2',
+    '0.005':'5e-3',
+    '0.0005':'5e-4',
+    '0.1':'1e-1',
+    '0.01':'1e-2',
+    '0.001':'1e-3',
+    '0.0001':'1e-4'
+}
+
+
+def mhash(l):
+    s = ""
+    for ti in l:
+        if isinstance(ti, list):
+            for tii in ti:
+                s += str(tii)
+        else:
+            s += we_lr_dic[str(ti)]
+    return s
+
+
+def get_split_atked_types(dataset, embed_type, atked_types):
+    split_atked_types = {}
+    dataset = dataset.lower()
+    embed_type = embed_type.lower()
+    for i, atked_type in enumerate(atked_types):
+        cur_hash = mhash(MODEL_PARAMS[dataset][embed_type][atked_type.lower()])
+        if cur_hash not in split_atked_types:
+            split_atked_types[cur_hash] = [atked_type]
+        else:
+            split_atked_types[cur_hash].append(atked_type)
+
+    return list(split_atked_types.values())

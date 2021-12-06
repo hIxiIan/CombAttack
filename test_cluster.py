@@ -5,7 +5,7 @@ import argparse
 import warnings
 
 from time import strftime, localtime
-from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
+from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
 from ca import run
 from tqdm import tqdm
 warnings.filterwarnings("ignore")
@@ -89,10 +89,18 @@ if __name__ == '__main__':
             if cmd.run_us != "true":
                 continue
 
+            count = 0
+            total = 0
+            for embed_type in embed_types_:
+                total += len(get_split_atked_types(dataset, embed_type, atked_types_))
+
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for atked_type in tqdm(atked_types_, desc="_".join([dataset, str(i), embed_type])):
-                    cmd.atk_model_type = atked_type
+                split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_)
+                for atked_type in split_atked_types_:
+                    count += 1
+                    cmd.atk_model_type = ','.join(atked_type)
+                    print('\ndataset: {}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, count, total, embed_type, cmd.atk_model_type))
                     key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, filename, embed_type)
 
