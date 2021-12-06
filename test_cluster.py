@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 for atked_type in split_atked_types_:
                     count += 1
                     cmd.atk_model_type = ','.join(atked_type)
-                    print('\ndataset: {}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, count, total, embed_type, cmd.atk_model_type))
+                    print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
                     key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, filename, embed_type)
 
