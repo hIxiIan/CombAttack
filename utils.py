@@ -724,7 +724,7 @@ def get_model_parms(dataset, embed_model, atked_model):
     atked_model = atked_model.lower()
     parms = MODEL_PARAMS[dataset][embed_model][atked_model]
     assert len(parms) < 4, 'get_model_parms error'
-    return parms[0], ['relu' for _ in parms[0]], parms[1], parms[2]
+    return parms[0], ['relu' for _ in parms[0]] if embed_model == "sgc2" else [None for _ in parms[0]], parms[1], parms[2]
 
 
 def accuracy(output, labels):
