@@ -142,7 +142,7 @@ def get_attacked_models(atked_types, args, graph):
     attacked_models = []
     attacked_models_acc = []
     for atked_type in atked_types:
-        if atked_type in DP_MODELS:
+        if args.dataset != 'ogbn-arxiv' and atked_type in DP_MODELS:
             attacked_model, acc = get_dr_model(atked_type, args, graph)
             attacked_model.name = atked_type
             attacked_model.is_dr = True
@@ -174,7 +174,6 @@ def get_attacker_attacked_models(args, graph):
         attacked_models = get_attacked_models(atked_types, args, graph)
         # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
 
-        # 限定只攻击一个模型，认为控制args.atk_model_type唯一才有用
         args.atked_model_ = atked_types[0]
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
