@@ -451,34 +451,7 @@ ATKED_JGCN = 'gcn_jaccard'
 ATKED_SIMPGCN = 'simpgcn'
 
 MODEL_PARAMS = {
-    # 目标模型4层的参数
-    # CORA: {
-    #     EMBED_FGCN: {
-    #         ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
-    #         ATKED_JGCN: [HIDS[2], 5e-2, 1e-2],
-    #         ATKED_RGCN: [HIDS[1], 5e-3, 5e-2],
-    #         ATKED_SIMPGCN: [HIDS[1], 5e-3, 5e-2],
-    #     },
-    #     EMBED_GCN: {
-    #         ATKED_GCN: [HIDS[0], 5e-5, 5e-3],
-    #         ATKED_JGCN: [HIDS[1], 5e-5, 5e-3],
-    #         ATKED_RGCN: [HIDS[0], 5e-5, 1e-2],
-    #         ATKED_SIMPGCN: [HIDS[0], 5e-5, 5e-3],
-    #     },
-    #     EMBED_MLP: {
-    #         ATKED_GCN: [HIDS[2], 5e-4, 1e-2],
-    #         ATKED_JGCN: [HIDS[2], 5e-4, 1e-3],
-    #         ATKED_RGCN: [HIDS[2], 5e-4, 1e-2],
-    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 1e-2],
-    #     },
-    #     EMBED_SGC: {
-    #         ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
-    #         ATKED_JGCN: [HIDS[2], 5e-4, 5e-3],
-    #         ATKED_RGCN: [HIDS[0], 5e-4, 5e-2],
-    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
-    #     },
-    # },
-    # 目标模型2层的参数
+    # 2 layers
     CORA: {
         EMBED_FGCN: {
             ATKED_GCN: [HIDS2[0], 5e-5, 1e-2],
@@ -499,10 +472,10 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS2[1], 5e-3, 5e-3],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS2[0], 5e-5, 1e-3],
+            ATKED_GCN: [HIDS2[0], 5e-4, 1e-2],
             ATKED_JGCN: [HIDS2[0], 5e-4, 1e-2],
-            ATKED_RGCN: [HIDS2[0], 5e-4, 1e-2],
-            ATKED_SIMPGCN: [HIDS2[0], 5e-4, 1e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-5, 5e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-2, 1e-3],
         },
     },
     CITESEER: {
@@ -525,40 +498,13 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS2[0], 5e-2, 5e-2],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS2[0], 5e-5, 5e-2],
-            ATKED_JGCN: [HIDS2[0], 5e-4, 1e-2],
-            ATKED_RGCN: [HIDS2[0], 5e-4, 5e-3],
-            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_GCN: [HIDS2[0], 5e-2, 1e-2],
+            ATKED_JGCN: [HIDS2[0], 5e-2, 1e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-2, 1e-2],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-4, 5e-2],
         },
     },
-    # 4层
-    # CHAMELEON: {
-    #     EMBED_FGCN: {
-    #         ATKED_GCN: [HIDS[1], 5e-2, 1e-3],
-    #         ATKED_JGCN: [HIDS[0], 5e-5, 1e-3],
-    #         ATKED_RGCN: [HIDS[1], 5e-4, 5e-3],
-    #         ATKED_SIMPGCN: [HIDS[1], 5e-3, 1e-3],
-    #     },
-    #     EMBED_GCN: {
-    #         ATKED_GCN: [HIDS[0], 5e-3, 1e-3],
-    #         ATKED_JGCN: [HIDS[1], 5e-2, 1e-2],
-    #         ATKED_RGCN: [HIDS[1], 5e-2, 5e-2],
-    #         ATKED_SIMPGCN: [HIDS[0], 5e-3, 1e-2],
-    #     },
-    #     EMBED_MLP: {
-    #         ATKED_GCN: [HIDS[2], 5e-4, 5e-3],
-    #         ATKED_JGCN: [HIDS[0], 5e-2, 5e-3],
-    #         ATKED_RGCN: [HIDS[2], 5e-4, 5e-3],
-    #         ATKED_SIMPGCN: [HIDS[2], 5e-4, 5e-3],
-    #     },
-    #     EMBED_SGC: {
-    #         ATKED_GCN: [HIDS[0], 5e-5, 1e-3],
-    #         ATKED_JGCN: [HIDS[2], 5e-5, 5e-2],
-    #         ATKED_RGCN: [HIDS[1], 5e-4, 1e-2],
-    #         ATKED_SIMPGCN: [HIDS[2], 5e-5, 1e-2],
-    #     },
-    # },
-    # 2层
+    # 2 layers
     CHAMELEON: {
         EMBED_FGCN: {
             ATKED_GCN: [HIDS2[0], 5e-5, 5e-3],
@@ -579,10 +525,10 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS2[0], 5e-3, 1e-2],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS2[0], 5e-4, 1e-3],
-            ATKED_JGCN: [HIDS2[0], 5e-2, 1e-2],
-            ATKED_RGCN: [HIDS2[0], 5e-5, 5e-2],
-            ATKED_SIMPGCN: [HIDS2[0], 5e-5, 1e-2],
+            ATKED_GCN: [HIDS2[0], 5e-5, 5e-2],
+            ATKED_JGCN: [HIDS2[0], 5e-3, 5e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-2, 5e-3],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-3, 5e-3],
         },
     },
     SQUIRREL: {
@@ -605,10 +551,10 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS2[0], 5e-2, 5e-2],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS2[0], 5e-5, 5e-2],
-            ATKED_JGCN: [HIDS2[0], 5e-2, 1e-2],
-            ATKED_RGCN: [HIDS2[0], 5e-3, 1e-3],
-            ATKED_SIMPGCN: [HIDS2[0], 5e-3, 1e-2],
+            ATKED_GCN: [HIDS2[0], 5e-3, 5e-3],
+            ATKED_JGCN: [HIDS2[0], 5e-3, 1e-3],
+            ATKED_RGCN: [HIDS2[0], 5e-3, 5e-3],
+            ATKED_SIMPGCN: [HIDS2[0], 5e-3, 5e-3],
         },
     },
     # CORA_FULL: {

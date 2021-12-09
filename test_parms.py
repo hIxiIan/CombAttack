@@ -65,13 +65,20 @@ if __name__ == '__main__':
     print(embed_types_)
     print(atked_types_)
 
-    hids_ = [[512, 256, 128, 64],
-            [512, 256, 128, 64, 32],
-            [512, 256, 128, 64, 32, 16]]
-    acts_ = [['relu', 'relu', 'relu', 'relu'],
-            ['relu', 'relu', 'relu', 'relu', 'relu'],
-            ['relu', 'relu', 'relu', 'relu', 'relu', 'relu']]
+    hids_ = [[128, 64]]
+    hids_ = [[512, 256, 128, 64, 32, 16]]
+    hids_ = [
+        [128, 64],
+        [256, 128, 64],
+        [512, 256, 128, 64],
+        [512, 256, 128, 64],
+        [512, 256, 128, 64, 32],
+        [512, 256, 128, 64, 32, 16],
+    ]
+    hids_ = [[128, 64]]
+
     # weight_decay_ = [5e-2, 5e-3, 5e-4, 5e-5]
+    weight_decay_ = [5e-5, 5e-4]
     weight_decay_ = [5e-5, 5e-4, 5e-3, 5e-2]
     lr_ = [0.05, 0.01, 0.005, 0.001]
 
@@ -103,14 +110,14 @@ if __name__ == '__main__':
                 cmd.embed_type = embed_type
                 for i, hids in enumerate(hids_):
                     cmd.hids = hids
-                    cmd.acts = acts_[i]
+                    cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None  for _ in cmd.hids]
                     for weight_decay in weight_decay_:
                         cmd.weight_decay = weight_decay
                         for lr in lr_:
                             count += 1
                             print('\n' + dataset + ", {}/{}".format(count, total))
                             cmd.lr = lr
-                            key = '_'.join([embed_type, str(len(hids)), str(weight_decay), str(lr)])
+                            key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
                             do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
