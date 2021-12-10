@@ -18,7 +18,7 @@ from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
 from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj
-from deeprobust.graph.defense import RGCN
+from deeprobust.graph.defense import RGCN, SimPGCN
 import scipy.sparse as sp
 import graphgallery.functional as gf
 
@@ -128,6 +128,9 @@ def get_dr_model(model_name, args, graph):
     if model_name == "RobustGCN":
         attacked_model = RGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
                               nhid=32, lr=0.01, dropout=0, device=device)
+    elif model_name == "SimPGCN":
+        attacked_model = SimPGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
+                              nhid=64, lr=0.01, dropout=0, weight_decay=5e-4, device=device)
 
     attacked_model.to(device)
     attacked_model.fit(sp.csr_matrix(features), sp.csr_matrix(adj), labels, idx_train, idx_val, train_iters=200,
@@ -343,6 +346,9 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
                 print('deleted_edges.shape:{}, deleted_edges:{}'.format(len(attacker.non_added_edges), attacker.non_added_edges))
                 print('original_predict, true_label: {}, true_label_prob: {}'.format(true_label, original_predicts[name][i][true_label]))
 
+                if np.isnan(original_predicts[name][i][true_label]):
+                    print('!!!!!!!!!!!!!!!!!!!!!!nan!!!!!!!:{}'.format(original_predicts[name]))
+
                 print('#####evasion')
                 # print('eva_predict, true_label: {}, true_label_prob: {}'.format(true_label, eva_predict[true_label]))
                 # print('eva_predict, perturbed_label: {}, perturbed_label_prob:{}'.format(eva_perturbed_label, eva_predict[eva_perturbed_label]))
@@ -474,7 +480,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
                       transform="standardize")
 
     graph = data.graph
-    random.seed(cmd.seed)
+    gf.random_seed(cmd.seed, gg.backend())
 
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)

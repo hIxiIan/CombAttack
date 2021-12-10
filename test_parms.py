@@ -65,18 +65,12 @@ if __name__ == '__main__':
     print(embed_types_)
     print(atked_types_)
 
-    hids_ = [[128, 64]]
-    hids_ = [[512, 256, 128, 64, 32, 16]]
     hids_ = [
+        [64],
         [128, 64],
         [256, 128, 64],
-        [512, 256, 128, 64],
-        [512, 256, 128, 64, 32],
-        [512, 256, 128, 64, 32, 16],
     ]
-    # weight_decay_ = [5e-2, 5e-3, 5e-4, 5e-5]
-    weight_decay_ = [5e-5, 5e-4]
-    weight_decay_ = [5e-5, 5e-4, 5e-3, 5e-2]
+    weight_decay_ = [5e-5, 5e-4, 5e-3]
     lr_ = [0.05, 0.01, 0.005, 0.001]
 
     for dataset in dataset_:
@@ -107,7 +101,7 @@ if __name__ == '__main__':
                 cmd.embed_type = embed_type
                 for i, hids in enumerate(hids_):
                     cmd.hids = hids
-                    cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None  for _ in cmd.hids]
+                    cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
                     for weight_decay in weight_decay_:
                         cmd.weight_decay = weight_decay
                         for lr in lr_:
