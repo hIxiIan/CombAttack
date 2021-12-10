@@ -112,7 +112,7 @@ def get_model(model_name, args, graph, is_embed=False):
     # dgl backend
     elif model_name == "MixHop":
         return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
-    return None
+    assert False, "invalid graphgallery model"
 
 
 def get_dr_model(model_name, args, graph):
@@ -131,7 +131,8 @@ def get_dr_model(model_name, args, graph):
     elif model_name == "SimPGCN":
         attacked_model = SimPGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
                               nhid=64, lr=0.01, dropout=0, weight_decay=5e-4, device=device)
-
+    else:
+        assert False, "invalid deeprobust model"
     attacked_model.to(device)
     attacked_model.fit(sp.csr_matrix(features), sp.csr_matrix(adj), labels, idx_train, idx_val, train_iters=200,
                        verbose=False)
@@ -552,7 +553,7 @@ if __name__ == '__main__':
                       verbose=False,
                       transform="standardize")
     graph = data.graph
-    random.seed(cmd.seed)
+    gf.random_seed(cmd.seed, gg.backend())
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
