@@ -79,6 +79,7 @@ if __name__ == '__main__':
         for i in range(times):
             res = pd.DataFrame(columns=RES_COLUMNS[1:])
             cmd.seed = seeds[i]
+            print(cmd.seed)
             filename = "_".join([_prefix, str(i)]) + '.csv'
             print(filename)
             if cmd.run_sga == "true":
