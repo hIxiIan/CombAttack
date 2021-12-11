@@ -285,6 +285,7 @@ def get_gf_results(attacked_model, attacker, args, target):
 def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     if sampler is not None:
+        # wrong_labels考虑是否用预测label
         targets_labels_pred = sampler.cluster_label_pred[args.targets]
         print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred), [(l, (targets_labels_pred == l).sum()) for l in set(targets_labels_pred)]))
         wrong_labels = get_wrong_labels(attacker.logits, args.targets, args.node_label)
@@ -530,7 +531,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
