@@ -738,7 +738,9 @@ def mhash(l):
     return s
 
 
-def get_split_atked_types(dataset, embed_type, atked_types):
+def get_split_atked_types(dataset, embed_type, atked_types, not_split=False):
+    if not_split:
+        return [atked_types]
     split_atked_types = {}
     dataset = dataset.lower()
     embed_type = embed_type.lower()
