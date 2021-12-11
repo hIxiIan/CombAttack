@@ -104,6 +104,7 @@ if __name__ == '__main__':
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 for i, atked_type in enumerate(atked_types_):
+                    cmd.atk_model_type = atked_type
                     cmd.hids = hids_map[i]
                     cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
                     cmd.weight_decay = w_map[i]
