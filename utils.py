@@ -457,11 +457,9 @@ HIDS = [[512, 256, 128, 64],
 HIDS2 = [[128, 64],
          [512, 256, 128, 64, 32, 16]]
 HIDS3 = [
+        [64],
         [128, 64],
         [256, 128, 64],
-        [512, 256, 128, 64],
-        [512, 256, 128, 64, 32],
-        [512, 256, 128, 64, 32, 16],
     ]
 CORA = 'cora'
 CITESEER = 'citeseer'
@@ -486,28 +484,28 @@ MODEL_PARAMS = {
     # multi layers
     CORA: {
         EMBED_FGCN: {
-            ATKED_GCN: [HIDS3[0], 5e-5, 1e-2],
-            ATKED_JGCN: [HIDS3[0], 5e-5, 1e-2],
-            ATKED_RGCN: [HIDS3[0], 5e-5, 1e-2],
-            ATKED_SIMPGCN: [HIDS3[0], 5e-5, 1e-2],
+            ATKED_GCN: [HIDS3[2], 5e-5, 5e-2],
+            ATKED_JGCN: [HIDS3[1], 5e-5, 1e-2],
+            ATKED_RGCN: [HIDS3[1], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [HIDS3[1], 5e-3, 1e-2],
         },
         EMBED_GCN: {
-            ATKED_GCN: [HIDS3[1], 5e-4, 1e-2],
-            ATKED_JGCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_RGCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_SIMPGCN: [HIDS3[0], 5e-4, 5e-3],
+            ATKED_GCN: [HIDS3[1], 5e-5, 5e-2],
+            ATKED_JGCN: [HIDS3[2], 5e-4, 1e-2],
+            ATKED_RGCN: [HIDS3[1], 5e-4, 1e-2],
+            ATKED_SIMPGCN: [HIDS3[1], 5e-3, 5e-2],
         },
         EMBED_MLP: {
-            ATKED_GCN: [HIDS3[2], 5e-4, 5e-2],
-            ATKED_JGCN: [HIDS3[2], 5e-4, 5e-2],
-            ATKED_RGCN: [HIDS3[2], 5e-4, 5e-2],
-            ATKED_SIMPGCN: [HIDS3[2], 5e-4, 5e-2],
+            ATKED_GCN: [HIDS3[1], 5e-5, 5e-3],
+            ATKED_JGCN: [HIDS3[1], 5e-5, 5e-3],
+            ATKED_RGCN: [HIDS3[1], 5e-5, 5e-3],
+            ATKED_SIMPGCN: [HIDS3[1], 5e-5, 5e-3],
         },
         EMBED_SGC: {
-            ATKED_GCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_JGCN: [HIDS3[0], 5e-5, 5e-2],
-            ATKED_RGCN: [HIDS3[0], 5e-5, 5e-2],
-            ATKED_SIMPGCN: [HIDS3[1], 5e-5, 5e-3],
+            ATKED_GCN: [HIDS3[1], 5e-5, 5e-2],
+            ATKED_JGCN: [HIDS3[0], 5e-5, 5e-3],
+            ATKED_RGCN: [HIDS3[2], 5e-4, 1e-3],
+            ATKED_SIMPGCN: [HIDS3[1], 5e-3, 5e-2],
         },
     },
     CITESEER: {
