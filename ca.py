@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN
 from deeprobust.graph.defense import RGCN, SimPGCN
 import scipy.sparse as sp
 import graphgallery.functional as gf
@@ -284,6 +284,13 @@ def get_gf_results(attacked_model, attacker, args, target):
 
 def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
+    if sampler is not None:
+        targets_labels_pred = sampler.cluster_label_pred[args.targets]
+        print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred), [(l, (targets_labels_pred == l).sum()) for l in set(targets_labels_pred)]))
+        wrong_labels = get_wrong_labels(attacker.logits, args.targets, args.node_label)
+        add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, args.node_label, sampler.added_edges)
+        add_clusterIsMisClassifiedLabel = wrong_labels == add_gcn_labels
+
     start = time()
     eva_res = {}
     # eva_res_wl = {}
@@ -385,6 +392,15 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # print('poi_asr: {}, poi_asr_wl: {}'.format(poi_asr, poi_asr_wl))
         print('attack {} model, eva_asr: {}'.format(name, eva_asr[name]))
         print('attack {} model, poi_asr: {}'.format(name, poi_asr[name]))
+        if sampler is not None:
+            c_is_add_eva_asr = eva_res[name][add_clusterIsMisClassifiedLabel].sum() / len(eva_res[name][add_clusterIsMisClassifiedLabel])
+            c_isn_add_eva_asr = eva_res[name][~add_clusterIsMisClassifiedLabel].sum() / len(eva_res[name][~add_clusterIsMisClassifiedLabel])
+            c_is_add_poi_asr = poi_res[name][add_clusterIsMisClassifiedLabel].sum() / len(poi_res[name][add_clusterIsMisClassifiedLabel])
+            c_isn_add_poi_asr = poi_res[name][~add_clusterIsMisClassifiedLabel].sum() / len(poi_res[name][~add_clusterIsMisClassifiedLabel])
+            print('attack {} model, farthest_cluster is the misclassified class, eva_asr:{}'.format(name, c_is_add_eva_asr))
+            print('attack {} model, farthest_cluster is the misclassified class, eva_asr:{}'.format(name, c_is_add_poi_asr))
+            print('attack {} model, farthest_cluster isn\'t the misclassified class, eva_asr:{}'.format(name, c_isn_add_eva_asr))
+            print('attack {} model, farthest_cluster isn\'t the misclassified class, eva_asr:{}'.format(name, c_isn_add_poi_asr))
 
     embed_acc = sampler.embed_acc if sampler is not None else 0
     cluster_cost_time = sampler.cluster_cost_time if sampler is not None else 0
@@ -514,7 +530,7 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=2, type=int, help="target nums")
 
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")

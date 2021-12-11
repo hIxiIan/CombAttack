@@ -425,6 +425,32 @@ def get_train_x(attacked_model, args, target):
     return train_x
 
 
+def get_wrong_labels(logits, targets, labels):
+    wrong_labels = []
+    for target in targets:
+        logit = logits[target]
+        idx = list(set(range(logit.size)) - set([labels[target]]))
+        wrong_label = idx[logit[idx].argmax()]
+        wrong_labels.append(wrong_label)
+    wrong_labels = np.array(wrong_labels)
+    return wrong_labels
+
+
+def mapCluster2GCN(targets, labels, perturbed_nodes):
+    gcn_labels = []
+    for i, target in enumerate(targets):
+        labels_i = labels[perturbed_nodes[i][1]]
+        distribution = {}
+        ui = list(set(labels_i))
+        for li in ui:
+            distribution[li] = (labels_i == li).sum()
+        distribution = sorted(distribution.items(), key=lambda x: x[1], reverse=True)
+        best = distribution[0]
+        gcn_labels.append((best[0], best[1] / len(labels_i)))
+    gcn_labels = np.array(gcn_labels)
+    return gcn_labels[:, 0], gcn_labels[:, 1]
+
+
 HIDS = [[512, 256, 128, 64],
         [512, 256, 128, 64, 32],
         [512, 256, 128, 64, 32, 16]]
