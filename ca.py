@@ -285,13 +285,10 @@ def get_gf_results(attacked_model, attacker, args, target):
 def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     if sampler is not None:
-        # wrong_labels考虑是否用预测label
         targets_labels_pred = sampler.cluster_label_pred[args.targets]
-        print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred), [(l, (targets_labels_pred == l).sum()) for l in set(targets_labels_pred)]))
-        wrong_labels = get_wrong_labels(attacker.logits, args.targets, args.node_label)
-        add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, args.node_label, sampler.added_edges)
-        add_clusterIsMisClassifiedLabel = wrong_labels == add_gcn_labels
-        print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel))
+        print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred),
+                                                      [(l, (targets_labels_pred == l).sum()) for l in
+                                                       set(targets_labels_pred)]))
 
     start = time()
     eva_res = {}
@@ -299,6 +296,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     poi_res = {}
     # poi_res_wl = {}
     original_predicts = {}
+    add_clusterIsMisClassifiedLabel = {}
     for attacked_model in attacked_models:
         name = attacked_model.name
         if attacked_model.is_dr:
@@ -309,6 +307,13 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
+
+        if sampler is not None:
+            sur_labels = np.array([lo.argmax() for lo in attacked_model.predict(np.arange(len(args.node_label)), transform="softmax")])
+            wrong_labels = get_wrong_labels(attacker.logits, args.targets, sur_labels)
+            add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
+            add_clusterIsMisClassifiedLabel[name] = wrong_labels == add_gcn_labels
+            print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel[name]))
 
     cost_targets = 0.
     for i, target in enumerate(args.targets):
@@ -395,14 +400,15 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         print('attack {} model, eva_asr: {}'.format(name, eva_asr[name]))
         print('attack {} model, poi_asr: {}'.format(name, poi_asr[name]))
         if sampler is not None:
-            c_is_add_eva_asr = eva_res[name][add_clusterIsMisClassifiedLabel].sum() / len(eva_res[name][add_clusterIsMisClassifiedLabel])
-            c_isn_add_eva_asr = eva_res[name][~add_clusterIsMisClassifiedLabel].sum() / len(eva_res[name][~add_clusterIsMisClassifiedLabel])
-            c_is_add_poi_asr = poi_res[name][add_clusterIsMisClassifiedLabel].sum() / len(poi_res[name][add_clusterIsMisClassifiedLabel])
-            c_isn_add_poi_asr = poi_res[name][~add_clusterIsMisClassifiedLabel].sum() / len(poi_res[name][~add_clusterIsMisClassifiedLabel])
-            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][add_clusterIsMisClassifiedLabel]), c_is_add_eva_asr))
-            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(eva_res[name][~add_clusterIsMisClassifiedLabel]), c_is_add_poi_asr))
-            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(poi_res[name][add_clusterIsMisClassifiedLabel]), c_isn_add_eva_asr))
-            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(poi_res[name][~add_clusterIsMisClassifiedLabel]), c_isn_add_poi_asr))
+            is_add = add_clusterIsMisClassifiedLabel[name]
+            c_is_add_eva_asr = eva_res[name][is_add].sum() / len(eva_res[name][is_add])
+            c_isn_add_eva_asr = eva_res[name][~is_add].sum() / len(eva_res[name][~is_add])
+            c_is_add_poi_asr = poi_res[name][is_add].sum() / len(poi_res[name][is_add])
+            c_isn_add_poi_asr = poi_res[name][~is_add].sum() / len(poi_res[name][~is_add])
+            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][is_add]), c_is_add_eva_asr))
+            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(eva_res[name][~is_add]), c_is_add_poi_asr))
+            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(poi_res[name][is_add]), c_isn_add_eva_asr))
+            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(poi_res[name][~is_add]), c_isn_add_poi_asr))
 
     embed_acc = sampler.embed_acc if sampler is not None else 0
     cluster_cost_time = sampler.cluster_cost_time if sampler is not None else 0
