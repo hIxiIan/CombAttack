@@ -120,7 +120,7 @@ if __name__ == '__main__':
                         cmd.lr = lr_map[i]
                         count += 1
                         print('\n' + dataset + ", {}/{}".format(count, total))
-                        key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
+                        key = '_'.join([embed_type, cmd.lay_act, str(cmd.lay_act_cnt), str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
                         do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
