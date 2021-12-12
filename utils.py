@@ -436,6 +436,7 @@ def get_wrong_labels(logits, targets, labels):
     return wrong_labels
 
 
+# compute the max pro class of cluster nodes
 def mapCluster2GCN(targets, labels, perturbed_nodes):
     gcn_labels = []
     for i, target in enumerate(targets):

@@ -290,7 +290,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     if sampler is not None:
         targets_labels_pred = sampler.cluster_label_pred[args.targets]
-        print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred),
+        if verbose:
+            print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred),
                                                       [(l, (targets_labels_pred == l).sum()) for l in
                                                        set(targets_labels_pred)]))
 
@@ -315,10 +316,17 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
 
         if sampler is not None:
+            # surrogate model predicted labels
             sur_labels = np.array([lo.argmax() for lo in sur_preds])
-            wrong_labels = get_wrong_labels(attacker.logits, args.targets, sur_labels)
+            # second largest pro class , computed by surrogate logits and ground truth
+            wrong_labels = get_wrong_labels(attacker.logits, args.targets, args.node_label)
+            # get the max pro class of added cluster nodes
             add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
             add_clusterIsMisClassifiedLabel[name] = wrong_labels == add_gcn_labels
+            if verbose:
+                print('added_nodes labels: {}'.format(add_gcn_labels))
+                print('added_nodes labels pro: {}'.format(add_gcn_labels_rate))
+                print('wrong_labels: {}'.format(wrong_labels))
             # print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel[name]))
 
     cost_targets = 0.
@@ -412,8 +420,8 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
             c_is_add_poi_asr = poi_res[name][is_add].sum() / len(poi_res[name][is_add])
             c_isn_add_poi_asr = poi_res[name][~is_add].sum() / len(poi_res[name][~is_add])
             print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][is_add]), c_is_add_eva_asr))
-            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(eva_res[name][~is_add]), c_is_add_poi_asr))
-            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(poi_res[name][is_add]), c_isn_add_eva_asr))
+            print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(poi_res[name][is_add]), c_is_add_poi_asr))
+            print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][~is_add]), c_isn_add_eva_asr))
             print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(poi_res[name][~is_add]), c_isn_add_poi_asr))
 
     embed_acc = sampler.embed_acc if sampler is not None else 0
