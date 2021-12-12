@@ -11,7 +11,7 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
-DP_MODELS = ['RobustGCN']
+DP_MODELS = ['RobustGCN', 'SimPGCN']
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
@@ -737,6 +737,105 @@ def _normalize_adj(adj, power=-1/2, device="cpu"):
     D_power = torch.diag(D_power)
     return D_power @ A @ D_power
 
+
+def add_self_loops(edge_index, edge_weight=None, fill_value=1, num_nodes=None):
+    # num_nodes = maybe_num_nodes(edge_index, num_nodes)
+
+    loop_index = torch.arange(0, num_nodes, dtype=torch.long,
+                              device=edge_index.device)
+    loop_index = loop_index.unsqueeze(0).repeat(2, 1)
+
+    if edge_weight is not None:
+        assert edge_weight.numel() == edge_index.size(1)
+        loop_weight = edge_weight.new_full((num_nodes, ), fill_value)
+        edge_weight = torch.cat([edge_weight, loop_weight], dim=0)
+
+    edge_index = torch.cat([edge_index, loop_index], dim=1)
+
+    return edge_index, edge_weight
+
+
+def normalize_sparse_tensor(adj, fill_value=1):
+    """Normalize sparse tensor. Need to import torch_scatter
+    """
+    edge_index = adj._indices()
+    edge_weight = adj._values()
+    num_nodes= adj.size(0)
+    edge_index, edge_weight = add_self_loops(
+	edge_index, edge_weight, fill_value, num_nodes)
+
+    row, col = edge_index
+    from torch_scatter import scatter_add
+    deg = scatter_add(edge_weight, row, dim=0, dim_size=num_nodes)
+    deg_inv_sqrt = deg.pow(-0.5)
+    deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+
+    values = deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
+
+    shape = adj.shape
+    return torch.sparse.FloatTensor(edge_index, values, shape)
+
+
+def normalize_adj_tensor(adj, sparse=False):
+    """Normalize adjacency tensor matrix.
+    """
+    device = adj.device
+    if sparse:
+        # warnings.warn('If you find the training process is too slow, you can uncomment line 207 in deeprobust/graph/utils.py. Note that you need to install torch_sparse')
+        # TODO if this is too slow, uncomment the following code,
+        # but you need to install torch_scatter
+        return normalize_sparse_tensor(adj)
+        adj = to_scipy(adj)
+        mx = normalize_adj(adj)
+        return sparse_mx_to_torch_sparse_tensor(mx).to(device)
+    else:
+        mx = adj + torch.eye(adj.shape[0]).to(device)
+        rowsum = mx.sum(1)
+        r_inv = rowsum.pow(-1/2).flatten()
+        r_inv[torch.isinf(r_inv)] = 0.
+        r_mat_inv = torch.diag(r_inv)
+        mx = r_mat_inv @ mx
+        mx = mx @ r_mat_inv
+    return mx
+
+
+def is_sparse_tensor(tensor):
+    """Check if a tensor is sparse tensor.
+
+    Parameters
+    ----------
+    tensor : torch.Tensor
+        given tensor
+
+    Returns
+    -------
+    bool
+        whether a tensor is sparse tensor
+    """
+    # if hasattr(tensor, 'nnz'):
+    if tensor.layout == torch.sparse_coo:
+        return True
+    else:
+        return False
+
+
+def _normalize_adj_simpgcn(adj, features, device, normalize=True):
+    if sp.issparse(adj):
+        adj = sparse_mx_to_torch_sparse_tensor(adj)
+    else:
+        adj = torch.FloatTensor(adj)
+    if sp.issparse(features):
+        features = sparse_mx_to_torch_sparse_tensor(features)
+    else:
+        features = torch.FloatTensor(np.array(features))
+    if normalize:
+        if is_sparse_tensor(adj):
+            adj_norm = normalize_adj_tensor(adj, sparse=True)
+        else:
+            adj_norm = normalize_adj_tensor(adj)
+    else:
+        adj_norm = adj
+    return adj_norm.to(device), features.to(device)
 
 we_lr_dic = {
     '5e-5':'5e-5',

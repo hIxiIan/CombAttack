@@ -19,9 +19,9 @@ if __name__ == '__main__':
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
-    parser.add_argument("-m", "--model", default="RobustGCN", type=str, help="model")
+    parser.add_argument("-m", "--model", default="SimPGCN", type=str, help="model")
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
-    parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
+    parser.add_argument("--is_gf", default="false", type=str, help="graphgallery / deeprobust")
     args = parser.parse_args()
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
 
@@ -32,6 +32,7 @@ if __name__ == '__main__':
                       transform="standardize")
     graph = data.graph
     splits = data.split_nodes(random_state=15)
+    args.splits = splits
     gf.random_seed(args.seed, gg.backend())
 
     models = get_models(args.model)

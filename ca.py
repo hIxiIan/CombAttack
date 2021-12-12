@@ -17,7 +17,7 @@ from ppr import PPRer
 from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn
 from deeprobust.graph.defense import RGCN, SimPGCN
 import scipy.sparse as sp
 import graphgallery.functional as gf
@@ -248,12 +248,16 @@ def init_sampler(attacker, args):
 
 def get_dr_results(attacked_model, attacker, args, target):
     name = attacked_model.name
+    attacked_model.eval()
     # evasion
     if name == "RobustGCN":
         attacked_model.adj_norm1 = _normalize_adj(attacker.g.adj_matrix, power=-1 / 2, device=args.dr_device)
         attacked_model.adj_norm2 = _normalize_adj(attacker.g.adj_matrix, power=-1, device=args.dr_device)
-    attacked_model.eval()
-    output = attacked_model.forward()
+        output = attacked_model.forward()
+    elif name == "SimPGCN":
+        adj_norm, fea = _normalize_adj_simpgcn(attacker.g.adj_matrix, attacker.g.node_attr, device=args.dr_device)
+        output = attacked_model.forward(fea, adj_norm)
+
     eva_perturbed_label = output.max(1)[1].cpu().numpy()[target]
 
     # poisoning
@@ -305,7 +309,6 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         else:
             sur_preds = attacked_model.predict(np.arange(len(args.node_label)), transform="softmax")
             original_predicts[name] = sur_preds[args.targets]
-        print(original_predicts[name])
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
@@ -565,7 +568,7 @@ if __name__ == '__main__':
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
-    # cmd.atk_model_type = "RobustGCN"
+    cmd.atk_model_type = "SimPGCN"
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
