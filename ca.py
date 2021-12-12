@@ -300,16 +300,19 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     for attacked_model in attacked_models:
         name = attacked_model.name
         if attacked_model.is_dr:
-            original_predicts[name] = gf.get('softmax')(attacked_model.predict().detach().cpu().numpy())[args.targets]
+            sur_pred = gf.get('softmax')(attacked_model.predict().detach().cpu().numpy())
+            original_predicts[name] = sur_pred[args.targets]
         else:
-            original_predicts[name] = attacked_model.predict(args.targets, transform="softmax")
+            sur_pred = attacked_model.predict(np.arange(len(args.node_label)), transform="softmax")
+            original_predicts[name] = sur_pred[args.targets]
+
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
 
         if sampler is not None:
-            sur_labels = np.array([lo.argmax() for lo in attacked_model.predict(np.arange(len(args.node_label)), transform="softmax")])
+            sur_labels = np.array([lo.argmax() for lo in original_predicts[name]])
             wrong_labels = get_wrong_labels(attacker.logits, args.targets, sur_labels)
             add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
             add_clusterIsMisClassifiedLabel[name] = wrong_labels == add_gcn_labels
