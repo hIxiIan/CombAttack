@@ -305,7 +305,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         else:
             sur_preds = attacked_model.predict(np.arange(len(args.node_label)), transform="softmax")
             original_predicts[name] = sur_preds[args.targets]
-
+        print(original_predicts[name])
         eva_res[name] = np.zeros(len(args.targets)).astype('bool')
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
@@ -357,7 +357,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
             if verbose:
                 print('###################')
-                print('iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(i, target, 0, (end_i - start_i) / 60))
+                print('name:{}, iter: {}, attack target node {}, get subgraph cost:{}, attack cost: {} min'.format(name, i, target, 0, (end_i - start_i) / 60))
                 # print('deleted_edges.shape:{}, added_edges.shape:{}, total_nodes:{}'.format(attacker._hop_ratio, attacker._hop_length, attacker._walk_length))
                 # print('wrong_ratio:{}, wrong_length:{}'.format(attacker._wrong_ratio, attacker._wrong_length))
                 print('added_edges.shape:{}, added_edges:{}'.format(len(attacker.added_edges), attacker.added_edges))
