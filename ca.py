@@ -568,7 +568,7 @@ if __name__ == '__main__':
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"
-    cmd.atk_model_type = "SimPGCN"
+    # cmd.atk_model_type = "SimPGCN"
     # cmd.random = "true"
     # cmd.topk_cluster = 3
     # cmd.direct_attack = ""
