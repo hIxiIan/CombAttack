@@ -312,11 +312,11 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
 
         if sampler is not None:
-            sur_labels = np.array([lo.argmax() for lo in original_predicts[name]])
+            sur_labels = np.array([lo.argmax() for lo in sur_pred])
             wrong_labels = get_wrong_labels(attacker.logits, args.targets, sur_labels)
             add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
             add_clusterIsMisClassifiedLabel[name] = wrong_labels == add_gcn_labels
-            print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel[name]))
+            # print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel[name]))
 
     cost_targets = 0.
     for i, target in enumerate(args.targets):
