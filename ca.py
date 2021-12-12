@@ -567,6 +567,8 @@ if __name__ == '__main__':
     parser.add_argument('--n_init', default=40, type=int)
     parser.add_argument('-tc', '--topk_cluster', default=1, type=int)
     parser.add_argument('-r', '--random', default="false", type=str)
+    parser.add_argument('-la', '--lay_act', default="layer", type=str)
+    parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
 
     cmd = parser.parse_args()
     cmd.hids = None

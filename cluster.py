@@ -40,13 +40,80 @@ class Cluster:
         for i, target in enumerate(targets):
             self.targets_map[target] = i
 
+        self.layerMap = {
+            'GCN2': 'GCNConv',
+            'SGC2': 'Linear',
+            'MLP': 'Linear',
+            'FastGCN': 'Linear_GCNConv'
+        }
+        self.actMap = {
+            'GCN2': 'ReLU',
+            'SGC2': 'Noop',
+            'MLP': 'ReLU',
+            'FastGCN': 'ReLU'
+        }
+
         self.do()
+
+    def get_layer_act_idx(self, layers):
+        embed_type = self.embed_type
+        layerMap = self.layerMap
+        actMap = self.actMap
+
+        layerIdx = {}
+        actIdx = {}
+        lmo = layerMap[embed_type]
+        lms = [layerMap[embed_type]]
+        ac = actMap[embed_type]
+        if embed_type == "FastGCN":
+            lms = lms[0].split('_')
+        for i, ly in enumerate(str(layers).split('\n')[1:-1]):
+            for lm in lms:
+                if lm in ly:
+                    if lmo not in layerIdx:
+                        layerIdx[lmo] = [i]
+                    else:
+                        layerIdx[lmo].append(i)
+            if ac in ly:
+                if ac not in actIdx:
+                    actIdx[ac] = [i]
+                else:
+                    actIdx[ac].append(i)
+        return layerIdx, actIdx
+
+    def get_conv_idx(self, layer):
+        lay_act = self.parms.lay_act
+        lay_act_cnt = self.parms.lay_act_cnt
+        layerIdx, actIdx = self.get_layer_act_idx(layer)
+        lm = self.layerMap[self.embed_type]
+        ac = self.actMap[self.embed_type]
+        if lay_act == "layer":
+            lay_act_cnt = max(lay_act_cnt, 1)
+            lay_act_cnt = min(lay_act_cnt, len(layerIdx[lm]))
+            return layerIdx[lm][lay_act_cnt - 1]
+        lay_act_cnt = max(lay_act_cnt, 1)
+        lay_act_cnt = min(lay_act_cnt, len(actIdx[ac]))
+        return actIdx[ac][lay_act_cnt - 1]
 
     @torch.no_grad()
     def get_predict(self):
         if self.embed_type in ["GCN", "GCN2", "GAT", "FastGCN"]:
-            conv = self.model.model.conv[:-3]
+            conv = self.model.model.conv
+            conv = conv[:self.get_conv_idx(conv) + 1]
+            print(conv)
             self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
+        elif "MLP" in self.embed_type or "SGC2" in self.embed_type:
+            lin = self.model.model.lin
+            lin = lin[:self.get_conv_idx(lin) + 1]
+            print(lin)
+            self.z = lin(self.model.cache.X).cpu().numpy()
+        elif "PPNP" in self.embed_type:
+            lin = self.model.model.lin[:-3]
+            propagation = self.model.model.propagation
+            x = lin(self.model.cache.X)
+            self.z = propagation(x, self.model.cache.A).cpu().numpy()
+        elif self.embed_type in ["DW", 'N2V', 'BANE']:
+            self.z = self.model.get_embedding()
         elif self.embed_type == "ClusterGCN":
             conv = self.model.model.conv[:-3]
             nums_cluster = len(self.model.cache.cluster_member)
@@ -62,22 +129,9 @@ class Cluster:
             self.z = z[idx_]
         elif self.embed_type in ["GraphMLP"]:
             self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
-        elif "MLP" in self.embed_type or "SGC2" in self.embed_type:
-            lin = self.model.model.lin[:-3]
-            self.z = lin(self.model.cache.X).cpu().numpy()
-        elif "SGC" == self.embed_type:
-            lin = self.model.model.lin
-            self.z = lin(self.model.cache.X).cpu().numpy()
-        elif "PPNP" in self.embed_type:
-            lin = self.model.model.lin[:-3]
-            propagation = self.model.model.propagation
-            x = lin(self.model.cache.X)
-            self.z = propagation(x, self.model.cache.A).cpu().numpy()
-        elif self.embed_type in ["DW", 'N2V', 'BANE']:
-            self.z = self.model.get_embedding()
         else:
             self.z = self.model.predict(self.n_nodes)
-        # print('z shape: ', self.z.shape)
+        print('z shape: ', self.z.shape)
 
     def do(self):
         start = time()

@@ -5,13 +5,15 @@ from utils import DATASET_BLOCKCHAIN
 
 
 class ClusterParms:
-    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3, random=False, is_het=False):
+    def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3, random=False, is_het=False, lay_act="layer", lay_act_cnt=1):
         self.max_iter = max_iter
         self.n_init = n_init
         self.seed = seed
         self.topk_cluster = topk_cluster
         self.random = random
         self.is_het = is_het
+        self.lay_act = lay_act
+        self.lay_act_cnt = lay_act_cnt
 
 
 class ARGS:
@@ -63,7 +65,9 @@ class ARGS:
                                           self.seed,
                                           cmd.topk_cluster,
                                           random,
-                                          is_het)
+                                          is_het,
+                                          cmd.lay_act,
+                                          cmd.lay_act_cnt)
         # test_parms
         self.hids = cmd.hids
         self.acts = cmd.acts

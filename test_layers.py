@@ -74,6 +74,13 @@ if __name__ == '__main__':
     ]
     weight_decay_ = [5e-5, 5e-4, 5e-3]
     lr_ = [0.05, 0.01, 0.005, 0.001]
+    # gcn, simpgcn, rgcn, jgcn
+    hids_map = [hids_[1], hids_[1], hids_[1], hids_[2]]
+    w_map = [5e-5, 5e-3, 5e-4, 5e-4]
+    lr_map = [5e-2, 5e-2, 1e-2, 1e-2]
+
+    lay_acts = ["layer", "layer", "relu"]
+    lay_act_cnts = [1, 2, 1]
 
     for dataset in dataset_:
         cmd.dataset = dataset
@@ -98,19 +105,22 @@ if __name__ == '__main__':
                 continue
 
             count = 0
-            total = len(embed_types_) * len(hids_) * len(weight_decay_) * len(lr_)
+            total = len(embed_types_) * len(lay_acts) * len(atked_types_)
+
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for i, hids in enumerate(hids_):
-                    cmd.hids = hids
-                    cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
-                    for weight_decay in weight_decay_:
-                        cmd.weight_decay = weight_decay
-                        for lr in lr_:
-                            count += 1
-                            print('\n' + dataset + ", {}/{}".format(count, total))
-                            cmd.lr = lr
-                            key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
-                            do_run(res, key, 'cluster', cmd, filename, embed_type)
+                for lay_i in range(len(lay_acts)):
+                    cmd.lay_act = lay_acts[lay_i]
+                    cmd.lay_act_cnt = lay_act_cnts[lay_i]
+                    for i, atked_type in enumerate(atked_types_):
+                        cmd.atk_model_type = atked_type
+                        cmd.hids = hids_map[i]
+                        cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
+                        cmd.weight_decay = w_map[i]
+                        cmd.lr = lr_map[i]
+                        count += 1
+                        print('\n' + dataset + ", {}/{}".format(count, total))
+                        key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
+                        do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
