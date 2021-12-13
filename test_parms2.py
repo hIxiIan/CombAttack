@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
-    parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
+    parser.add_argument('-lac', '--lay_act_cnt', default=999, type=int)
     cmd = parser.parse_args()
     gg.set_backend("th")
 
@@ -71,6 +71,13 @@ if __name__ == '__main__':
         [64],
         [128, 64],
         [256, 128, 64],
+        [512, 256, 128, 64],
+        [1024, 512, 256, 128, 64],
+        [1024, 1024, 512, 256, 128, 64],
+        [1024, 1024, 512, 512, 256, 128, 64],
+        [1024, 1024, 512, 512, 256, 256, 128, 64],
+        [1024, 1024, 512, 512, 256, 256, 128, 128, 64],
+        [1024, 1024, 512, 512, 256, 256, 128, 128, 64, 64],
     ]
     weight_decay_ = [5e-5, 5e-4, 5e-3]
     lr_ = [0.05, 0.01, 0.005, 0.001]
@@ -102,18 +109,20 @@ if __name__ == '__main__':
                 continue
 
             count = 0
-            total = len(embed_types_) * 4
+            total = len(embed_types_) * len(hids_) * len(weight_decay_) * len(lr_)
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                for i, atked_type in enumerate(atked_types_):
-                    cmd.atk_model_type = atked_type
-                    cmd.hids = hids_map[i]
+                cmd.atk_model_type = ','.join(atked_types_)
+                for hids in hids_:
+                    cmd.hids = hids
                     cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
-                    cmd.weight_decay = w_map[i]
-                    cmd.lr = lr_map[i]
-                    count += 1
-                    print('\n' + dataset + ", {}/{}".format(count, total))
-                    key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
-                    do_run(res, key, 'cluster', cmd, filename, embed_type)
+                    for weight_decay in weight_decay_:
+                        cmd.weight_decay = weight_decay
+                        for lr in lr_:
+                            cmd.lr = lr
+                            count += 1
+                            print('\n' + dataset + ", {}/{}".format(count, total))
+                            key = '_'.join([embed_type, str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
+                            do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
