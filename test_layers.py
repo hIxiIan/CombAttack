@@ -5,7 +5,7 @@ import argparse
 import warnings
 
 from time import strftime, localtime
-from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS
+from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
 from ca import run
 warnings.filterwarnings("ignore")
 
@@ -104,23 +104,28 @@ if __name__ == '__main__':
             if cmd.run_us != "true":
                 continue
 
+            cmd.hids = None
+            cmd.acts = None
+            cmd.weight_decay = None
+            cmd.lr = None
+
             count = 0
-            total = len(embed_types_) * len(lay_acts) * len(atked_types_)
+            total = 0
+            for embed_type in embed_types_:
+                total += len(get_split_atked_types(dataset, embed_type, atked_types_))
+            total = total * len(lay_acts)
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 for lay_i in range(len(lay_acts)):
                     cmd.lay_act = lay_acts[lay_i]
                     cmd.lay_act_cnt = lay_act_cnts[lay_i]
-                    for i, atked_type in enumerate(atked_types_):
-                        cmd.atk_model_type = atked_type
-                        cmd.hids = hids_map[i]
-                        cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
-                        cmd.weight_decay = w_map[i]
-                        cmd.lr = lr_map[i]
+                    split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_)
+                    for atked_type in split_atked_types_:
+                        cmd.atk_model_type = ','.join(atked_type)
                         count += 1
                         print('\n' + dataset + ", {}/{}".format(count, total))
-                        key = '_'.join([embed_type, cmd.lay_act, str(cmd.lay_act_cnt), str(len(cmd.hids)), str(cmd.weight_decay), str(cmd.lr)])
+                        key = '_'.join([embed_type, cmd.lay_act, str(cmd.lay_act_cnt)])
                         do_run(res, key, 'cluster', cmd, filename, embed_type)
 
         save_test(_prefix, times, seeds[:times])
