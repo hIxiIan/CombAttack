@@ -113,7 +113,7 @@ if __name__ == '__main__':
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
                 cmd.atk_model_type = ','.join(atked_types_)
-                for hids in hids_:
+                for hids in hids_[::-1]:
                     cmd.hids = hids
                     cmd.acts = ['relu' for _ in cmd.hids] if embed_type != 'SGC2' else [None for _ in cmd.hids]
                     for weight_decay in weight_decay_:
