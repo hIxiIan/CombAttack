@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
-    parser.add_argument('-lac', '--lay_act_cnt', default=1, type=int)
+    parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
