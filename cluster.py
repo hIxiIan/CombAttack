@@ -97,7 +97,9 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        if self.embed_type in ["GCN", "GCN2", "GAT", "FastGCN"]:
+        if self.parms.lay_act_cnt > 100:
+            self.z = self.model.predict(self.n_nodes)
+        elif self.embed_type in ["GCN", "GCN2", "GAT", "FastGCN"]:
             conv = self.model.model.conv
             conv = conv[:self.get_conv_idx(conv) + 1]
             print(conv)
