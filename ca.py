@@ -63,7 +63,7 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
         return model
     elif model_name == "RobustGCN":
         if is_model and args.hids is not None:
-            gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+            return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
 
     # 异质GCN
