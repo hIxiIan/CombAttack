@@ -62,7 +62,11 @@ if __name__ == '__main__':
                  [512]]
         weight_decay_ = [5e-5, 5e-4, 5e-3, 5e-2]
         lr_ = [0.5, 0.1, 0.05, 0.01, 0.005, 0.001]
-
+        print(hids_)
+        print(weight_decay_)
+        print(lr_)
+        count = 0
+        total = len(models) * len(hids_) * len(weight_decay_) * len(lr_)
         for model_name in models:
             for hids in hids_:
                 args.hids = hids
@@ -71,8 +75,11 @@ if __name__ == '__main__':
                     args.weight_decay = weight_decay
                     for lr in lr_:
                         args.lr = lr
+                        count += 1
+                        print('{}/{}'.format(count, total))
                         if args.is_gf == "true":
                             model = get_model(model_name, args, graph, is_model=True)
+                            print(model)
                             model.fit(splits.train_nodes, splits.val_nodes, verbose=args.verbose, epochs=200)
                             results = model.evaluate(splits.test_nodes, verbose=args.verbose)
                             print('hids:{}, wd:{}, lr:{}'.format(args.hids, args.weight_decay, args.lr))
