@@ -23,7 +23,7 @@ import scipy.sparse as sp
 import graphgallery.functional as gf
 
 
-def get_model(model_name, args, graph, is_embed=False):
+def get_model(model_name, args, graph, is_embed=False, is_model=False):
     # GCN
     if model_name == "SGC":
         return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
@@ -62,6 +62,8 @@ def get_model(model_name, args, graph, is_embed=False):
         model.name = "GCN_Jaccard"
         return model
     elif model_name == "RobustGCN":
+        if is_model and args.hids is not None:
+            gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.RobustGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
 
     # 异质GCN
@@ -240,6 +242,8 @@ def init_sampler(attacker, args):
     else:
         model = get_embed_model(args, attacker.graph)
         sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
+        # sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
+        #                   attacker.logits, args.cluster_parms)
         sampler.type_ = args.subgraph_type
         print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
         sampler.embed_acc = model.embed_acc
@@ -569,6 +573,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
     parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
+    # parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
