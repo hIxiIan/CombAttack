@@ -14,6 +14,11 @@ def get_models(models):
     return models.split(",")
 
 
+def print_args(args):
+    for k, v in sorted(vars(args).items()):
+        print(k, '=', v)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
@@ -23,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--is_gf", default="false", type=str, help="graphgallery / deeprobust")
     args = parser.parse_args()
+    print_args(args)
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
 
     gg.set_backend("th")
