@@ -36,6 +36,8 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
             return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build(hids=hids, acts=acts, dropout=0, weight_decay=weight_decay, lr=lr, bias=True)
         return gg.gallery.nodeclas.SGC2(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
     elif model_name == "GCN":
+        if is_model and args.hids is not None:
+            return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph).build()
     if model_name == "GCN2":
         if args.hids is not None:
@@ -58,6 +60,11 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
 
     # 鲁棒GCN
     elif model_name == "GCN_Jaccard":
+        if is_model and args.hids is not None:
+            model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph,
+                                                                                            graph_transform="jaccard_detection").build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
+            model.name = "GCN_Jaccard"
+            return model
         model = gg.gallery.nodeclas.GCN(device=args.device, seed=args.seed).setup_graph(graph, graph_transform="jaccard_detection").build()
         model.name = "GCN_Jaccard"
         return model
@@ -68,6 +75,8 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
 
     # 异质GCN
     elif model_name == "SimPGCN":
+        if is_model and args.hids is not None:
+            return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build(hids=args.hids, acts=args.acts, dropout=0, weight_decay=args.weight_decay, lr=args.lr, bias=True)
         return gg.gallery.nodeclas.SimPGCN(device=args.device, seed=args.seed).setup_graph(graph).build()
 
     # 空域GCN
