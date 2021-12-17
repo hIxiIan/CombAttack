@@ -171,6 +171,7 @@ class Cluster:
             print('cluster euclidean results:\n{}'.format(self.farthest_idx))
         elif self.parms.distance_type == WRONG_LABELS:
             farthest_idx = []
+            farthest_idx_pro = []
             wrong_labels = self.wrong_labels
             cluster_labels = self.cluster_label_pred
             for ti, target in enumerate(self.targets):
@@ -180,10 +181,12 @@ class Cluster:
                         continue
                     sl = self.sur_labels[cluster_labels == i]
                     farthest[i] = (sl == wrong_labels[ti]).mean()
-                df = pd.DataFrame(farthest)
-                farthest_idx.append(np.array(df.sort_values(0, ascending=False).index))
+                df = pd.DataFrame(farthest).sort_values(0, ascending=False)
+                farthest_idx.append(np.array(df.index))
+                farthest_idx_pro.append(df.values.ravel())
+                print('cluster:{}, pro:{}'.format(farthest_idx[-1], farthest_idx_pro[-1]))
             self.farthest_idx = np.array(farthest_idx)
-            print('cluster wrong_labels results:\n{}'.format(self.farthest_idx))
+
 
     def visualization(self):
         # print('targets labels:{}'.format(list(self.cluster_label_pred)))
