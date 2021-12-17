@@ -1,9 +1,12 @@
 import argparse
+import os
+import pandas as pd
 import torch
 import graphgallery as gg
 import graphgallery.functional as gf
 from ca import get_model, get_dr_model
 from graphgallery.datasets import NPZDataset
+from time import strftime, localtime
 
 ds = ["GCN", "SGC", "SimPGCN", "GCN_Jaccard", "FastGCN"]
 
@@ -67,6 +70,12 @@ if __name__ == '__main__':
         print(lr_)
         count = 0
         total = len(models) * len(hids_) * len(weight_decay_) * len(lr_)
+
+        rootdir = "result/test_model"
+        if not os.path.exists(rootdir):
+            os.mkdir(rootdir)
+        filename = rootdir + os.sep + "_".join([args.dataset, strftime("%Y_%m_%d_%H_%M_%S", localtime())]) + '.csv'
+        df = pd.DataFrame(columns=["acc"])
         for model_name in models:
             for hids in hids_:
                 args.hids = hids
@@ -79,11 +88,13 @@ if __name__ == '__main__':
                         print('{}/{}'.format(count, total))
                         if args.is_gf == "true":
                             model = get_model(model_name, args, graph, is_model=True)
-                            print(model)
                             model.fit(splits.train_nodes, splits.val_nodes, verbose=args.verbose, epochs=200)
                             results = model.evaluate(splits.test_nodes, verbose=args.verbose)
                             print('hids:{}, wd:{}, lr:{}'.format(args.hids, args.weight_decay, args.lr))
                             print(f'Model: {model_name}, Test accuracy {results.accuracy:.2%}')
+                            key = "_".join([model_name, str(args.hids[0]), str(args.weight_decay), str(arhs.lr)])
+                            df.loc[key] = np.array([results.accuracy])
+                            df.to_csv(filename)
                         else:
                             assert False, "invalid dr test parms"
                             model, acc = get_dr_model(model_name, args, graph)
