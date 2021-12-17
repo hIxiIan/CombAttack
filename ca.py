@@ -417,13 +417,9 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
             is_add = add_clusterIsMisClassifiedLabel
             c_is_add_eva_asr = c_is_add_poi_asr = c_isn_add_eva_asr = c_isn_add_poi_asr = 0
             if np.any(is_add):
-                print(is_add)
-                print(eva_res[name][is_add])
                 c_is_add_eva_asr = eva_res[name][is_add].mean()
                 c_is_add_poi_asr = poi_res[name][is_add].mean()
             if np.any(~is_add):
-                print(~is_add)
-                print(eva_res[name][~is_add])
                 c_isn_add_eva_asr = eva_res[name][~is_add].mean()
                 c_isn_add_poi_asr = poi_res[name][~is_add].mean()
             print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][is_add]), c_is_add_eva_asr))
