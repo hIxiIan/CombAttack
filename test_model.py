@@ -74,7 +74,7 @@ if __name__ == '__main__':
         print(weight_decay_)
         print(lr_)
         count = 0
-        total = len(models) * len(hids_) * len(weight_decay_) * len(lr_)
+        total = len(datasets) * len(models) * len(hids_) * len(weight_decay_) * len(lr_)
 
         rootdir = "result/test_model"
         if not os.path.exists(rootdir):
