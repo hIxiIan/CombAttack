@@ -241,9 +241,8 @@ def init_sampler(attacker, args):
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
         model = get_embed_model(args, attacker.graph)
-        sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio, args.cluster_parms)
-        # sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
-        #                   attacker.logits, args.cluster_parms)
+        sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
+                          attacker.logits, attacker.softmax_logits, args.cluster_parms)
         sampler.type_ = args.subgraph_type
         print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
         sampler.embed_acc = model.embed_acc
@@ -294,10 +293,21 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     if sampler is not None:
         targets_labels_pred = sampler.cluster_label_pred[args.targets]
+        # surrogate model predicted labels
+        sur_labels = sampler.sur_labels
+        # second largest pro class , computed by surrogate logits and ground truth
+        wrong_labels = sampler.wrong_labels
+        # get the max pro class of added cluster nodes
+        add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
+        add_clusterIsMisClassifiedLabel = wrong_labels == add_gcn_labels
         if verbose:
             print('cluster: targets labels:{}, {}'.format(set(targets_labels_pred),
                                                       [(l, (targets_labels_pred == l).sum()) for l in
                                                        set(targets_labels_pred)]))
+            print('added_nodes labels: {}'.format(add_gcn_labels))
+            print('added_nodes labels pro: {}'.format(add_gcn_labels_rate))
+            print('wrong_labels: {}'.format(wrong_labels))
+            print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel))
 
     start = time()
     eva_res = {}
@@ -305,7 +315,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     poi_res = {}
     # poi_res_wl = {}
     original_predicts = {}
-    add_clusterIsMisClassifiedLabel = {}
+
     for attacked_model in attacked_models:
         name = attacked_model.name
         if attacked_model.is_dr:
@@ -318,20 +328,6 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # eva_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
         poi_res[name] = np.zeros(len(args.targets)).astype('bool')
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
-
-        if sampler is not None:
-            # surrogate model predicted labels
-            sur_labels = np.array([lo.argmax() for lo in sur_preds])
-            # second largest pro class , computed by surrogate logits and ground truth
-            wrong_labels = get_wrong_labels(attacker.logits, args.targets, args.node_label)
-            # get the max pro class of added cluster nodes
-            add_gcn_labels, add_gcn_labels_rate = mapCluster2GCN(args.targets, sur_labels, sampler.added_edges)
-            add_clusterIsMisClassifiedLabel[name] = wrong_labels == add_gcn_labels
-            if verbose:
-                print('added_nodes labels: {}'.format(add_gcn_labels))
-                print('added_nodes labels pro: {}'.format(add_gcn_labels_rate))
-                print('wrong_labels: {}'.format(wrong_labels))
-            # print('add_clusterIsMisClassifiedLabel:{}'.format(add_clusterIsMisClassifiedLabel[name]))
 
     cost_targets = 0.
     for i, target in enumerate(args.targets):
@@ -418,11 +414,18 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         print('attack {} model, eva_asr: {}'.format(name, eva_asr[name]))
         print('attack {} model, poi_asr: {}'.format(name, poi_asr[name]))
         if sampler is not None:
-            is_add = add_clusterIsMisClassifiedLabel[name]
-            c_is_add_eva_asr = eva_res[name][is_add].sum() / len(eva_res[name][is_add])
-            c_isn_add_eva_asr = eva_res[name][~is_add].sum() / len(eva_res[name][~is_add])
-            c_is_add_poi_asr = poi_res[name][is_add].sum() / len(poi_res[name][is_add])
-            c_isn_add_poi_asr = poi_res[name][~is_add].sum() / len(poi_res[name][~is_add])
+            is_add = add_clusterIsMisClassifiedLabel
+            c_is_add_eva_asr = c_is_add_poi_asr = c_isn_add_eva_asr = c_isn_add_poi_asr = 0
+            if np.any(is_add):
+                print(is_add)
+                print(eva_res[name][is_add])
+                c_is_add_eva_asr = eva_res[name][is_add].mean()
+                c_is_add_poi_asr = poi_res[name][is_add].mean()
+            if np.any(~is_add):
+                print(~is_add)
+                print(eva_res[name][~is_add])
+                c_isn_add_eva_asr = eva_res[name][~is_add].mean()
+                c_isn_add_poi_asr = poi_res[name][~is_add].mean()
             print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][is_add]), c_is_add_eva_asr))
             print('attack {} model, farthest_cluster is the misclassified class, nodes nums:{}, poi_asr:{}'.format(name, len(poi_res[name][is_add]), c_is_add_poi_asr))
             print('attack {} model, farthest_cluster isn\'t the misclassified class, nodes nums:{}, eva_asr:{}'.format(name, len(eva_res[name][~is_add]), c_isn_add_eva_asr))
@@ -573,13 +576,14 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
     parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
-    # parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
+    parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
     cmd.weight_decay = None
     cmd.lr = None
+    # cmd.distance_type = "wrong_labels"
     # cmd.embed_type = "ClusterGCN"
     # cmd.dataset = 'cora'
     # cmd.subgraph_type = "cluster"

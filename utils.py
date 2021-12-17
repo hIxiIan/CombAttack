@@ -11,7 +11,7 @@ from sklearn import preprocessing
 from graphgallery import functional as gf
 from numba import jit, int32, int64
 
-DP_MODELS = ['RobustGCN']
+DP_MODELS = ['RobustGCN', 'SimPGCN']
 
 DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
 
@@ -497,10 +497,10 @@ MODEL_PARAMS = {
             ATKED_SIMPGCN: [HIDS3[1], 5e-3, 5e-2],
         },
         EMBED_MLP: {
-            ATKED_GCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_JGCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_RGCN: [HIDS3[1], 5e-5, 5e-3],
-            ATKED_SIMPGCN: [HIDS3[1], 5e-5, 5e-3],
+            ATKED_GCN: [[1024, 1024, 512, 512, 256, 256, 128, 64], 5e-5, 1e-3],
+            ATKED_JGCN: [[1024, 1024, 512, 512, 256, 256, 128, 64], 5e-5, 1e-3],
+            ATKED_RGCN: [[1024, 1024, 512, 512, 256, 256, 128, 64], 5e-5, 1e-2],
+            ATKED_SIMPGCN: [[1024, 1024, 512, 512, 256, 256, 128, 64], 5e-4, 1e-2],
         },
         EMBED_SGC: {
             ATKED_GCN: [HIDS3[1], 5e-5, 5e-2],

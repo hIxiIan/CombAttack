@@ -1,17 +1,21 @@
 import graphgallery as gg
+import numpy as np
 import pandas as pd
+import torch
+import matplotlib.pyplot as plt
+
 from graphgallery import functional as gf
 from sklearn.cluster import KMeans
 from numba import njit
-import numpy as np
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-import torch
 from time import time
+from utils import get_wrong_labels, mapCluster2GCN
 
+EUCLIDEAN = "euclidean"
+WRONG_LABELS = "wrong_labels"
 
 class Cluster:
-    def __init__(self, direct_attack, embed_type, targets, model, graph, sample_ratio, parms):
+    def __init__(self, direct_attack, embed_type, targets, model, graph, sample_ratio, logits, softmax_logits, parms):
         self.direct_attack = direct_attack
         self.embed_type = embed_type
         self.targets = np.array(targets)
@@ -22,15 +26,20 @@ class Cluster:
         self.n_nodes = np.array(range(graph.adj_matrix.shape[0]))
         self.n_classes = len(set(graph.node_label))
         self.sample_nums = int(sample_ratio * graph.adj_matrix.shape[0])
+        self.logits = logits
         self.parms = parms
+
+        self.sur_labels = np.array([lo.argmax() for lo in softmax_logits])
+        self.wrong_labels = get_wrong_labels(logits, targets, graph.node_label)
         self.z = None
-        self.tsne = TSNE()
+        self.tsne = None
         self.cluster_type = "KMeans"
         self.cluser_model = None
         self.cluster_label_pred = None
         self.cluster_centroidds = None
         self.intertia = None
         self.farthest_idx = None
+        self.farthest_idx_dict = None
 
         self.sub_nodes = None
         self.deleted_edges = None
@@ -148,23 +157,41 @@ class Cluster:
         return pow(embed1 - embed2, 2).sum()
 
     def get_farthest_idx(self):
-        farthest_idx = np.zeros((self.n_classes, self.n_classes))
-        farthest = np.zeros((self.n_classes, self.n_classes))
-        for i in range(self.n_classes):
-            for j in range(i + 1, self.n_classes):
-                distance = self.compute_distance(self.cluster_centroidds[i], self.cluster_centroidds[j])
-                farthest[i][j] = farthest[j][i] = distance
-        df = pd.DataFrame(farthest)
-        for i in range(self.n_classes):
-            farthest_idx[i] = np.array(df.iloc[i].sort_values(ascending=False).index)
-        self.farthest_idx = farthest_idx
-        print('cluster results:\n{}'.format(self.farthest_idx))
+        if self.parms.distance_type == EUCLIDEAN:
+            farthest_idx = np.zeros((self.n_classes, self.n_classes))
+            farthest = np.zeros((self.n_classes, self.n_classes))
+            for i in range(self.n_classes):
+                for j in range(i + 1, self.n_classes):
+                    distance = self.compute_distance(self.cluster_centroidds[i], self.cluster_centroidds[j])
+                    farthest[i][j] = farthest[j][i] = distance
+            df = pd.DataFrame(farthest)
+            for i in range(self.n_classes):
+                farthest_idx[i] = np.array(df.iloc[i].sort_values(ascending=False).index)
+            self.farthest_idx = farthest_idx
+            print('cluster euclidean results:\n{}'.format(self.farthest_idx))
+        elif self.parms.distance_type == WRONG_LABELS:
+            farthest_idx = []
+            wrong_labels = self.wrong_labels
+            cluster_labels = self.cluster_label_pred
+            for ti, target in enumerate(self.targets):
+                farthest = np.zeros(self.n_classes)
+                for i in range(self.n_classes):
+                    if i == cluster_labels[target]: # delete the cluster of target
+                        continue
+                    sl = self.sur_labels[cluster_labels == i]
+                    farthest[i] = (sl == wrong_labels[ti]).mean()
+                df = pd.DataFrame(farthest)
+                farthest_idx.append(np.array(df.sort_values(0, ascending=False).index))
+            self.farthest_idx = np.array(farthest_idx)
+            print('cluster wrong_labels results:\n{}'.format(self.farthest_idx))
 
     def visualization(self):
         # print('targets labels:{}'.format(list(self.cluster_label_pred)))
+        self.tsne = TSNE()
         self.tsne.fit_transform(self.z)
         X = pd.DataFrame(self.z)
         X['labels'] = self.cluster_label_pred
+        # X['labels'] = self.graph.node_label
         tsne = pd.DataFrame(self.tsne.embedding_, index=X.index)  # 转换数据格式
         for label in range(self.n_classes):
             d = tsne[X[u'labels'] == label]
@@ -191,7 +218,7 @@ class Cluster:
 
     @staticmethod
     @njit(cache=True)
-    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z, topk_cluster):
+    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z, distance_type, topk_cluster, random, is_het):
         deleted_nodes = []
         added_nodes = []
         for target in targets:
@@ -199,7 +226,7 @@ class Cluster:
             indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
             deleted_nodes.append(indirect_deleted_nodes)
 
-            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, topk_cluster=topk_cluster)
+            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, distance_type, topk_cluster=topk_cluster, random=random, is_het=is_het)
             added_nodes.append(indirect_added_nodes)
         return deleted_nodes, added_nodes
 
@@ -255,7 +282,7 @@ class Cluster:
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
             added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx,
-                                          self.n_nodes, self.z, topk_cluster=self.parms.topk_cluster,
+                                          self.n_nodes, self.z, self.parms.distance_type, topk_cluster=self.parms.topk_cluster,
                                           random=self.parms.random, is_het=self.parms.is_het)
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
@@ -263,8 +290,8 @@ class Cluster:
         else:
             deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
                                             self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes,
-                                            self.z, topk_cluster=self.parms.topk_cluster, random=self.parms.random,
-                                            is_het=self.parms.is_het)
+                                            self.z, self.parms.distance_type, topk_cluster=self.parms.topk_cluster,
+                                            random=self.parms.random, is_het=self.parms.is_het)
             deleted_nodes = make_redundancy(deleted_nodes, False)
             added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
@@ -283,16 +310,20 @@ def get_deleted_nodes(targets, indices, indptr):
 
 
 @njit(cache=True)
-def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, extra_nums_nodes=5, topk_cluster=1, random=False, is_het=False):
+def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, distance_type, extra_nums_nodes=5, topk_cluster=1, random=False, is_het=False):
     if random:
         topk_cluster = farthest_idx.shape[1]
     elif topk_cluster == 1:
         random = False
     added_nodes = []
-    for target in targets:
+    for i, target in enumerate(targets):
         added_node = []
-        target_label_pred = label_pred[target]
-        candidate_labels = farthest_idx[target_label_pred][:-1][:topk_cluster]
+        if distance_type == EUCLIDEAN:
+            candidate_labels = farthest_idx[label_pred[target]][:-1][:topk_cluster]
+            # candidate_labels = farthest_idx[target_label_pred][::-1][1:][:topk_cluster]
+        elif distance_type == WRONG_LABELS:
+            candidate_labels = farthest_idx[i][:topk_cluster]
+
         for i, label in enumerate(candidate_labels):
             nnodes = n_nodes[label_pred == label]
             if i > 0:
