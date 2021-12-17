@@ -38,20 +38,20 @@ if __name__ == '__main__':
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
 
     gg.set_backend("th")
-    data = NPZDataset(args.dataset,
-                      root="~/GraphData/datasets/",
-                      verbose=False,
-                      transform="standardize")
-    graph = data.graph
-    splits = data.split_nodes(random_state=15)
-    args.splits = splits
-    gf.random_seed(args.seed, gg.backend())
 
     models = get_models(args.model)
     datasets = get_datasets(args.dataset)
     if args.test == "false":
         for dataset in datasets:
             args.dataset = dataset
+            data = NPZDataset(args.dataset,
+                              root="~/GraphData/datasets/",
+                              verbose=False,
+                              transform="standardize")
+            graph = data.graph
+            splits = data.split_nodes(random_state=15)
+            args.splits = splits
+            gf.random_seed(args.seed, gg.backend())
             for model_name in models:
                 if args.is_gf == "true":
                     model = get_model(model_name, args, graph)
@@ -81,6 +81,14 @@ if __name__ == '__main__':
             os.mkdir(rootdir)
         for dataset in datasets:
             args.dataset = dataset
+            data = NPZDataset(args.dataset,
+                              root="~/GraphData/datasets/",
+                              verbose=False,
+                              transform="standardize")
+            graph = data.graph
+            splits = data.split_nodes(random_state=15)
+            args.splits = splits
+            gf.random_seed(args.seed, gg.backend())
             filename = rootdir + os.sep + "_".join([args.dataset, strftime("%Y_%m_%d_%H_%M_%S", localtime())]) + '.csv'
             df = pd.DataFrame(columns=["acc"])
             for model_name in models:
