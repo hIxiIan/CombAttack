@@ -53,8 +53,9 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
-    parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
+    parser.add_argument('-lac', '--lay_act_cnt', default=999, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
+    parser.add_argument('-ns', '--not_split', default="true", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -69,6 +70,7 @@ if __name__ == '__main__':
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
+    not_split = True if cmd.not_split == "true" else False
     print(dataset_)
     print(embed_types_)
     print(atked_types_)
@@ -96,11 +98,11 @@ if __name__ == '__main__':
             count = 0
             total = 0
             for embed_type in embed_types_:
-                total += len(get_split_atked_types(dataset, embed_type, atked_types_))
+                total += len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
 
             for embed_type in embed_types_:
                 cmd.embed_type = embed_type
-                split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_)
+                split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_, not_split)
                 for atked_type in split_atked_types_:
                     count += 1
                     cmd.atk_model_type = ','.join(atked_type)
