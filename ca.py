@@ -344,7 +344,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         start_i = time()
         try:
             if args.us:
-                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack)
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, is_topk=args.is_topk)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
         except AssertionError as e:
@@ -571,7 +571,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="MLP", type=str)
+    parser.add_argument("-et", "--embed_type", default="GCN2", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
     parser.add_argument('-atk', '--atk_model_type', default="GCN", type=str)
 
@@ -582,6 +582,7 @@ if __name__ == '__main__':
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
     parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
+    parser.add_argument('-tk', '--is_topk', default="false", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None

@@ -13,6 +13,7 @@ from graphgallery.attack.targeted.targeted_attacker import TargetedAttacker
 from copy import deepcopy
 from utils import normalize_GCN, get_hop_neighbors, get_hop_rate, get_wrong_rate, to_array
 from time import time
+from functools import reduce
 
 try:
     """It will be faster with torch_geometric"""
@@ -107,7 +108,8 @@ class SCA(TargetedAttacker):
                disable=False,
                verbose_us=True,
                sampler=None,
-               blockchain=None):
+               blockchain=None,
+               is_topk=False):
 
         super().attack(target, num_budgets, direct_attack, structure_attack,
                        feature_attack)
@@ -127,7 +129,7 @@ class SCA(TargetedAttacker):
         self.wrong_label = torch.LongTensor([wrong_label]).to(self.device)
         self.true_label = torch.LongTensor([self.target_label]).to(self.device)
         if self.sampler.type_ == "cluster":
-            self.subgraph_preprocessing_cluster()
+            self.subgraph_preprocessing_cluster(is_topk)
         else:
             self.subgraph_preprocessing(attacker_nodes)
         offset = self.edge_weights.shape[0]
@@ -182,30 +184,6 @@ class SCA(TargetedAttacker):
             # if potential_times == 0:
             #     assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
         return self
-
-    def subgraph_preprocessing_cluster(self):
-        sub_nodes = self.sampler.sub_nodes[self.sampler.targets_map[self.target]]
-        deleted_edges = self.sampler.deleted_edges[self.sampler.targets_map[self.target]]
-        added_edges = self.sampler.added_edges[self.sampler.targets_map[self.target]]
-
-        wrong_label = self.wrong_label  # 分类概率次大的label
-        wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
-        # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
-
-        # self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
-        # self._sub_nodes = sub_nodes
-        # self._sub_edges = deleted_edges
-        # self._sub_non_edges = added_edges
-
-        self.construct_sub_adj(sub_nodes, deleted_edges, added_edges)
-
-        # if self.verbose_us:
-        #     print('sub_edges:', self._sub_edges.shape)
-        #     print('sub_non_edges:', self._sub_non_edges.shape)
-        #     print('sub_nodes:', self._sub_nodes.shape)
-        #     print('sub_nodes:', self._sub_nodes)
-        #     print('sub_edges:', self._sub_edges)
-        #     print('sub_non_edges:', self._sub_non_edges)
 
     def subgraph_preprocessing(self, attacker_nodes=None):
         wrong_label = self.wrong_label # 分类概率次大的label
@@ -272,8 +250,54 @@ class SCA(TargetedAttacker):
         ])
         return non_edges
 
-    def compute_gradient(self, eps=5.0):
+    def subgraph_preprocessing_cluster(self, is_topk=False):
+        sub_nodes = self.sampler.sub_nodes[self.sampler.targets_map[self.target]]
+        deleted_edges = self.sampler.deleted_edges[self.sampler.targets_map[self.target]]
+        added_edges = self.sampler.added_edges[self.sampler.targets_map[self.target]]
+        wrong_label = self.wrong_label  # 分类概率次大的label
+        wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
+        # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
 
+        # self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
+        # self._sub_nodes = sub_nodes
+        # self._sub_edges = deleted_edges
+        # self._sub_non_edges = added_edges
+        sub_nodes = np.sort(sub_nodes)
+        self.construct_sub_adj(sub_nodes, deleted_edges, added_edges)
+        # print('sub_nodes', sub_nodes, len(sub_nodes))
+        # print('deleted_edges', deleted_edges, len(deleted_edges[1]))
+        # print('added_edges', added_edges, len(added_edges[1]))
+        if is_topk:
+            added_edges = self.top_k_added_edges(k=self.num_budgets + 1)
+            sub_nodes = self.get_sub_nodes(deleted_edges, added_edges)
+            # print('sub_nodes', sub_nodes, len(sub_nodes))
+            # print('deleted_edges', deleted_edges, len(deleted_edges[1]))
+            # print('added_edges', added_edges, len(added_edges[1]))
+            self.construct_sub_adj(sub_nodes, deleted_edges, added_edges)
+        # if self.direct_attack:
+        #     self.construct_sub_adj(sub_nodes, deleted_edges, added_edges)
+        # else:
+        #     pass
+
+        # if self.verbose_us:
+        #     print('sub_edges:', self._sub_edges.shape)
+        #     print('sub_non_edges:', self._sub_non_edges.shape)
+        #     print('sub_nodes:', self._sub_nodes.shape)
+        #     print('sub_nodes:', self._sub_nodes)
+        #     print('sub_edges:', self._sub_edges)
+        #     print('sub_non_edges:', self._sub_non_edges)
+    def get_sub_nodes(self, deleted_edges, added_edges):
+        return reduce(np.union1d, (deleted_edges[0], deleted_edges[1], added_edges[0], added_edges[1]))
+
+    def top_k_added_edges(self, k):
+        _, non_edge_grad = self.compute_gradient()
+        k = min(len(non_edge_grad), k)
+        _, index = torch.topk(non_edge_grad, k=k, sorted=False)
+        index = index.cpu()
+        added_edges = np.array([self.non_edge_index[0][index], self.non_edge_index[1][index]])
+        return added_edges
+
+    def compute_gradient(self, eps=5.0):
         edge_weights = self.edge_weights
         non_edge_weights = self.non_edge_weights
         self_loop_weights = self.self_loop_weights
@@ -320,13 +344,6 @@ class SCA(TargetedAttacker):
         self.edge_index = sub_edges
         self.non_edge_index = non_edges
         self.self_loop = self_loop
-
-    def top_k_wrong_labels_nodes(self, k):
-        _, non_edge_grad = self.compute_gradient()
-        _, index = torch.topk(non_edge_grad, k=k, sorted=False)
-
-        wrong_label_nodes = self.non_edge_index[1][index.cpu()]
-        return wrong_label_nodes
 
     def update_subgraph(self, u, v, index, add=True):
         if add:

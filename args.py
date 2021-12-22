@@ -31,6 +31,7 @@ class ARGS:
         self.cluster = True if cmd.subgraph_type == "cluster" else False
         self.embed_type = cmd.embed_type
         self.is_phi = True if cmd.is_phi == "true" else False
+        self.is_topk = True if cmd.is_topk == "true" else False
 
         # attack
         self.subgraph_type = cmd.subgraph_type

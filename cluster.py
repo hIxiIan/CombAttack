@@ -187,7 +187,6 @@ class Cluster:
                 print('cluster:{}, pro:{}'.format(farthest_idx[-1], farthest_idx_pro[-1]))
             self.farthest_idx = np.array(farthest_idx)
 
-
     def visualization(self):
         # print('targets labels:{}'.format(list(self.cluster_label_pred)))
         self.tsne = TSNE()
@@ -241,12 +240,13 @@ class Cluster:
         added_edges = []
         deleted_const = set(np.array([-1], dtype=np.int32))
         for i, target in enumerate(targets):
+            target_set = set(np.array([target], dtype=np.int32)) # make sure the influence
             dn_set = set(deleted_nodes[i]) - deleted_const
             ad_set = set(added_nodes[i]) - deleted_const
             dns = list(dn_set - ad_set)
             ans = list(ad_set - dn_set)
 
-            sub_nodes.append(np.array(list(dn_set | ad_set)))
+            sub_nodes.append(np.array(list(dn_set | ad_set | target_set)))
             deleted_edges.append(list(zip([target] * len(dns), dns)))
             added_edges.append(list(zip([target] * len(ans), ans)))
         return sub_nodes, deleted_edges, added_edges

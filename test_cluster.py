@@ -56,6 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('-lac', '--lay_act_cnt', default=999, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-ns', '--not_split', default="true", type=str)
+    parser.add_argument('-tk', '--is_topk', default="false", type=str)
+
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None

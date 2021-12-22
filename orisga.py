@@ -169,12 +169,14 @@ class SGA(TargetedAttacker):
         # self._sub_edges = sub_edges
         # self._sub_nodes = sub_nodes
         # self._neighbors = neighbors
-        if self.direct_attack or attacker_nodes is not None:
+        # print(self.direct_attack)
+        if self.direct_attack:
+            # print('direct')
             influence_nodes = [target]
             wrong_label_nodes = np.setdiff1d(wrong_label_nodes, neighbors)
         else:
+            # print('indirect')
             influence_nodes = neighbors
-
         # hop_nodes, _ = get_hop_neighbors(self.graph.adj_matrix.indices, self.graph.adj_matrix.indptr, self.target)
         # print(hop_nodes.shape, hop_nodes)
         # print(sub_nodes.shape, sub_nodes)
@@ -247,7 +249,12 @@ class SGA(TargetedAttacker):
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
         self_loop_weights = np.ones(nodes.shape[0], dtype=self.floatx)
         self_loop = np.row_stack([nodes, nodes])
-
+        # print('influence_nodes', influence_nodes)
+        # print('sub_nodes', nodes, len(nodes)) # 排序
+        # print('deleted_edges', sub_edges)
+        # print('added_edges', list(non_edges[0]))# 排序
+        # print('added_edges', list(non_edges[1]))  # 排序
+        # exit()
         indices = np.hstack([
             sub_edges, sub_edges[[1, 0]], non_edges,
             non_edges[[1, 0]], self_loop
