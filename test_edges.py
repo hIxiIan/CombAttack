@@ -12,7 +12,7 @@ from time import strftime, localtime
 from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
 
 
-ds = ["GCN", "SGC", "SimPGCN", "GCN_Jaccard", "FastGCN"]
+ds = ["GCN", "GCN_Jaccard", "SimPGCN", "RobustGCN"]
 
 
 def load_json(filename):
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
-    parser.add_argument("-m", "--model", default="GCN", type=str, help="model")
+    parser.add_argument("-m", "--model", default="", type=str, help="model")
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
     parser.add_argument("--times", default=1, type=int)
