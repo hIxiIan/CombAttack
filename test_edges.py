@@ -10,7 +10,7 @@ from ca import get_model, get_dr_model
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
 from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
-
+from time import time
 
 ds = ["GCN", "GCN_Jaccard", "SimPGCN", "RobustGCN"]
 
@@ -204,7 +204,7 @@ if __name__ == '__main__':
 
             for model_name in models:
                 count += 1
-                print('dataset:{}, times:{}/{}, model:{}, count:{}/{}'.format(args.dataset, i + 1, times, model_name, count, total))
+                start = time()
                 for embed_type in embed_types:
                     targets_edge_flips = cur_edges[embed_type]
                     targets = list(targets_edge_flips.keys())
@@ -221,5 +221,7 @@ if __name__ == '__main__':
 
                     key = "_".join([embed_type, model_name])
                     cur_result.loc[key] = [eva_asr.mean(), poi_asr.mean()]
+                cost = (time() - start) / 60
+                print('count:{}/{}, dataset:{}, times:{}/{}, model:{}, cost:{} min'.format(count, total, args.dataset, i + 1, times, model_name, cost))
             results.append(cur_result)
         save_results(times, results, filename)
