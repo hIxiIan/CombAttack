@@ -150,7 +150,7 @@ if __name__ == '__main__':
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-m", "--model", default="GCN", type=str, help="model")
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
-    parser.add_argument("--is_gf", default="false", type=str, help="graphgallery / deeprobust")
+    parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
     parser.add_argument("--times", default=1, type=int)
     parser.add_argument("-irs", "--is_random_seed", default="false", type=str)
     parser.add_argument("-t", "--timestamp", default="", type=str)
@@ -168,6 +168,8 @@ if __name__ == '__main__':
 
     edgesdir = "result/test_edges/"
 
+    print(datasets)
+    print(models)
     for dataset in datasets:
         args.dataset = dataset
         data = NPZDataset(args.dataset,
@@ -211,5 +213,5 @@ if __name__ == '__main__':
                             eva_asr[ti], poi_asr[ti] = get_dr_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
                     key = "_".join([embed_type, model_name])
                     cur_result.loc[key] = [eva_asr.mean(), poi_asr.mean()]
-            cur_result.append(cur_result)
+            results.append(cur_result)
         save_results(times, results, filename)
