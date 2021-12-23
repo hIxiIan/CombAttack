@@ -9,7 +9,7 @@ import scipy.sparse as sp
 from ca import get_model, get_dr_model
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
-from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn
+from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
 
 
 ds = ["GCN", "SGC", "SimPGCN", "GCN_Jaccard", "FastGCN"]
@@ -172,6 +172,8 @@ if __name__ == '__main__':
 
     print(datasets)
     print(models)
+    count = 0
+    total = args.times * len(datasets) * len(models)
     for dataset in datasets:
         args.dataset = dataset
         data = NPZDataset(args.dataset,
@@ -191,6 +193,7 @@ if __name__ == '__main__':
         is_poi = True if args.is_poisoning == "true" else False
         results = []
         times = args.times
+
         for i in range(times):
             cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr'])
             filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)]) + '.npy'
@@ -200,6 +203,8 @@ if __name__ == '__main__':
             embed_types = cur_edges.keys()
 
             for model_name in models:
+                count += 1
+                print('dataset:{}, times:{}/{}, model:{}, count:{}/{}'.format(args.dataset, i + 1, times, model_name, count, total))
                 for embed_type in embed_types:
                     targets_edge_flips = cur_edges[embed_type]
                     targets = list(targets_edge_flips.keys())
@@ -209,10 +214,11 @@ if __name__ == '__main__':
                         edge_flips = targets_edge_flips[target]
                         perturbed_graph = get_perturbed_graph(graph, edge_flips)
                         gf.random_seed(seed, gg.backend())
-                        if args.is_gf == "true" or args.dataset == 'ogbn-arxiv':
-                            eva_asr[ti], poi_asr[ti] = get_gf_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
-                        else:
+                        if model_name in DP_MODELS or (args.is_gf == "false" and args.dataset != 'ogbn-arxiv'):
                             eva_asr[ti], poi_asr[ti] = get_dr_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
+                        else:
+                            eva_asr[ti], poi_asr[ti] = get_gf_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
+
                     key = "_".join([embed_type, model_name])
                     cur_result.loc[key] = [eva_asr.mean(), poi_asr.mean()]
             results.append(cur_result)

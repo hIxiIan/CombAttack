@@ -20,10 +20,10 @@ def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix="
         if key not in edges_dict:
             edges_dict[key] = perturbed_edges_dict
             np.save(edges_filename + '.npy', edges_dict)
-
-        for rsp in rsps:
-            res.loc['_'.join([key, rsp[0]])] = rsp[1:]
-        res.to_csv(asr_filename + '.csv')
+        if cmd.edge_flips == "false":
+            for rsp in rsps:
+                res.loc['_'.join([key, rsp[0]])] = rsp[1:]
+            res.to_csv(asr_filename + '.csv')
 
     except Exception as e:
         res.loc[key] = RES_ERRORS[1:]
@@ -126,5 +126,7 @@ if __name__ == '__main__':
                     print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
                     key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
-            print('dataset:{}, times:{}, edge_dict:{}'.format(dataset, i, edge_dict))
-        save_test(_asr_prefix, times, seeds[:times])
+            print('dataset:{}, times:{}'.format(dataset, i))
+
+        if cmd.edge_flips == "false":
+            save_test(_asr_prefix, times, seeds[:times])
