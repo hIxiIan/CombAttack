@@ -42,7 +42,9 @@ def save_results(times, results, filename):
             tdf += df
     tdf /= times
     filename = "_".join(filename.split("_")[:-1]) + '_total.csv'
+    print(filename)
     tdf.to_csv(filename)
+    print(tdf)
 
 
 def get_adj_flips(edge_flips):
