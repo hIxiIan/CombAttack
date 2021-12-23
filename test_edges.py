@@ -45,8 +45,19 @@ def save_results(times, results, filename):
     tdf.to_csv(filename)
 
 
+def get_adj_flips(edge_flips):
+    flips = edge_flips
+    if flips is None or len(flips) == 0:
+        return None
+
+    if isinstance(flips, dict):
+        flips = list(flips.keys())
+
+    return np.asarray(flips, dtype="int64")
+
+
 def A(graph, edge_flips):
-    adj_flips = edge_flips
+    adj_flips = get_adj_flips(edge_flips)
     if adj_flips is not None:
         modified_adj = gf.flip_adj(graph.adj_matrix, adj_flips)
     else:

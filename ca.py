@@ -662,7 +662,7 @@ if __name__ == '__main__':
     parser.add_argument('-tc', '--topk_cluster', default=1, type=int)
     parser.add_argument('-r', '--random', default="false", type=str)
     parser.add_argument('-la', '--lay_act', default="layer", type=str)
-    parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
+    parser.add_argument('-lac', '--lay_act_cnt', default=999, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
     parser.add_argument('-ef', '--edge_flips', default="false", type=str)
@@ -710,6 +710,7 @@ if __name__ == '__main__':
             perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=False)
         else:
             perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose=False)
+    print(perturbed_edges_dict)
     # print(res)
     # gpu_tracker.track()
     gc.collect()
