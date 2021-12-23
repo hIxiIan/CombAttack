@@ -3,6 +3,7 @@ import graphgallery as gg
 import pandas as pd
 import argparse
 import warnings
+import numpy as np
 
 from time import strftime, localtime
 from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
@@ -11,14 +12,19 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
 
-def do_run(res, key, st, cmd, filename, prefix=""):
+def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix=""):
     print()
     print('====={}: {} start====='.format(prefix, key))
     try:
-        rsps = run(st, cmd=cmd, verbose=False)
+        perturbed_edges_dict, rsps = run(st, cmd=cmd, verbose=False)
+        if key not in edges_dict:
+            edges_dict[key] = perturbed_edges_dict
+            np.save(edges_filename + '.npy', edges_dict)
+
         for rsp in rsps:
             res.loc['_'.join([key, rsp[0]])] = rsp[1:]
-        res.to_csv(filename)
+        res.to_csv(asr_filename + '.csv')
+
     except Exception as e:
         res.loc[key] = RES_ERRORS[1:]
         print('=====ASSERT_ERROR:'.format(repr(e)))
@@ -57,6 +63,7 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-ns', '--not_split', default="true", type=str)
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
+    parser.add_argument('-ef', '--edge_flips', default="false", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
@@ -65,10 +72,13 @@ if __name__ == '__main__':
     cmd.lr = None
     gg.set_backend("th")
 
+    edgesdir = "result/test_edges"
     rootdir = "result/test_cluster"
     if not os.path.exists(rootdir):
         os.mkdir(rootdir)
-    personal = strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    if not os.path.exists(edgesdir):
+        os.mkdir(edgesdir)
+    curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
@@ -79,20 +89,25 @@ if __name__ == '__main__':
 
     for dataset in dataset_:
         cmd.dataset = dataset
-        _prefix = rootdir + os.sep + "_".join([cmd.dataset, personal])
+        _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])
+        _edges_prefix = edgesdir + os.sep + "_".join([cmd.dataset, curtime])
         seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
         # seeds = [2012, 1997, 5018, 2413, 2022, 97, 21, 32, 56, 44, 94]
         times = min(cmd.times, len(seeds))
         for i in range(times):
+            edge_dict = {}
             res = pd.DataFrame(columns=RES_COLUMNS[1:])
             cmd.seed = seeds[i]
+            asr_filename = "_".join([_asr_prefix, str(i)])
+            edges_filename = "_".join([_edges_prefix, str(i)])
+            edge_dict['seed'] = cmd.seed
             print(cmd.seed)
-            filename = "_".join([_prefix, str(i)]) + '.csv'
-            print(filename)
+            print(asr_filename)
+            print(edges_filename)
             if cmd.run_sga == "true":
                 cmd.atk_model_type = ','.join(atked_types_)
                 key = '_'.join(['sga'])
-                do_run(res, key, 'sga', cmd, filename)
+                do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict)
 
             if cmd.run_us != "true":
                 continue
@@ -110,6 +125,6 @@ if __name__ == '__main__':
                     cmd.atk_model_type = ','.join(atked_type)
                     print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
                     key = '_'.join([embed_type])
-                    do_run(res, key, 'cluster', cmd, filename, embed_type)
+                    do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
 
-        save_test(_prefix, times, seeds[:times])
+        save_test(_asr_prefix, times, seeds[:times])

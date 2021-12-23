@@ -144,6 +144,8 @@ def get_dr_model(model_name, args, graph):
                               nhid=64, lr=0.01, dropout=0, weight_decay=5e-4, device=device)
     else:
         assert False, "invalid deeprobust model"
+    attacked_model.name = model_name
+    attacked_model.is_dr = True
     attacked_model.to(device)
     attacked_model.fit(sp.csr_matrix(features), sp.csr_matrix(adj), labels, idx_train, idx_val, train_iters=200,
                        verbose=False)
@@ -159,8 +161,6 @@ def get_attacked_models(atked_types, args, graph):
     for atked_type in atked_types:
         if args.dataset != 'ogbn-arxiv' and atked_type in DP_MODELS:
             attacked_model, acc = get_dr_model(atked_type, args, graph)
-            attacked_model.name = atked_type
-            attacked_model.is_dr = True
             attacked_models.append(attacked_model)
             attacked_models_acc.append(acc)
             print('atked_model :{}, clean_acc: {}'.format(atked_type, acc))
@@ -179,17 +179,10 @@ def get_attacked_models(atked_types, args, graph):
     return attacked_models
 
 
-def get_attacker_attacked_models(args, graph):
+def get_attacker(args, graph):
     if not args.blockchain:
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
-
-        # Before attack
-        atked_types = get_attacked_types(args.atk_model_type)
-        attacked_models = get_attacked_models(atked_types, args, graph)
-        # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
-
-        args.atked_model_ = atked_types[0]
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -198,17 +191,26 @@ def get_attacker_attacked_models(args, graph):
         args.train_nodes = list(range(graph.node_label.shape[0]))
         surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
         surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
-
-        # Before attack
-        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
-        attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
-        attacked_models = [attacked_model]
         if args.us:
             attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
             attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+    return attacker
 
-    return attacked_models, attacker
+
+def get_atk_models(args, graph):
+    if not args.blockchain:
+        atked_types = get_attacked_types(args.atk_model_type)
+        attacked_models = get_attacked_models(atked_types, args, graph)
+        # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
+        args.atked_model_ = atked_types[0]
+    else:
+        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
+        attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+        attacked_models = [attacked_model]
+        # todo: check the influence
+        args.atked_model_ = attacked_model.name
+    return attacked_models
 
 
 def get_embed_model(args, graph):
@@ -298,6 +300,33 @@ def get_gf_results(attacked_model, attacker, args, target):
     return eva_perturbed_label, poi_perturbed_label
 
 
+def testACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbose_us=False):
+    sampler = init_sampler(attacker, args)
+    start = time()
+    perturbed_edges_dict = {}
+    for i, target in enumerate(args.targets):
+        attacker = attacker.reset()
+        try:
+            if args.us:
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, is_topk=args.is_topk)
+            else:
+                attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack)
+        except AssertionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+        except PermissionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+        perturbed_edges_dict[target] = attacker.adj_flips
+    end = time()
+    cost = (end - start) / 60
+    embed_acc = sampler.embed_acc if sampler is not None else 0
+    if args.subgraph_type != "cluster":
+        print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
+    else:
+        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+    print('testACC end, cost time: {} min'.format(cost))
+    return perturbed_edges_dict, []
+
+
 def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     sampler = init_sampler(attacker, args)
     if sampler is not None:
@@ -339,6 +368,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
         # poi_res_wl[name] = np.zeros(len(args.targets)).astype('bool')
 
     cost_targets = 0.
+    perturbed_edges_dict = {}
     for i, target in enumerate(args.targets):
         attacker = attacker.reset()
         start_i = time()
@@ -353,6 +383,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         end_i = time()
         cost_targets = end_i - start_i
+        perturbed_edges_dict[target] = attacker.adj_flips
         # After attack
         # wrong_label = int(attacker.wrong_label[0])
 
@@ -443,7 +474,48 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     else:
         print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
-    return [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
+    return perturbed_edges_dict, [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
+
+
+def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbose_us=False):
+    if args.is_phi:
+        attacked_model = attacked_models[0]
+        original_predict, lgb_model = get_pd(attacked_model, args)
+        surrogate_phishing_targets = np.where(original_predict == 1)[0]
+        true_phishing_targets = np.where(args.node_label == 1)[0]
+        args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+        print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(
+            len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
+    else:
+        print('attack phishing or non-phishing nodes')
+
+    sampler = init_sampler(attacker, args)
+    start = time()
+    perturbed_edges_dict = {}
+    for i, target in enumerate(args.targets):
+        attacker = attacker.reset()
+        try:
+            if args.us:
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack,
+                                blockchain=args.blockchain, is_topk=args.is_topk)
+            else:
+                attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack, blockchain=args.blockchain)
+        except AssertionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+        except PermissionError as e:
+            print('iter: {}. ###############, error: {}'.format(i, repr(e)))
+        perturbed_edges_dict[target] = attacker.adj_flips
+    end = time()
+    cost = (end - start) / 60
+    embed_acc = sampler.embed_acc if sampler is not None else 0
+    if args.subgraph_type != "cluster":
+        print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
+    else:
+        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+    print('testBlockACC end, cost time: {} min'.format(cost))
+    print('embed_acc:{}'.format(embed_acc))
+
+    return perturbed_edges_dict, []
 
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
@@ -463,12 +535,13 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     poi_res = np.zeros(len(args.targets)).astype('bool')
     start = time()
     cost_targets = 0.0
+    perturbed_edges_dict = {}
     for i, target in enumerate(args.targets):
         attacker = attacker.reset()
         start_i = time()
         try:
             if args.us:
-                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, blockchain=args.blockchain)
+                attacker.attack(target, sampler=sampler, verbose_us=verbose_us, direct_attack=args.direct_attack, blockchain=args.blockchain, is_topk=args.is_topk)
             else:
                 attacker.attack(target, verbose_us=False, direct_attack=args.direct_attack, blockchain=args.blockchain)
         except AssertionError as e:
@@ -477,6 +550,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
             print('iter: {}. ###############, error: {}'.format(i, repr(e)))
         end_i = time()
         cost_targets = end_i - start_i
+        perturbed_edges_dict[target] = attacker.adj_flips
         # After attack
         true_label = original_predict[target]
         # evasion
@@ -521,7 +595,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
-    return [[eva_asr, poi_asr, cost, embed_acc, args.attacked_models_acc[0], cost_targets / len(args.targets), cluster_cost_time]]
+    return perturbed_edges_dict, [[eva_asr, poi_asr, cost, embed_acc, args.attacked_models_acc[0], cost_targets / len(args.targets), cluster_cost_time]]
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
@@ -542,15 +616,23 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     cmd.alpha = alpha
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     print(args.device)
+    attacker = get_attacker(args, graph)
 
-    attacked_models, attacker = get_attacker_attacked_models(args, graph)
     if not args.blockchain:
-        res = testACC(attacked_models, attacker, args, verbose=verbose)
+        if args.edge_flips:
+            perturbed_edges_dict, res = testACC_get_edge_flips(None, attacker, args, verbose=verbose)
+        else:
+            attacked_models = get_atk_models(args, graph)
+            perturbed_edges_dict, res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
-        res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
+        attacked_models = get_atk_models(args, graph)
+        if args.edge_flips:
+            perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=verbose)
+        else:
+            perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose=verbose)
     # print(res)
     gc.collect()
-    return res
+    return perturbed_edges_dict, res
 
 
 if __name__ == '__main__':
@@ -583,6 +665,7 @@ if __name__ == '__main__':
     parser.add_argument('-lac', '--lay_act_cnt', default=2, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
+    parser.add_argument('-ef', '--edge_flips', default="false", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
@@ -612,12 +695,21 @@ if __name__ == '__main__':
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
-    attacked_models, attacker = get_attacker_attacked_models(args, graph)
+    attacker = get_attacker(args, graph)
+
     # gpu_tracker.track()
     if not args.blockchain:
-        res = testACC(attacked_models, attacker, args, verbose_us=False)
+        if args.edge_flips:
+            perturbed_edges_dict, res = testACC_get_edge_flips(None, attacker, args, verbose_us=False)
+        else:
+            attacked_models = get_atk_models(args, graph)
+            perturbed_edges_dict, res = testACC(attacked_models, attacker, args, verbose_us=False)
     else:
-        res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
+        attacked_models = get_atk_models(args, graph)
+        if args.edge_flips:
+            perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=False)
+        else:
+            perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose=False)
     # print(res)
     # gpu_tracker.track()
     gc.collect()
