@@ -145,7 +145,7 @@ def get_true_labels(attacked_models, N):
         if attacked_model.is_dr:
             true_label = attacked_model.output.max(1)[1].cpu().numpy()
         else:
-            true_label = attacked_model.predict(list(range(N)), transform="softmax").argmax()
+            true_label = [logit.argmax() for logit in attacked_model.predict(list(range(N)), transform="softmax")]
         true_labels.append(true_label)
     return true_labels
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-m", "--model", default="", type=str, help="model")
-    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
+    parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
     parser.add_argument("--times", default=1, type=int)
     parser.add_argument("-irs", "--is_random_seed", default="false", type=str)
@@ -166,6 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     args = parser.parse_args()
+    # args.timestamp = "2021_12_24_13_56_01"
     assert args.timestamp != "", "timestamp is invalid"
     print_args(args)
 
