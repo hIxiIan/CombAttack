@@ -127,6 +127,7 @@ if __name__ == '__main__':
                     key = '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
             print('dataset:{}, times:{}'.format(dataset, i))
-
+        print(_asr_prefix)
+        print(_edges_prefix)
         if cmd.edge_flips == "false":
             save_test(_asr_prefix, times, seeds[:times])
