@@ -205,11 +205,12 @@ def get_atk_models(args, graph):
         # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
         args.atked_model_ = atked_types[0]
     else:
-        attacked_model = gg.gallery.nodeclas.GCNPD(device=args.device, seed=args.seed).setup_graph(graph).build()
+        attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
         attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
         attacked_models = [attacked_model]
         # todo: check the influence
         args.atked_model_ = attacked_model.name
+        args.attacked_models_acc = [0]
     return attacked_models
 
 
@@ -707,9 +708,9 @@ if __name__ == '__main__':
     else:
         attacked_models = get_atk_models(args, graph)
         if args.edge_flips:
-            perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=False)
+            perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose_us=False)
         else:
-            perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose=False)
+            perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
     print(perturbed_edges_dict)
     # print(res)
     # gpu_tracker.track()

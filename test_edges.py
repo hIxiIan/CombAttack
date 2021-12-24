@@ -223,7 +223,7 @@ if __name__ == '__main__':
                     print('skip embed_type:{}'.format(embed_type))
                     continue
                 start = time()
-                print('embed_type:{}, atk_models:{}, '.format(embed_type, models), end="")
+                print('embed_type:{}, atk_models:{}'.format(embed_type, models))
                 targets_edge_flips = cur_edges[embed_type]
                 targets = list(targets_edge_flips.keys())
                 for ti, target in enumerate(targets):
