@@ -6,7 +6,7 @@ import torch
 import graphgallery as gg
 import graphgallery.functional as gf
 import scipy.sparse as sp
-from ca import get_model, get_dr_model
+from ca import get_model, get_dr_model, get_attacked_models
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
 from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
@@ -89,10 +89,10 @@ def get_perturbed_graph(graph, edge_flips):
     return graph
 
 
-def get_gf_results(name, graph, perturbed_graph, args, target, is_eva, is_poi):
-    eva_model = get_model(name, args, graph)
-    eva_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
-    true_label = eva_model.predict(target, transform="softmax").argmax()
+def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, is_eva, is_poi):
+    # eva_model = get_model(name, args, graph)
+    # eva_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
+    # true_label = eva_model.predict(target, transform="softmax").argmax()
     eva_perturbed_label = None
     poi_perturbed_label = None
 
@@ -115,10 +115,10 @@ def get_gf_results(name, graph, perturbed_graph, args, target, is_eva, is_poi):
     return eva_asr, poi_asr
 
 
-def get_dr_results(name, graph, perturbed_graph, args, target, is_eva, is_poi):
-    eva_model, _ = get_dr_model(name, args, graph)
-    eva_model.eval()
-    true_label = eva_model.output.max(1)[1].cpu().numpy()[target]
+def get_dr_results(eva_model, name, true_label, perturbed_graph, args, target, is_eva, is_poi):
+    # eva_model, _ = get_dr_model(name, args, graph)
+    # eva_model.eval()
+    # true_label = eva_model.output.max(1)[1].cpu().numpy()[target]
     eva_perturbed_label = None
     poi_perturbed_label = None
 
@@ -143,6 +143,17 @@ def get_dr_results(name, graph, perturbed_graph, args, target, is_eva, is_poi):
     poi_asr = true_label != poi_perturbed_label if poi_perturbed_label is not None else False
 
     return eva_asr, poi_asr
+
+
+def get_true_labels(attacked_models, N):
+    true_labels = []
+    for attacked_model in attacked_models:
+        if attacked_model.is_dr:
+            true_label = attacked_model.output.max(1)[1].cpu().numpy()
+        else:
+            true_label = attacked_model.predict(list(range(N)), transform="softmax").argmax()
+        true_labels.append(true_label)
+    return true_labels
 
 
 if __name__ == '__main__':
@@ -173,7 +184,7 @@ if __name__ == '__main__':
     print(datasets)
     print(models)
     count = 0
-    total = args.times * len(datasets) * len(models)
+    total = args.times * len(datasets)
     for dataset in datasets:
         args.dataset = dataset
         data = NPZDataset(args.dataset,
@@ -195,33 +206,46 @@ if __name__ == '__main__':
         times = args.times
 
         for i in range(times):
+            count += 1
+            print('count:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
             cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr'])
-            filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)]) + '.npy'
+            filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)])
             cur_edges = load_json(filename)
             seed = cur_edges['seed']
             del cur_edges['seed']
             embed_types = cur_edges.keys()
 
-            for model_name in models:
-                count += 1
+            attacked_models = get_attacked_models(models, args, graph)
+            true_labels = get_true_labels(attacked_models, len(graph.node_label))
+            eva_asr = {}
+            poi_asr = {}
+            for embed_type in embed_types:
                 start = time()
-                for embed_type in embed_types:
-                    targets_edge_flips = cur_edges[embed_type]
-                    targets = list(targets_edge_flips.keys())
-                    eva_asr = np.zeros(len(targets)).astype('bool')
-                    poi_asr = np.zeros(len(targets)).astype('bool')
-                    for ti, target in enumerate(targets):
-                        edge_flips = targets_edge_flips[target]
-                        perturbed_graph = get_perturbed_graph(graph, edge_flips)
+                print('embed_type:{}, atk_models:{}, '.format(embed_type, models), end="")
+                targets_edge_flips = cur_edges[embed_type]
+                targets = list(targets_edge_flips.keys())
+                for ti, target in enumerate(targets):
+                    edge_flips = targets_edge_flips[target]
+                    perturbed_graph = get_perturbed_graph(graph, edge_flips)
+                    for ai, attacked_model in enumerate(attacked_models):
                         gf.random_seed(seed, gg.backend())
-                        if model_name in DP_MODELS or (args.is_gf == "false" and args.dataset != 'ogbn-arxiv'):
-                            eva_asr[ti], poi_asr[ti] = get_dr_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
+                        name = attacked_model.name
+                        if name in DP_MODELS or (args.is_gf == "false" and args.dataset != 'ogbn-arxiv'):
+                            is_eva_success, is_poi_success = get_dr_results(attacked_model, name, true_labels[ai][target], perturbed_graph, args, target, is_eva, is_poi)
                         else:
-                            eva_asr[ti], poi_asr[ti] = get_gf_results(model_name, graph, perturbed_graph, args, target, is_eva, is_poi)
-
-                    key = "_".join([embed_type, model_name])
-                    cur_result.loc[key] = [eva_asr.mean(), poi_asr.mean()]
-                cost = (time() - start) / 60
-                print('count:{}/{}, dataset:{}, times:{}/{}, model:{}, cost:{} min'.format(count, total, args.dataset, i + 1, times, model_name, cost))
+                            is_eva_success, is_poi_success = get_gf_results(attacked_model, name, true_labels[ai][target], perturbed_graph, args, target, is_eva, is_poi)
+                        key = "_".join([embed_type, name])
+                        if key not in eva_asr:
+                            eva_asr[key] = np.zeros(len(targets)).astype('bool')
+                        if key not in poi_asr:
+                            poi_asr[key] = np.zeros(len(targets)).astype('bool')
+                        eva_asr[key][ti] = is_eva_success
+                        poi_asr[key][ti] = is_poi_success
+                for attacked_model in attacked_models:
+                    name = attacked_model.name
+                    key = "_".join([embed_type, name])
+                    cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean()]
+                cur_result.to_csv(filename + '.csv')
+                print('cost:{} min'.format((time() - start) / 60))
             results.append(cur_result)
         save_results(times, results, filename)
