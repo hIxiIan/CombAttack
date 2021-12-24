@@ -196,7 +196,6 @@ if __name__ == '__main__':
         args.splits = splits
         # todo: random times experiments
         if args.is_random_seed == "true":
-
             continue
 
         # fixed seed
