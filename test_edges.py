@@ -90,9 +90,6 @@ def get_perturbed_graph(graph, edge_flips):
 
 
 def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, is_eva, is_poi):
-    # eva_model = get_model(name, args, graph)
-    # eva_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
-    # true_label = eva_model.predict(target, transform="softmax").argmax()
     eva_perturbed_label = None
     poi_perturbed_label = None
 
@@ -116,9 +113,6 @@ def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, i
 
 
 def get_dr_results(eva_model, name, true_label, perturbed_graph, args, target, is_eva, is_poi):
-    # eva_model, _ = get_dr_model(name, args, graph)
-    # eva_model.eval()
-    # true_label = eva_model.output.max(1)[1].cpu().numpy()[target]
     eva_perturbed_label = None
     poi_perturbed_label = None
 
@@ -169,6 +163,8 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--timestamp", default="", type=str)
     parser.add_argument("-ie", "--is_evasion", default="true", type=str)
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
+    parser.add_argument('--run_sga', default="true", type=str)
+    parser.add_argument('--run_us', default="true", type=str)
     args = parser.parse_args()
     assert args.timestamp != "", "timestamp is invalid"
     print_args(args)
@@ -219,6 +215,12 @@ if __name__ == '__main__':
             eva_asr = {}
             poi_asr = {}
             for embed_type in embed_types:
+                if args.run_sga == "false" and embed_type.lower() == "sga":
+                    print('skip embed_type:{}'.format(embed_type))
+                    continue
+                if args.run_us == "false" and embed_type.lower() in ['mlp', 'gcn2', 'sgc2', 'fastgcn']:
+                    print('skip embed_type:{}'.format(embed_type))
+                    continue
                 start = time()
                 print('embed_type:{}, atk_models:{}, '.format(embed_type, models), end="")
                 targets_edge_flips = cur_edges[embed_type]

@@ -17,7 +17,7 @@ def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix="
     print('====={}: {} start====='.format(prefix, key))
     try:
         perturbed_edges_dict, rsps = run(st, cmd=cmd, verbose=False)
-        if key not in edges_dict:
+        if cmd.edge_flips == "true" and key not in edges_dict:
             edges_dict[key] = perturbed_edges_dict
             np.save(edges_filename + '.npy', edges_dict)
         if cmd.edge_flips == "false":
