@@ -204,7 +204,7 @@ if __name__ == '__main__':
         for i in range(times):
             count += 1
             print('count:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
-            cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr'])
+            cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr', 'clean_acc'])
             filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)])
             cur_edges = load_json(filename)
             seed = cur_edges['seed']
@@ -243,10 +243,10 @@ if __name__ == '__main__':
                             poi_asr[key] = np.zeros(len(targets)).astype('bool')
                         eva_asr[key][ti] = is_eva_success
                         poi_asr[key][ti] = is_poi_success
-                for attacked_model in attacked_models:
+                for ai, attacked_model in enumerate(attacked_models):
                     name = attacked_model.name
                     key = "_".join([embed_type, name])
-                    cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean()]
+                    cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean(), args.attacked_models_acc[ai]]
                 cur_result.to_csv(filename + '.csv')
                 print('cost:{} min'.format((time() - start) / 60))
             results.append(cur_result)
