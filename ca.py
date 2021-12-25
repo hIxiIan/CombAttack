@@ -215,7 +215,7 @@ def get_atk_models(args, graph):
 
 
 def get_embed_model(args, graph):
-    model = get_model(args.embed_type, args, graph, is_embed=True)
+    model = get_model(args.embed_type, args, graph, is_embed=False)
     if args.embed_type not in ["DW", 'N2V', 'BANE']:
         model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
         results = model.evaluate(args.splits.test_nodes, verbose=0)
