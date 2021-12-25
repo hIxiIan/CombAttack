@@ -618,7 +618,16 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     print(args.device)
     attacker = get_attacker(args, graph)
-
+    if cmd.target_mode == "correct_sur_labels":
+        gf.random_seed(cmd.seed, gg.backend())
+        candidates = np.array(splits.test_nodes)
+        sur_labels = np.array([lo.argmax() for lo in attacker.softmax_logits])
+        ground_truths = graph.node_label
+        predict_suc_idx = sur_labels[candidates] == ground_truths[candidates]
+        test_nodes = candidates[predict_suc_idx]
+        assert cmd.target_nums >= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
+        targets = random.sample(list(test_nodes), cmd.target_nums)
+        args.targets = targets
     if not args.blockchain:
         if args.edge_flips:
             perturbed_edges_dict, res = testACC_get_edge_flips(None, attacker, args, verbose=verbose)
@@ -667,6 +676,7 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
     parser.add_argument('-ef', '--edge_flips', default="false", type=str)
+    parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
@@ -697,6 +707,16 @@ if __name__ == '__main__':
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
     args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
     attacker = get_attacker(args, graph)
+    if cmd.target_mode == "correct_sur_labels":
+        gf.random_seed(cmd.seed, gg.backend())
+        candidates = np.array(splits.test_nodes)
+        sur_labels = np.array([lo.argmax() for lo in attacker.softmax_logits])
+        ground_truths = graph.node_label
+        predict_suc_idx = sur_labels[candidates] == ground_truths[candidates]
+        test_nodes = candidates[predict_suc_idx]
+        assert cmd.target_nums >= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
+        targets = random.sample(list(test_nodes), cmd.target_nums)
+        args.targets = targets
 
     # gpu_tracker.track()
     if not args.blockchain:

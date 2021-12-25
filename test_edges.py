@@ -165,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
+    parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
     args = parser.parse_args()
     # args.timestamp = "2021_12_24_13_56_01"
     assert args.timestamp != "", "timestamp is invalid"
@@ -203,7 +204,7 @@ if __name__ == '__main__':
 
         for i in range(times):
             count += 1
-            print('count:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
+            print('\ncount:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
             cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr', 'clean_acc'])
             filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)])
             cur_edges = load_json(filename)
@@ -227,6 +228,8 @@ if __name__ == '__main__':
                 targets_edge_flips = cur_edges[embed_type]
                 targets = list(targets_edge_flips.keys())
                 for ti, target in enumerate(targets):
+                    if ti % 20 == 0:
+                        print('{} targets attacked'.format(ti))
                     edge_flips = targets_edge_flips[target]
                     perturbed_graph = get_perturbed_graph(graph, edge_flips)
                     for ai, attacked_model in enumerate(attacked_models):
