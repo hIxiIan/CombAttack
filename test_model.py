@@ -33,6 +33,8 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--is_gf", default="false", type=str, help="graphgallery / deeprobust")
     parser.add_argument("--test", default="false", type=str, help="test parms mode")
+    parser.add_argument("--save_model", default="false", type=str)
+
     args = parser.parse_args()
     print_args(args)
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
@@ -58,6 +60,8 @@ if __name__ == '__main__':
                     model.fit(splits.train_nodes, splits.val_nodes, verbose=args.verbose, epochs=200)
                     results = model.evaluate(splits.test_nodes, verbose=args.verbose)
                     print(f'Dataset: {args.dataset}, Model: {model_name}, Test accuracy {results.accuracy:.2%}')
+                    if args.save_model == "true" and model_name in ['sgc', 'SGC']:
+                        model.model.save(model_name + '_model')
                 else:
                     model, acc = get_dr_model(model_name, args, graph)
                     print(f'Dataset: {args.dataset}, Model: {model_name}, Test accuracy {acc:.2%}')
