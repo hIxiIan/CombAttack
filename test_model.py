@@ -61,7 +61,7 @@ if __name__ == '__main__':
                     results = model.evaluate(splits.test_nodes, verbose=args.verbose)
                     print(f'Dataset: {args.dataset}, Model: {model_name}, Test loss: {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
                     if args.save_model == "true" and model_name in ['sgc', 'SGC']:
-                        model.model.save(model_name + '_model')
+                        model.model.save(dataset + '_' + model_name + '_model')
                 else:
                     model, acc = get_dr_model(model_name, args, graph)
                     print(f'Dataset: {args.dataset}, Model: {model_name}, Test accuracy {acc:.2%}')

@@ -77,6 +77,7 @@ class SGA(TargetedAttacker):
         self.SGC = SGConv(K).to(self.device)
         self.K = K
         self.logits = surrogate.predict(np.arange(self.num_nodes))
+        self.softmax_logits = surrogate.predict(np.arange(self.num_nodes), transform="softmax")
         self.loss_fn = nn.CrossEntropyLoss()
         if reset:
             self.reset()
