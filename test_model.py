@@ -59,7 +59,7 @@ if __name__ == '__main__':
                     model = get_model(model_name, args, graph)
                     model.fit(splits.train_nodes, splits.val_nodes, verbose=args.verbose, epochs=200)
                     results = model.evaluate(splits.test_nodes, verbose=args.verbose)
-                    print(f'Dataset: {args.dataset}, Model: {model_name}, Test accuracy {results.accuracy:.2%}')
+                    print(f'Dataset: {args.dataset}, Model: {model_name}, Test loss: {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
                     if args.save_model == "true" and model_name in ['sgc', 'SGC']:
                         model.model.save(model_name + '_model')
                 else:
