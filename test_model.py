@@ -26,7 +26,7 @@ def print_args(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=2022, type=int, help="random seed")
+    parser.add_argument("--seed", default=1000, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-m", "--model", default="GCN", type=str, help="model")

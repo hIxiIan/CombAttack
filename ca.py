@@ -183,6 +183,8 @@ def get_attacker(args, graph):
     if not args.blockchain:
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
+        results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
+        print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -219,14 +221,14 @@ def get_embed_model(args, graph):
     if args.embed_type not in ["DW", 'N2V', 'BANE']:
         model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
         results = model.evaluate(args.splits.test_nodes, verbose=0)
-        print(f'Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+        print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
     else:
         if args.embed_type in ["DW", "N2V"]:
             model.fit(graph.adj_matrix)
         elif args.embed_type == "BANE":
             model.fit(graph.adj_matrix, graph.node_attr)
         results = model.evaluate_nodeclas(graph.node_label, args.splits.train_nodes, args.splits.test_nodes)
-        print('Test accuracy:{}'.format(results.accuracy))
+        print('get_embed_model Test accuracy:{}'.format(results.accuracy))
     model.embed_acc = results.accuracy
     return model
 
@@ -625,7 +627,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
         ground_truths = graph.node_label
         predict_suc_idx = sur_labels[candidates] == ground_truths[candidates]
         test_nodes = candidates[predict_suc_idx]
-        assert cmd.target_nums >= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
+        assert cmd.target_nums <= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
         targets = random.sample(list(test_nodes), cmd.target_nums)
         args.targets = targets
     if not args.blockchain:
@@ -714,7 +716,7 @@ if __name__ == '__main__':
         ground_truths = graph.node_label
         predict_suc_idx = sur_labels[candidates] == ground_truths[candidates]
         test_nodes = candidates[predict_suc_idx]
-        assert cmd.target_nums >= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
+        assert cmd.target_nums <= len(test_nodes), "the number of target nodes is larger than predicted suc nodes"
         targets = random.sample(list(test_nodes), cmd.target_nums)
         args.targets = targets
 
