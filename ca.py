@@ -598,7 +598,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
-    return perturbed_edges_dict, [[eva_asr, poi_asr, cost, embed_acc, args.attacked_models_acc[0], cost_targets / len(args.targets), cluster_cost_time]]
+    return perturbed_edges_dict, [[attacked_model.name, eva_asr, poi_asr, cost, embed_acc, args.attacked_models_acc[0], cost_targets / len(args.targets), cluster_cost_time]]
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
