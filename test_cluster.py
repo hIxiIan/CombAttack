@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 
 from time import strftime, localtime
-from utils import save_test, get_datasets, get_embed_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
+from utils import save_test, get_datasets, get_embed_types, get_mix_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
 from ca import run
 from tqdm import tqdm
 warnings.filterwarnings("ignore")
@@ -86,9 +86,15 @@ if __name__ == '__main__':
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
     not_split = True if cmd.not_split == "true" else False
+    mix_cluster = True if cmd.mix_cluster == "true" else False
+    mix_types_ = get_mix_types(cmd.mix_types)
+    method_types = embed_types_
+    if mix_cluster:
+        method_types = mix_types_
     print(dataset_)
-    print(embed_types_)
     print(atked_types_)
+    print(embed_types_)
+    print(mix_types_)
 
     for dataset in dataset_:
         cmd.dataset = dataset
@@ -117,17 +123,17 @@ if __name__ == '__main__':
 
             count = 0
             total = 0
-            for embed_type in embed_types_:
+            for embed_type in method_types:
                 total += len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
 
-            for embed_type in embed_types_:
-                cmd.embed_type = embed_type
+            for embed_type in method_types:
+                cmd.embed_type = embed_type if not mix_cluster else None
                 split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_, not_split)
                 for atked_type in split_atked_types_:
                     count += 1
                     cmd.atk_model_type = ','.join(atked_type)
                     print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
-                    key = '_'.join([embed_type])
+                    key = '_'.join(embed_type) if mix_cluster else '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
             print('dataset:{}, times:{}'.format(dataset, i))
         print(_asr_prefix)

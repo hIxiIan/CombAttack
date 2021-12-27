@@ -65,8 +65,7 @@ class Cluster:
 
         self.do()
 
-    def get_layer_act_idx(self, layers):
-        embed_type = self.embed_type
+    def get_layer_act_idx(self, layers, embed_type):
         layerMap = self.layerMap
         actMap = self.actMap
 
@@ -91,12 +90,12 @@ class Cluster:
                     actIdx[ac].append(i)
         return layerIdx, actIdx
 
-    def get_conv_idx(self, layer):
+    def get_conv_idx(self, layer, embed_type):
         lay_act = self.parms.lay_act
         lay_act_cnt = self.parms.lay_act_cnt
-        layerIdx, actIdx = self.get_layer_act_idx(layer)
-        lm = self.layerMap[self.embed_type]
-        ac = self.actMap[self.embed_type]
+        layerIdx, actIdx = self.get_layer_act_idx(layer, embed_type)
+        lm = self.layerMap[embed_type]
+        ac = self.actMap[embed_type]
         if lay_act == "layer":
             lay_act_cnt = max(lay_act_cnt, 1)
             lay_act_cnt = min(lay_act_cnt, len(layerIdx[lm]))
@@ -115,12 +114,12 @@ class Cluster:
                 t_z = _model.predict(self.n_nodes)
             elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
                 conv = _model.model.conv
-                conv = conv[:self.get_conv_idx(conv) + 1]
+                conv = conv[:self.get_conv_idx(conv, name) + 1]
                 print(conv)
                 t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
             elif name in ["MLP", "SGC2"]:
                 lin = _model.model.lin
-                lin = lin[:self.get_conv_idx(lin) + 1]
+                lin = lin[:self.get_conv_idx(lin, name) + 1]
                 print(lin)
                 t_z = lin(_model.cache.X).cpu().numpy()
             # elif "PPNP" in self.embed_type:

@@ -222,21 +222,11 @@ def get_embed_model(args, graph):
     else:
         model = [get_model(args.embed_type, args, graph, is_embed=False)]
 
-    if args.embed_type not in ["DW", 'N2V', 'BANE']:
-        for _model in model:
-            _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
-            results = _model.evaluate(args.splits.test_nodes, verbose=0)
-            print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
-            _model.embed_acc = results.accuracy
-    else:
-        for _model in model:
-            if args.embed_type in ["DW", "N2V"]:
-                _model.fit(graph.adj_matrix)
-            elif args.embed_type == "BANE":
-                _model.fit(graph.adj_matrix, graph.node_attr)
-            results = _model.evaluate_nodeclas(graph.node_label, args.splits.train_nodes, args.splits.test_nodes)
-            print('get_embed_model Test accuracy:{}'.format(results.accuracy))
-            _model.embed_acc = results.accuracy
+    for _model in model:
+        _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
+        results = _model.evaluate(args.splits.test_nodes, verbose=0)
+        print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+        _model.embed_acc = results.accuracy
     return model
 
 
@@ -335,7 +325,10 @@ def testACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbos
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
-        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+        if args.cluster_parms.mix_cluster:
+            print('mix_types:{}, embed_acc:{}'.format(args.cluster_parms.mix_types, embed_acc))
+        else:
+            print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
     return perturbed_edges_dict, []
 
@@ -485,7 +478,10 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
-        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+        if args.cluster_parms.mix_cluster:
+            print('mix_types:{}, embed_acc:{}'.format(args.cluster_parms.mix_types, embed_acc))
+        else:
+            print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testACC end, cost time: {} min'.format(cost))
     return perturbed_edges_dict, [[attacked_model.name, eva_asr[attacked_model.name], poi_asr[attacked_model.name], cost, embed_acc, args.attacked_models_acc[i], cost_targets / len(args.targets), cluster_cost_time] for i, attacked_model in enumerate(attacked_models)]
 
@@ -524,7 +520,10 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
-        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+        if args.cluster_parms.mix_cluster:
+            print('mix_types:{}, embed_acc:{}'.format(args.cluster_parms.mix_types, embed_acc))
+        else:
+            print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 
@@ -604,7 +603,10 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     if args.subgraph_type != "cluster":
         print('subgraph:{}, p:{}, q:{}, alpha:{}'.format(args.subgraph_type, args.p, args.q, args.alpha))
     else:
-        print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
+        if args.cluster_parms.mix_cluster:
+            print('mix_types:{}, embed_acc:{}'.format(args.cluster_parms.mix_types, embed_acc))
+        else:
+            print('embed_type:{}, embed_acc:{}'.format(args.embed_type, embed_acc))
     print('testBlockACC end, cost time: {} min'.format(cost))
     print('embed_acc:{}'.format(embed_acc))
 

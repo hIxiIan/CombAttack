@@ -35,6 +35,7 @@ EMBED_TYPE = ['MLP', 'SGC2', 'GCN2', 'FastGCN']
 
 ATTACKED_TYPE = ['GCN', 'SimPGCN', 'RobustGCN', 'GCN_Jaccard']
 
+MIX_TYPE = [['MLP', 'SGC2']]
 
 n_classes_dict = {
         'cora': 7,
@@ -63,6 +64,12 @@ def get_embed_types(cmd_e):
     if len(cmd_e) <= 0:
         return EMBED_TYPE
     return cmd_e.split(',')
+
+
+def get_mix_types(cmd_m):
+    if len(cmd_m) <= 0:
+        return MIX_TYPE
+    return [mix.split(',') for mix in cmd_m.split(';')]
 
 
 def get_attacked_types(cmd_a):
