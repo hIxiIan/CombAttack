@@ -14,6 +14,7 @@ from utils import get_wrong_labels, mapCluster2GCN
 EUCLIDEAN = "euclidean"
 WRONG_LABELS = "wrong_labels"
 
+
 class Cluster:
     def __init__(self, direct_attack, embed_type, targets, model, graph, sample_ratio, logits, softmax_logits, parms):
         self.direct_attack = direct_attack
@@ -106,42 +107,53 @@ class Cluster:
 
     @torch.no_grad()
     def get_predict(self):
-        if self.parms.lay_act_cnt > 100:
-            self.z = self.model.predict(self.n_nodes)
-        elif self.embed_type in ["GCN", "GCN2", "GAT", "FastGCN"]:
-            conv = self.model.model.conv
-            conv = conv[:self.get_conv_idx(conv) + 1]
-            print(conv)
-            self.z = conv(self.model.cache.X, self.model.cache.A).cpu().numpy()
-        elif "MLP" in self.embed_type or "SGC2" in self.embed_type:
-            lin = self.model.model.lin
-            lin = lin[:self.get_conv_idx(lin) + 1]
-            print(lin)
-            self.z = lin(self.model.cache.X).cpu().numpy()
-        elif "PPNP" in self.embed_type:
-            lin = self.model.model.lin[:-3]
-            propagation = self.model.model.propagation
-            x = lin(self.model.cache.X)
-            self.z = propagation(x, self.model.cache.A).cpu().numpy()
-        elif self.embed_type in ["DW", 'N2V', 'BANE']:
-            self.z = self.model.get_embedding()
-        elif self.embed_type == "ClusterGCN":
-            conv = self.model.model.conv[:-3]
-            nums_cluster = len(self.model.cache.cluster_member)
-            z = []
-            z_idx = []
-            for cluster in range(nums_cluster):
-                tmp_z = conv(self.model.cache.batch_x[cluster], self.model.cache.batch_adj[cluster]).cpu().numpy()
-                z.extend(tmp_z)
-                z_idx.extend(self.model.cache.cluster_member[cluster])
-            z = np.array(z)
-            z_idx = np.array(z_idx)
-            idx_ = np.argsort(z_idx)
-            self.z = z[idx_]
-        elif self.embed_type in ["GraphMLP"]:
-            self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
-        else:
-            self.z = self.model.predict(self.n_nodes)
+        z = None
+        model = self.model
+        for _model in model:
+            name = _model.name
+            if self.parms.lay_act_cnt > 100:
+                t_z = _model.predict(self.n_nodes)
+            elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
+                conv = _model.model.conv
+                conv = conv[:self.get_conv_idx(conv) + 1]
+                print(conv)
+                t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
+            elif name in ["MLP", "SGC2"]:
+                lin = _model.model.lin
+                lin = lin[:self.get_conv_idx(lin) + 1]
+                print(lin)
+                t_z = lin(_model.cache.X).cpu().numpy()
+            # elif "PPNP" in self.embed_type:
+            #     lin = self.model.model.lin[:-3]
+            #     propagation = self.model.model.propagation
+            #     x = lin(self.model.cache.X)
+            #     self.z = propagation(x, self.model.cache.A).cpu().numpy()
+            # elif self.embed_type in ["DW", 'N2V', 'BANE']:
+            #     self.z = self.model.get_embedding()
+            # elif self.embed_type == "ClusterGCN":
+            #     conv = self.model.model.conv[:-3]
+            #     nums_cluster = len(self.model.cache.cluster_member)
+            #     z = []
+            #     z_idx = []
+            #     for cluster in range(nums_cluster):
+            #         tmp_z = conv(self.model.cache.batch_x[cluster], self.model.cache.batch_adj[cluster]).cpu().numpy()
+            #         z.extend(tmp_z)
+            #         z_idx.extend(self.model.cache.cluster_member[cluster])
+            #     z = np.array(z)
+            #     z_idx = np.array(z_idx)
+            #     idx_ = np.argsort(z_idx)
+            #     self.z = z[idx_]
+            # elif self.embed_type in ["GraphMLP"]:
+            #     self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
+            # else:
+            #     self.z = self.model.predict(self.n_nodes)
+            else:
+                assert False, "get_predict invalid model"
+            if z is None:
+                z = t_z
+            else:
+                z = np.hstack((z, t_z))
+        self.z = z
         print('z shape: ', self.z.shape)
 
     def do(self):

@@ -217,19 +217,26 @@ def get_atk_models(args, graph):
 
 
 def get_embed_model(args, graph):
-    model = get_model(args.embed_type, args, graph, is_embed=False)
-    if args.embed_type not in ["DW", 'N2V', 'BANE']:
-        model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
-        results = model.evaluate(args.splits.test_nodes, verbose=0)
-        print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+    if args.cluster_parms.mix_cluster:
+        model = [get_model(model_name, args, graph, is_embed=False) for model_name in args.cluster_parms.mix_types]
     else:
-        if args.embed_type in ["DW", "N2V"]:
-            model.fit(graph.adj_matrix)
-        elif args.embed_type == "BANE":
-            model.fit(graph.adj_matrix, graph.node_attr)
-        results = model.evaluate_nodeclas(graph.node_label, args.splits.train_nodes, args.splits.test_nodes)
-        print('get_embed_model Test accuracy:{}'.format(results.accuracy))
-    model.embed_acc = results.accuracy
+        model = [get_model(args.embed_type, args, graph, is_embed=False)]
+
+    if args.embed_type not in ["DW", 'N2V', 'BANE']:
+        for _model in model:
+            _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
+            results = _model.evaluate(args.splits.test_nodes, verbose=0)
+            print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+            _model.embed_acc = results.accuracy
+    else:
+        for _model in model:
+            if args.embed_type in ["DW", "N2V"]:
+                _model.fit(graph.adj_matrix)
+            elif args.embed_type == "BANE":
+                _model.fit(graph.adj_matrix, graph.node_attr)
+            results = _model.evaluate_nodeclas(graph.node_label, args.splits.train_nodes, args.splits.test_nodes)
+            print('get_embed_model Test accuracy:{}'.format(results.accuracy))
+            _model.embed_acc = results.accuracy
     return model
 
 
@@ -258,8 +265,11 @@ def init_sampler(attacker, args):
         sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
                           attacker.logits, attacker.softmax_logits, args.cluster_parms)
         sampler.type_ = args.subgraph_type
-        print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
-        sampler.embed_acc = model.embed_acc
+        if args.cluster_parms.mix_cluster:
+            print('mixed_type:{}, sample process end..., cost:{} min'.format(args.cluster_parms.mix_types, (time() - t1) / 60))
+        else:
+            print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
+        sampler.embed_acc = np.mean([_model.embed_acc for _model in model])
     return sampler
 
 
@@ -679,6 +689,8 @@ if __name__ == '__main__':
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
     parser.add_argument('-ef', '--edge_flips', default="false", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
+    parser.add_argument('-mc', '--mix_cluster', default="false", type=str)
+    parser.add_argument('-mts', '--mix_types', default="MLP,SGC2", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None

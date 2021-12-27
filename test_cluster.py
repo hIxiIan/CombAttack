@@ -65,6 +65,8 @@ if __name__ == '__main__':
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
     parser.add_argument('-ef', '--edge_flips', default="false", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
+    parser.add_argument('-mc', '--mix_cluster', default="false", type=str)
+    parser.add_argument('-mts', '--mix_types', default="MLP,SGC2", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
