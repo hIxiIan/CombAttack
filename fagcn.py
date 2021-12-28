@@ -134,7 +134,7 @@ def get_FAGCN(args, graph):
     eps = 0.3
     layer_num = 2
     nclass = len(set(args.node_label))
-    device = 'gpu' if torch.cuda.is_available() else "cpu"
+    device = 'cuda' if torch.cuda.is_available() else "cpu"
     features, labels, train, test, val, g = preprocess(args, graph, device)
 
     if device == "gpu":
