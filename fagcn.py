@@ -89,7 +89,7 @@ class FAGCN(nn.Module):
     @torch.no_grad()
     def predict(self, idx=None, transform="softmax"):
         self.eval()
-        return self.forward(self.features, True)
+        return self.forward(self.features, True)[idx]
 
 
 def accuracy(logits, labels):
@@ -137,7 +137,7 @@ def get_FAGCN(args, graph):
     device = 'cuda' if torch.cuda.is_available() else "cpu"
     features, labels, train, test, val, g = preprocess(args, graph, device)
 
-    if device == "gpu":
+    if device == "cuda":
         deg = g.in_degrees().cuda().float().clamp(min=1)
     else:
         deg = g.in_degrees().float().clamp(min=1)
@@ -148,7 +148,7 @@ def get_FAGCN(args, graph):
     net.features = features
     net.test = test
     net.labels = labels
-    if device == "gpu":
+    if device == "cuda":
         net.cuda()
 
     # create optimizer

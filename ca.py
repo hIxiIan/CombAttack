@@ -299,22 +299,24 @@ def get_gf_results(attacked_model, attacker, args, target):
     name = attacked_model.name
     # evasion
     if name == "FAGCN":
-        trainer = get_model(name, args, attacker.g)
-        eva_perturbed_label = trainer.predict(target, transform="softmax").argmax()
-        # g = DGLGraph(attacker.g.adj_matrix)
-        # g = dgl.to_simple(g)
-        # g = dgl.to_bidirected(g)
-        # g = dgl.remove_self_loop(g)
-        # attacked_model.g = g
-        # for i in range(attacked_model.layer_num):
-        #     attacked_model.layers[i].g = g
-        #     attacked_model.layers[i].g.ndata['h'] = attacked_model.features
-        #     attacked_model.layers[i].g.apply_edges(attacked_model.layers[i].edge_applying)
+        g = DGLGraph(attacker.g.adj_matrix)
+        g = dgl.to_simple(g)
+        g = dgl.to_bidirected(g)
+        g = dgl.remove_self_loop(g)
+        if args.device == "gpu":
+            deg = g.in_degrees().cuda().float().clamp(min=1)
+        else:
+            deg = g.in_degrees().float().clamp(min=1)
+        norm = torch.pow(deg, -0.5)
+        g.ndata['d'] = norm
+        attacked_model.g = g
+        for i in range(attacked_model.layer_num):
+            attacked_model.layers[i].g = g
     else:
         attacked_model.setup_graph(attacker.g)
-        if name == "SimPGCN":
-            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
-        eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
+    if name == "SimPGCN":
+        attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
+    eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
 
     # poisoning
     trainer = get_model(name, args, attacker.g)
