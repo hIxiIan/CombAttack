@@ -304,6 +304,7 @@ def get_gf_results(attacked_model, attacker, args, target):
         g = dgl.to_bidirected(g)
         g = dgl.remove_self_loop(g)
         if args.device == "gpu":
+            g = g.to("cuda")
             deg = g.in_degrees().cuda().float().clamp(min=1)
         else:
             deg = g.in_degrees().float().clamp(min=1)
