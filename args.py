@@ -25,7 +25,7 @@ class ARGS:
     def __init__(self, cmd, targets=None, splits=None,
 
                  wl_limit=0.5, hops=2, prob=0.8, eps=1e-4,
-                 node_attr=None, node_label=None):
+                 node_attr=None, node_label=None, adj_matrix=None):
         # 通用
         self.seed = cmd.seed
         self.verbose = cmd.verbose
@@ -61,6 +61,7 @@ class ARGS:
         self.eps = eps
 
         # blockchain
+        self.adj_matrix = adj_matrix
         self.node_attr = node_attr
         self.node_label = node_label
 

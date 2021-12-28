@@ -133,7 +133,7 @@ if __name__ == '__main__':
                     count += 1
                     cmd.atk_model_type = ','.join(atked_type)
                     print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
-                    key = '_'.join(embed_type) if mix_cluster else '_'.join([embed_type])
+                    key = '&'.join(embed_type) if mix_cluster else '_'.join([embed_type])
                     do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
             print('dataset:{}, times:{}'.format(dataset, i))
         print(_asr_prefix)

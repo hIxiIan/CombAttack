@@ -6,6 +6,9 @@ import gc
 import argparse
 import inspect
 import torch
+import scipy.sparse as sp
+import graphgallery.functional as gf
+import dgl
 from graphgallery.datasets import NPZDataset
 from sga import SCA, SCAPD
 from orisga import SGA, SGAPD
@@ -19,8 +22,9 @@ from cluster import Cluster
 from gpu_mem_track import MemTracker
 from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn
 from deeprobust.graph.defense import RGCN, SimPGCN
-import scipy.sparse as sp
-import graphgallery.functional as gf
+from fagcn import get_FAGCN
+from dgl import DGLGraph
+from dgl import function as fn
 
 
 def get_model(model_name, args, graph, is_embed=False, is_model=False):
@@ -123,6 +127,12 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
     # dgl backend
     elif model_name == "MixHop":
         return gg.gallery.nodeclas.MixHop(device=args.device, seed=args.seed).setup_graph(graph).build()
+
+    elif model_name == "FAGCN":
+        model, acc = get_FAGCN(args, graph)
+        model.name = "FAGCN"
+        return model
+
     assert False, "invalid graphgallery model"
 
 
@@ -288,10 +298,23 @@ def get_dr_results(attacked_model, attacker, args, target):
 def get_gf_results(attacked_model, attacker, args, target):
     name = attacked_model.name
     # evasion
-    attacked_model.setup_graph(attacker.g)
-    if name == "SimPGCN":
-        attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
-    eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
+    if name == "FAGCN":
+        trainer = get_model(name, args, attacker.g)
+        eva_perturbed_label = trainer.predict(target, transform="softmax").argmax()
+        # g = DGLGraph(attacker.g.adj_matrix)
+        # g = dgl.to_simple(g)
+        # g = dgl.to_bidirected(g)
+        # g = dgl.remove_self_loop(g)
+        # attacked_model.g = g
+        # for i in range(attacked_model.layer_num):
+        #     attacked_model.layers[i].g = g
+        #     attacked_model.layers[i].g.ndata['h'] = attacked_model.features
+        #     attacked_model.layers[i].g.apply_edges(attacked_model.layers[i].edge_applying)
+    else:
+        attacked_model.setup_graph(attacker.g)
+        if name == "SimPGCN":
+            attacked_model.model.cache['adj_knn'] = attacked_model.cache['knn_graph']
+        eva_perturbed_label = attacked_model.predict(target, transform="softmax").argmax()
 
     # poisoning
     trainer = get_model(name, args, attacker.g)
@@ -629,7 +652,7 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     cmd.p = p
     cmd.q = q
     cmd.alpha = alpha
-    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label, adj_matrix=graph.adj_matrix)
     print(args.device)
     attacker = get_attacker(args, graph)
     if cmd.target_mode == "correct_sur_labels":
@@ -721,7 +744,7 @@ if __name__ == '__main__':
     gf.random_seed(cmd.seed, gg.backend())
     splits = data.split_nodes(random_state=15)
     targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label, adj_matrix=graph.adj_matrix)
     attacker = get_attacker(args, graph)
     if cmd.target_mode == "correct_sur_labels":
         gf.random_seed(cmd.seed, gg.backend())
