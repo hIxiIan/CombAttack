@@ -82,7 +82,8 @@ class H2GCN(nn.Module):
     @staticmethod
     def _indicator(sp_tensor: torch.sparse.Tensor) -> torch.sparse.Tensor:
         csp = sp_tensor.coalesce()
-        zero = torch.zeros(csp.values().shape[0])
+        device = csp.values().device
+        zero = torch.zeros(csp.values().shape[0]).to(device)
         return torch.sparse_coo_tensor(
             indices=csp.indices(),
             values=torch.where(csp.values() > 0, csp.values(), zero),
@@ -93,6 +94,7 @@ class H2GCN(nn.Module):
     @staticmethod
     def _spspmm(sp1: torch.sparse.Tensor, sp2: torch.sparse.Tensor) -> torch.sparse.Tensor:
         assert sp1.shape[1] == sp2.shape[0], 'Cannot multiply size %s with %s' % (sp1.shape, sp2.shape)
+        device = sp1.device
         sp1, sp2 = sp1.coalesce(), sp2.coalesce()
         index1, value1 = sp1.indices(), sp1.values()
         index2, value2 = sp2.indices(), sp2.values()
@@ -103,7 +105,7 @@ class H2GCN(nn.Module):
             values=values,
             size=(m, k),
             dtype=torch.float
-        )
+        ).to(device)
 
     @classmethod
     def _adj_norm(cls, adj: torch.sparse.Tensor) -> torch.sparse.Tensor:
@@ -131,8 +133,8 @@ class H2GCN(nn.Module):
         a1 = self._indicator(adj - sp_eye)
         a2 = self._indicator(self._spspmm(adj, adj) - adj - sp_eye)
         # norm A1 A2
-        self.a1 = self._adj_norm(a1)
-        self.a2 = self._adj_norm(a2)
+        self.a1 = self._adj_norm(a1).to(device)
+        self.a2 = self._adj_norm(a2).to(device)
 
     def forward(self, adj: torch.sparse.Tensor, x: FloatTensor) -> FloatTensor:
         if not self.initialized:
@@ -226,7 +228,7 @@ def main(model, patience, checkpoint_path, epochs, optimizer, adj, features, lab
             break
     # print("Train cost : {:.2f}s".format(time.time() - begin_time))
     acc = test(model, checkpoint_path, adj, features, labels, idx_test)[1]
-    print("Test accuracy : {}".format(acc))
+    # print("Test accuracy : {}".format(acc))
     return acc
 
 
