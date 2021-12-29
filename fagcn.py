@@ -89,7 +89,7 @@ class FAGCN(nn.Module):
     @torch.no_grad()
     def predict(self, idx=None, transform="softmax"):
         self.eval()
-        return self.forward(self.features, True)[idx]
+        return self.forward(self.features, True)[idx].cpu().numpy()
 
 
 def accuracy(logits, labels):
