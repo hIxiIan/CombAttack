@@ -23,6 +23,7 @@ from gpu_mem_track import MemTracker
 from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn
 from deeprobust.graph.defense import RGCN, SimPGCN
 from fagcn import get_FAGCN
+from h2gcn import get_H2GCN, sp_to_tensor
 from dgl import DGLGraph
 from dgl import function as fn
 
@@ -131,6 +132,15 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
     elif model_name == "FAGCN":
         model, acc = get_FAGCN(args, graph)
         model.name = "FAGCN"
+        return model
+
+    elif model_name in ["H2GCN", "H2GCN2"]:
+        model, acc = get_H2GCN(args, graph, 2)
+        model.name = "H2GCN2"
+        return model
+    elif model_name == "H2GCN1":
+        model, acc = get_H2GCN(args, graph, 2)
+        model.name = "H2GCN1"
         return model
 
     assert False, "invalid graphgallery model"
@@ -313,6 +323,12 @@ def get_gf_results(attacked_model, attacker, args, target):
         attacked_model.g = g
         for i in range(attacked_model.layer_num):
             attacked_model.layers[i].g = g
+    elif name in ["H2GCN", "H2GCN1", "H2GCN2"]:
+        adj = attacker.g.adj_matrix.tocoo()
+        adj = sp_to_tensor(adj)
+        if args.device == "gpu":
+            adj = adj.to("cuda")
+        attacked_model.adj = adj
     else:
         attacked_model.setup_graph(attacker.g)
     if name == "SimPGCN":
