@@ -139,7 +139,7 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
         model.name = "H2GCN2"
         return model
     elif model_name == "H2GCN1":
-        model, acc = get_H2GCN(args, graph, 2)
+        model, acc = get_H2GCN(args, graph, 1)
         model.name = "H2GCN1"
         return model
 
