@@ -329,6 +329,7 @@ def get_gf_results(attacked_model, attacker, args, target):
         if args.device == "gpu":
             adj = adj.to("cuda")
         attacked_model.adj = adj
+        attacked_model.initialized = False
     else:
         attacked_model.setup_graph(attacker.g)
     if name == "SimPGCN":
