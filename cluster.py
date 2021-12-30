@@ -311,7 +311,7 @@ class Cluster:
                 for d in range(self.parms.deg_limit):
                     print('deg nums: {}'.format((deg <= d).sum()))
                 for p in np.arange(1, self.parms.sur_label_pro_limit, -0.05):
-                    print('sur nums: {}'.format((self.sur_labels_pr >= p).sum()))
+                    print('sur nums: {}'.format((self.sur_labels_pro >= p).sum()))
                 print('added_node length: {}'.format(len(added_node)))
                 added_nodes = [added_node] * len(self.targets)
 
