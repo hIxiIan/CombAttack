@@ -30,6 +30,7 @@ class Cluster:
         self.logits = logits
         self.parms = parms
 
+        self.sur_labels_pro = np.array([lo.max() for lo in softmax_logits])
         self.sur_labels = np.array([lo.argmax() for lo in softmax_logits])
         self.wrong_labels = get_wrong_labels(logits, targets, graph.node_label)
         self.z = None
@@ -295,9 +296,20 @@ class Cluster:
     def get_candidates(self):
         if self.direct_attack:
             deleted_nodes = get_deleted_nodes(self.targets, self.indices, self.indptr)
-            added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx,
-                                          self.n_nodes, self.z, self.parms.distance_type, topk_cluster=self.parms.topk_cluster,
-                                          random=self.parms.random, is_het=self.parms.is_het)
+            if self.parms.test_mode == "-1":
+                added_nodes = get_added_nodes(self.targets, self.cluster_label_pred, self.farthest_idx,
+                                              self.n_nodes, self.z, self.parms.distance_type,
+                                              topk_cluster=self.parms.topk_cluster,
+                                              random=self.parms.random, is_het=self.parms.is_het)
+            elif self.parms.test_mode == "0":
+                deg = self.graph.adj_matrix.toarray().sum(axis=1).ravel()
+                deg_idx = deg <= self.parms.deg_limit
+                sur_labels_idx = self.sur_labels_pro >= self.parms.sur_label_pro_limit
+                idx = deg_idx & sur_labels_idx
+                added_node = self.n_nodes[idx]
+                print('get_test_mode_edges: deg_idx:{}, sur_labels_idx:{}, added_node length: {}'.format(deg_idx.sum(), sur_labels_idx.sum(), len(added_node)))
+                added_nodes = [added_node] * len(self.targets)
+
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)

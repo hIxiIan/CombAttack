@@ -7,7 +7,8 @@ from utils import DATASET_BLOCKCHAIN
 class ClusterParms:
     def __init__(self, max_iter=300, n_init=40, seed=2020, topk_cluster=3,
                  random=False, is_het=False, lay_act="layer", lay_act_cnt=1, distance_type="euclidean",
-                 mix_cluster="false", mix_types="MLP,SGC2"):
+                 mix_cluster="false", mix_types="MLP,SGC2",
+                 test_mode="-1", deg_limit=2, sur_label_pro_limit=0.9):
         self.max_iter = max_iter
         self.n_init = n_init
         self.seed = seed
@@ -19,6 +20,9 @@ class ClusterParms:
         self.distance_type = distance_type
         self.mix_cluster = True if mix_cluster == "true" else False
         self.mix_types = mix_types.split(',')
+        self.test_mode = test_mode
+        self.deg_limit = deg_limit
+        self.sur_label_pro_limit= sur_label_pro_limit
 
 
 class ARGS:
@@ -78,7 +82,10 @@ class ARGS:
                                           cmd.lay_act_cnt,
                                           cmd.distance_type,
                                           cmd.mix_cluster,
-                                          cmd.mix_types)
+                                          cmd.mix_types,
+                                          cmd.test_mode,
+                                          cmd.deg_limit,
+                                          cmd.sur_label_pro_limit)
         # test_parms
         self.hids = cmd.hids
         self.acts = cmd.acts

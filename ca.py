@@ -736,6 +736,9 @@ if __name__ == '__main__':
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
     parser.add_argument('-mc', '--mix_cluster', default="false", type=str)
     parser.add_argument('-mts', '--mix_types', default="MLP,SGC2", type=str)
+    parser.add_argument("--test_mode", default="-1", type=str)
+    parser.add_argument("--deg_limit", default=2, type=int)
+    parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
 
     cmd = parser.parse_args()
     cmd.hids = None
