@@ -308,10 +308,10 @@ class Cluster:
                 sur_labels_idx = self.sur_labels_pro >= self.parms.sur_label_pro_limit
                 idx = deg_idx & sur_labels_idx
                 added_node = self.n_nodes[idx]
-                for d in range(self.parms.deg_limit):
-                    print('deg nums: {}'.format((deg <= d).sum()))
-                for p in np.arange(1, self.parms.sur_label_pro_limit, -0.05):
-                    print('sur nums: {}'.format((self.sur_labels_pro >= p).sum()))
+                for d in range(1, self.parms.deg_limit + 1):
+                    print('deg <= {}, nums: {}'.format(d, (deg <= d).sum()))
+                for p in np.arange(1, self.parms.sur_label_pro_limit - 0.05, -0.05):
+                    print('sur >= {}, nums: {}'.format(p, (self.sur_labels_pro >= p).sum()))
                 print('added_node length: {}'.format(len(added_node)))
                 added_nodes = [added_node] * len(self.targets)
 
