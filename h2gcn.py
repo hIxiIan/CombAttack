@@ -190,7 +190,7 @@ def validate(model, adj, features, labels, idx_val):
 
 
 def test(model, checkpoint_path, adj, features, labels, idx_test):
-    model.load_state_dict(torch.load(checkpoint_path))
+    # model.load_state_dict(torch.load(checkpoint_path))
     model.eval()
     with torch.no_grad():
         output = model(adj, features)
@@ -220,7 +220,7 @@ def main(model, patience, checkpoint_path, epochs, optimizer, adj, features, lab
         if loss_validate < best_loss:
             best_loss = loss_validate
             acc = acc_validate
-            torch.save(model.state_dict(), checkpoint_path)
+            # torch.save(model.state_dict(), checkpoint_path)
             tolerate = 0
         else:
             tolerate += 1

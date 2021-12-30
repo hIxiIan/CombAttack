@@ -793,7 +793,7 @@ if __name__ == '__main__':
             perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose_us=False)
         else:
             perturbed_edges_dict, res = testBlockACC(attacked_models, attacker, args, verbose_us=False)
-    print(perturbed_edges_dict)
+    # print(perturbed_edges_dict)
     # print(res)
     # gpu_tracker.track()
     gc.collect()

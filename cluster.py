@@ -302,12 +302,17 @@ class Cluster:
                                               topk_cluster=self.parms.topk_cluster,
                                               random=self.parms.random, is_het=self.parms.is_het)
             elif self.parms.test_mode == "0":
+                print('get_test_mode_edges:')
                 deg = self.graph.adj_matrix.toarray().sum(axis=1).ravel()
                 deg_idx = deg <= self.parms.deg_limit
                 sur_labels_idx = self.sur_labels_pro >= self.parms.sur_label_pro_limit
                 idx = deg_idx & sur_labels_idx
                 added_node = self.n_nodes[idx]
-                print('get_test_mode_edges: deg_idx:{}, sur_labels_idx:{}, added_node length: {}'.format(deg_idx.sum(), sur_labels_idx.sum(), len(added_node)))
+                for d in range(self.parms.deg_limit):
+                    print('deg nums: {}'.format((deg <= d).sum()))
+                for p in np.arange(1, self.parms.sur_label_pro_limit, -0.05):
+                    print('sur nums: {}'.format((self.sur_labels_pr >= p).sum()))
+                print('added_node length: {}'.format(len(added_node)))
                 added_nodes = [added_node] * len(self.targets)
 
             deleted_nodes = make_redundancy(deleted_nodes)
