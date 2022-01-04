@@ -490,6 +490,7 @@ def get_tedge_dataset(args):
 
 
 def run_tedge(args):
+    t1 = time.time()
     args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
     output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)])
     if args.run_emb == "true":
@@ -508,6 +509,7 @@ def run_tedge(args):
         node_classification(args, output)
     else:
         print('skip node classification process...')
+    print('run_tedge, cost:{} min'.format((time.time() - t1) / 60))
 
 
 if __name__ == '__main__':
