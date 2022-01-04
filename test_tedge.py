@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
-    parser.add_argument("-tt", "--tedge_type", default="TBS", choices=['TEDGE', 'TBS', 'WBS', 'TBS+WBS'], type=str)
+    parser.add_argument("-tt", "--tedge_type", default="", choices=['TEDGE', 'TBS', 'WBS', 'TBS+WBS'], type=str)
     parser.add_argument("--run_emb", default="true", type=str)
     parser.add_argument("--run_nc", default="true", type=str)
     parser.add_argument("-f", "--filename", default="", type=str)
@@ -43,8 +43,13 @@ if __name__ == '__main__':
     tedge_types = get_splits(args.tedge_type)
     seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     times = min(args.times, len(seeds))
+
+    count = 0
+    total = times * len(tedge_types)
     for i in range(times):
         args.i = i
         for tedge_type in tedge_types:
+            count += 1
+            print('times:{}, count: {}/{}, tedge_type:{}'.format(i, count, total, tedge_type))
             args.tedge_type = tedge_type
             run_tedge(args)
