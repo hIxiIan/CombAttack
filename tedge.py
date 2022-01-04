@@ -159,14 +159,15 @@ def load_labels(filename):
 
 
 class tGraph(object):
-    def __init__(self, file_, filetype='txt_f', output_Gpkl=False):
+    def __init__(self, file_, filetype='txt_f', output_Gpkl=False, verbose=0):
         self.G = nx.MultiDiGraph()
         self.min_time = sys.maxsize
         self.max_time = 0
         self.min_amount = sys.maxsize
         self.max_amount = 0
 
-        print("Loading file", file_, "...")
+        if verbose > 0:
+            print("Loading file", file_, "...")
         edge_key = 0
 
         if filetype == "txt_raw":
@@ -224,46 +225,46 @@ class tGraph(object):
 
         self.number_of_nodes = self.G.number_of_nodes()
         self.number_of_edges = self.G.number_of_edges()
-        print("Summary of graph:")
-        print("Number of nodes: ", self.number_of_nodes)
-        print("Number of edges: ", self.number_of_edges)
-        print("Number of edge_key: ", edge_key)
-        print("Min time: ", self.min_time)
-        print("Max time: ", self.max_time)
+        if verbose > 0:
+            print("Summary of graph:")
+            print("Number of nodes: ", self.number_of_nodes)
+            print("Number of edges: ", self.number_of_edges)
+            print("Number of edge_key: ", edge_key)
+            print("Min time: ", self.min_time)
+            print("Max time: ", self.max_time)
 
 
 class tGraphNE(object):
     def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha,
                  dimensions, num_walks, walk_length, output, output_pklG=False,
-                 window_size=10, workers=8, hs=1, seed=2022):
+                 window_size=10, workers=8, hs=1, seed=2022, verbose=0):
         self.G = tG.G
         self.min_time = tG.min_time
         self.max_time = tG.max_time
+        self.verbose = verbose
 
         self.time_biased_type = time_biased_type  # choice = "unbiased", "amount-weighted" "linear", "exp"
         self.first_biased_type = first_biased_type
         self.amount_biased = amount_biased
         self.alpha = alpha
-        print("Walking...")
         t1 = time.time()
         walks = self.simulate_walks(num_walks, walk_length)  # 随机游走
         t2 = time.time()
-        print("Walking time:", t2 - t1)
-
-        print("Learn embeddings...")
         # walks = [map(str, walk) for walk in walks]
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
                                   workers=workers, seed=seed)
         t3 = time.time()
-        print("Learn embeddings time:", t3 - t2)
-
         self.vectors = {}
         for word in list(self.G.nodes()):
             self.vectors[str(word)] = word2vec_model.wv[str(word)]
-        print("Embeddings are saved in ", output)
         word2vec_model.wv.save_word2vec_format(output)
         # self.word2vec_model = word2vec_model
         del word2vec_model
+
+        if verbose > 0:
+            print("Walking time:", t2 - t1)
+            print("Learn embeddings time:", t3 - t2)
+            print("Embeddings are saved in ", output)
 
     def simulate_walks(self, num_walks, walk_length):
         """
@@ -274,9 +275,11 @@ class tGraphNE(object):
         G = self.G
         walks = []
         nodes = list(G.nodes())
-        print("Walk iteration:")
+        if self.verbose > 0:
+            print("Walk iteration:")
         for walk_iter in range(num_walks):
-            print(str(walk_iter + 1), '/', str(num_walks))
+            if self.verbose > 0:
+                print(str(walk_iter + 1), '/', str(num_walks))
             random.shuffle(nodes)
             for node in nodes:
                 walks.append(self.temporal_walk(walk_length=walk_length, start_node=node))
@@ -483,7 +486,7 @@ def get_tedge_dataset(args):
     file_dir = 'dataset/phishing/'
     edges_txt = 'TransEdgelist.txt'
     labels_txt = 'label.txt'
-    tG = tGraph(file_dir + edges_txt)
+    tG = tGraph(file_dir + edges_txt, verbose=args.verbose)
     labels = load_labels(file_dir + labels_txt)
     args.tedge_tG = tG
     args.tedge_labels = labels
@@ -498,7 +501,7 @@ def run_tedge(args):
         tGNE = tGraphNE(args.tedge_tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
-                        workers=args.workers, seed=args.seed, output=output)
+                        workers=args.workers, seed=args.seed, verbose=args.verbose, output=output)
     else:
         print('skip embedding process...')
 
@@ -535,5 +538,6 @@ if __name__ == '__main__':
         os.mkdir(outputdir)
     args.outputdir = outputdir
     args.curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    args.i = ""
     run_tedge(args)
 

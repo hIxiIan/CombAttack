@@ -41,6 +41,7 @@ if __name__ == '__main__':
     args.curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
 
     tedge_types = get_splits(args.tedge_type)
+    print(tedge_types)
     seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     times = min(args.times, len(seeds))
 
