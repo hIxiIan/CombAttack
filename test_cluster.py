@@ -8,6 +8,7 @@ import numpy as np
 from time import strftime, localtime
 from utils import save_test, get_datasets, get_embed_types, get_mix_types, get_attacked_types, RES_COLUMNS, RES_ERRORS, get_split_atked_types
 from ca import run
+from test_tedge import get_splits
 from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
@@ -70,6 +71,10 @@ if __name__ == '__main__':
     parser.add_argument("--test_mode", default="-1", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
+    parser.add_argument("--tedge_type", default="TBS", type=str)
+    parser.add_argument("--tedge_timestamp", default="", type=str)
+    parser.add_argument("--tedge_features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
+    parser.add_argument("--tedge_train_size", default=0.5, type=float)
 
     cmd = parser.parse_args()
     cmd.hids = None
@@ -88,6 +93,7 @@ if __name__ == '__main__':
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
+    tedge_types_ = get_splits(cmd.tedge_type)
     not_split = True if cmd.not_split == "true" else False
     mix_cluster = True if cmd.mix_cluster == "true" else False
     mix_types_ = get_mix_types(cmd.mix_types)
@@ -98,8 +104,12 @@ if __name__ == '__main__':
     print(atked_types_)
     print(embed_types_)
     print(mix_types_)
+    print(tedge_types_)
 
     for dataset in dataset_:
+        if dataset == "tedge":
+            assert len(cmd.tedge_timestamp) > 0, 'tedge_timestamp error'
+            cmd.edge_flips = "true"
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])
         _edges_prefix = edgesdir + os.sep + "_".join([cmd.dataset, curtime])
@@ -128,16 +138,28 @@ if __name__ == '__main__':
             total = 0
             for embed_type in method_types:
                 total += len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
+                if dataset == "tedge":
+                    total += len(tedge_types_)
 
             for embed_type in method_types:
                 cmd.embed_type = embed_type if not mix_cluster else None
                 split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_, not_split)
                 for atked_type in split_atked_types_:
-                    count += 1
-                    cmd.atk_model_type = ','.join(atked_type)
-                    print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
-                    key = '&'.join(embed_type) if mix_cluster else '_'.join([embed_type])
-                    do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
+                    if dataset == "tedge":
+                        cmd.atk_model_type = ','.join(atked_type)
+                        for tedge_type in tedge_types_:
+                            count += 1
+                            cmd.tedge_features_file = "_".join([tedge_type, cmd.tedge_timestamp, str(i)])
+                            print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}, tedge_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type, tedge_type))
+                            key = '_'.join(['&'.join(embed_type), tedge_type]) if mix_cluster else '_'.join([embed_type, tedge_type])
+                            prefix = '_'.join(['&'.join(embed_type), tedge_type]) if mix_cluster else '_'.join([embed_type, tedge_type])
+                            do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, prefix)
+                    else:
+                        count += 1
+                        cmd.atk_model_type = ','.join(atked_type)
+                        print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
+                        key = '&'.join(embed_type) if mix_cluster else '_'.join([embed_type])
+                        do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
             print('dataset:{}, times:{}'.format(dataset, i))
         print(_asr_prefix)
         print(_edges_prefix)
