@@ -13,6 +13,15 @@ from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
 
+
+METHOD_MAP = {
+    'TEDGE': ['time_uniform', 'time_uniform', 'amount_uniform', 1.0],
+    'TBS': ['time_close_linear', 'time_close_linear', 'amount_uniform', 1.0],
+    'WBS': ['time_uniform', 'time_uniform', 'amount_linear', 0.0],
+    'TBS+WBS': ['time_close_linear', 'time_close_linear', 'amount_linear', 0.5],
+}
+
+
 def random_seed(seed=None):
     np.random.seed(seed)
     random.seed(seed)
@@ -143,7 +152,8 @@ def load_labels(filename):
         if l == '':
             break
         vec = l.strip().split(' ')
-        labels[vec[0]] = int(vec[1])
+        node = str(int(vec[0]) - 1)
+        labels[node] = int(vec[1])
     fin.close()
     return labels
 
@@ -172,6 +182,8 @@ class tGraph(object):
                         x, y, a, t = l.strip().split(',')
                         a = float(a)
                         t = int(t)
+                        x = str(int(x) - 1)
+                        y = str(int(y) - 1)
                         if self.G.has_edge(x, y, t):
                             if self.G[x][y][t]['weight'] != a:
                                 self.G[x][y][t]['weight'] += a
@@ -223,7 +235,7 @@ class tGraph(object):
 class tGraphNE(object):
     def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha,
                  dimensions, num_walks, walk_length, output, output_pklG=False,
-                 window_size=10, workers=8, hs=1):
+                 window_size=10, workers=8, hs=1, seed=2022):
         self.G = tG.G
         self.min_time = tG.min_time
         self.max_time = tG.max_time
@@ -241,7 +253,7 @@ class tGraphNE(object):
         print("Learn embeddings...")
         # walks = [map(str, walk) for walk in walks]
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
-                                  workers=workers)
+                                  workers=workers, seed=seed)
         t3 = time.time()
         print("Learn embeddings time:", t3 - t2)
 
@@ -250,8 +262,8 @@ class tGraphNE(object):
             self.vectors[str(word)] = word2vec_model.wv[str(word)]
         print("Embeddings are saved in ", output)
         word2vec_model.wv.save_word2vec_format(output)
+        # self.word2vec_model = word2vec_model
         del word2vec_model
-        return
 
     def simulate_walks(self, num_walks, walk_length):
         """
@@ -448,7 +460,9 @@ class tGraphNE(object):
                 return None, None, None  # 没有符合条件的
 
 
-def node_classification(args, embeddings, labels):
+def node_classification(args, output):
+    embeddings = load_embeddings(output)
+    labels = load_labels('dataset/phishing/label.txt')
     nodes = list(labels.keys())
     nodes_labels = list(labels.values())
     nodes_embeddings = np.array([embeddings[node] for node in nodes])
@@ -465,56 +479,59 @@ def node_classification(args, embeddings, labels):
     print('classification_report:\n{}'.format(cr))
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", default=2022, type=int, help="random seed")
-    parser.add_argument("--verbose", default=0, type=int, help="print details")
-    parser.add_argument("--device", default="gpu", type=str, help="code environment")
-    parser.add_argument("--dataset", default="tedge", type=str, choices=['TEDGE', 'TBS', 'WBS', 'TBS+WBS'], help="dataset")
-    parser.add_argument("-tt", "--tedge_type", default="TBS", type=str)
-    parser.add_argument("--run_emb", default="false", type=str)
-    parser.add_argument("--run_nc", default="true", type=str)
-    parser.add_argument("-f", "--filename", default="TBS_2021_12_31_20_23_14", type=str)
-    parser.add_argument("-d", "--dimensions", default=12, type=int) # 128
-    parser.add_argument("--num_walks", default=1, type=int) # 4
-    parser.add_argument("--walk_length", default=5, type=int) # 10
-    parser.add_argument("--window_size", default=4, type=int) # 4
-    parser.add_argument("--workers", default=8, type=int) # 8
-    parser.add_argument("--train_size", default=0.5, type=float)  # 8
-    args = parser.parse_args()
-
-    random_seed(args.seed)
-    method_map = {
-        'TEDGE': ['time_uniform', 'time_uniform', 'amount_uniform', 1.0],
-        'TBS': ['time_close_linear', 'time_close_linear', 'amount_uniform', 1.0],
-        'WBS': ['time_uniform', 'time_uniform', 'amount_linear', 0.0],
-        'TBS+WBS': ['time_close_linear', 'time_close_linear', 'amount_linear', 0.5],
-    }
+def get_tedge_dataset(args):
+    file_dir = 'dataset/phishing/'
     edges_txt = 'TransEdgelist.txt'
     labels_txt = 'label.txt'
-    file_dir = 'dataset/phishing/'
+    tG = tGraph(file_dir + edges_txt)
     labels = load_labels(file_dir + labels_txt)
-    outputdir = "result/test_tedge"
-    if not os.path.exists(outputdir):
-        os.mkdir(outputdir)
-    curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = method_map[args.tedge_type]
-    output = outputdir + os.sep + "_".join([args.tedge_type, curtime])
+    args.tedge_tG = tG
+    args.tedge_labels = labels
+
+
+def run_tedge(args):
+    args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
+    output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)])
     if args.run_emb == "true":
-        tG = tGraph(file_dir + edges_txt)
-        tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
+        get_tedge_dataset(args)
+        tGNE = tGraphNE(args.tedge_tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
-                        workers=args.workers, output=output)
+                        workers=args.workers, seed=args.seed, output=output)
     else:
         print('skip embedding process...')
 
     if args.run_nc == "true":
         if args.run_emb == "false":
             assert len(args.filename) > 0, 'filename error'
-            output = outputdir + os.sep + args.filename
-        embeddings = load_embeddings(output)
-        node_classification(args, embeddings, labels)
+            output = args.outputdir + os.sep + args.filename
+        node_classification(args, output)
     else:
         print('skip node classification process...')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", default=2022, type=int, help="random seed")
+    parser.add_argument("--verbose", default=0, type=int, help="print details")
+    parser.add_argument("--device", default="gpu", type=str, help="code environment")
+    parser.add_argument("-tt", "--tedge_type", default="TBS", choices=['TEDGE', 'TBS', 'WBS', 'TBS+WBS'], type=str)
+    parser.add_argument("--run_emb", default="false", type=str)
+    parser.add_argument("--run_nc", default="true", type=str)
+    parser.add_argument("-f", "--filename", default="TBS_2022_01_04_13_58_21", type=str)
+    parser.add_argument("-d", "--dimensions", default=128, type=int) # 128
+    parser.add_argument("--num_walks", default=4, type=int) # 4
+    parser.add_argument("--walk_length", default=10, type=int) # 10
+    parser.add_argument("--window_size", default=4, type=int) # 4
+    parser.add_argument("--workers", default=1, type=int) # 8
+    parser.add_argument("--train_size", default=0.5, type=float)
+    args = parser.parse_args()
+
+    random_seed(args.seed)
+    outputdir = "result/test_tedge"
+    if not os.path.exists(outputdir):
+        os.mkdir(outputdir)
+    args.outputdir = outputdir
+    args.curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    run_tedge(args)
 

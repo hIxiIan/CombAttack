@@ -31,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-m", "--model", default="GCN", type=str, help="model")
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
-    parser.add_argument("--is_gf", default="false", type=str, help="graphgallery / deeprobust")
+    parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
     parser.add_argument("--test", default="false", type=str, help="test parms mode")
     parser.add_argument("--save_model", default="false", type=str)
 
