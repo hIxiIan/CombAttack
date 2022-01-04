@@ -1,5 +1,5 @@
 import os
-
+import pandas as pd
 import torch
 from utils import DATASET_BLOCKCHAIN
 
@@ -29,7 +29,7 @@ class ARGS:
     def __init__(self, cmd, targets=None, splits=None,
 
                  wl_limit=0.5, hops=2, prob=0.8, eps=1e-4,
-                 node_attr=None, node_label=None, adj_matrix=None):
+                 graph=None):
         # 通用
         self.seed = cmd.seed
         self.verbose = cmd.verbose
@@ -41,6 +41,7 @@ class ARGS:
         self.is_phi = True if cmd.is_phi == "true" else False
         self.is_topk = True if cmd.is_topk == "true" else False
         self.edge_flips = True if cmd.edge_flips == "true" else False
+        self.graph = graph
 
         # attack
         self.subgraph_type = cmd.subgraph_type
@@ -65,9 +66,20 @@ class ARGS:
         self.eps = eps
 
         # blockchain
-        self.adj_matrix = adj_matrix
-        self.node_attr = node_attr
-        self.node_label = node_label
+        self.adj_matrix = graph.adj_matrix
+        self.node_attr = graph.node_attr
+        self.node_label = graph.node_label
+        if self.dataset == "tedge":
+            nodes_to_keep = pd.read_csv('dataset/phishing/tedge_nodes_to_keep.csv').values.ravel()
+            path = 'result/test_tedge/' + cmd.tedge_features_file
+            if 'csv' not in path:
+                path += '.csv'
+            node_attr = pd.read_csv(path).values[nodes_to_keep]
+            graph.node_attr = node_attr
+            self.node_attr = graph.node_attr
+            self.train_size = cmd.tedge_train_size
+            self.tedge_features_file = path
+            self.nodes_to_keep = nodes_to_keep
 
         random = True if cmd.random == "true" else False
         is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False # 无效

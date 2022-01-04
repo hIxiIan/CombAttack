@@ -7,6 +7,7 @@ import random
 import argparse
 import torch
 import os
+import pandas as pd
 from gensim.models import Word2Vec
 from time import strftime, localtime
 from sklearn.svm import SVC
@@ -254,12 +255,18 @@ class tGraphNE(object):
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
                                   workers=workers, seed=seed)
         t3 = time.time()
-        self.vectors = {}
-        for word in list(self.G.nodes()):
-            self.vectors[str(word)] = word2vec_model.wv[str(word)]
-        word2vec_model.wv.save_word2vec_format(output)
+        # self.vectors = {}
+        # for word in list(self.G.nodes()):
+        #     self.vectors[str(word)] = word2vec_model.wv[str(word)]
+        # word2vec_model.wv.save_word2vec_format(output)
         # self.word2vec_model = word2vec_model
-        del word2vec_model
+        # del word2vec_model
+        # exit()
+        vectors = word2vec_model.wv.vectors
+        index_to_key = np.array(word2vec_model.wv.index_to_key).astype(int)
+        tup = sorted(zip(vectors, index_to_key), key=lambda x: x[1], reverse=False)
+        features = np.array([t[0] for t in tup])
+        pd.DataFrame(features).to_csv(output, index=None)
 
         if verbose > 0:
             print("Walking time:", t2 - t1)
@@ -463,12 +470,31 @@ class tGraphNE(object):
                 return None, None, None  # 没有符合条件的
 
 
+def get_tedge(args):
+    path = args.tedge_features_file
+    embeddings = pd.read_csv(path).values #8w6+
+    sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 编号的890个节点
+    nodes = list([int(node) for node in sample_labels.keys()])
+    phishing_nodes = nodes[:445]
+    non_phishing_nodes = nodes[445:]
+    nodes_labels = list(sample_labels.values())
+    nodes_embeddings = pd.DataFrame(embeddings[nodes], index=nodes)
+    X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
+    model = SVC(kernel='linear', C=0.4, random_state=args.seed)
+    model.fit(X_train, y_train)
+
+    return model.predict(embeddings)[args.nodes_to_keep]
+
+
 def node_classification(args, output):
-    embeddings = load_embeddings(output)
-    labels = load_labels('dataset/phishing/label.txt')
-    nodes = list(labels.keys())
-    nodes_labels = list(labels.values())
-    nodes_embeddings = np.array([embeddings[node] for node in nodes])
+    if 'csv' not in output:
+        output += '.csv'
+    embeddings = pd.read_csv(output).values # 8w6+
+    # labels = pd.read_csv('dataset/phishing/label.csv').values.ravel()
+    sample_labels = load_labels('dataset/phishing/label.txt') # 890
+    nodes = list([int(node) for node in sample_labels.keys()])
+    nodes_labels = list(sample_labels.values())
+    nodes_embeddings = pd.DataFrame(embeddings[nodes])
 
     X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
     model = SVC(kernel='linear', C=0.4, random_state=args.seed)
@@ -482,23 +508,13 @@ def node_classification(args, output):
     print('classification_report:\n{}'.format(cr))
 
 
-def get_tedge_dataset(args):
-    file_dir = 'dataset/phishing/'
-    edges_txt = 'TransEdgelist.txt'
-    labels_txt = 'label.txt'
-    tG = tGraph(file_dir + edges_txt, verbose=args.verbose)
-    labels = load_labels(file_dir + labels_txt)
-    args.tedge_tG = tG
-    args.tedge_labels = labels
-
-
 def run_tedge(args):
     t1 = time.time()
     args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
-    output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)])
+    output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)]) + '.csv'
     if args.run_emb == "true":
-        get_tedge_dataset(args)
-        tGNE = tGraphNE(args.tedge_tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
+        tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+        tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
                         workers=args.workers, seed=args.seed, verbose=args.verbose, output=output)
@@ -508,7 +524,7 @@ def run_tedge(args):
     if args.run_nc == "true":
         if args.run_emb == "false":
             assert len(args.filename) > 0, 'filename error'
-            output = args.outputdir + os.sep + args.filename
+            output = args.outputdir + os.sep + args.filename + '.csv'
         node_classification(args, output)
     else:
         print('skip node classification process...')
@@ -521,9 +537,9 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-tt", "--tedge_type", default="TBS", choices=['TEDGE', 'TBS', 'WBS', 'TBS+WBS'], type=str)
-    parser.add_argument("--run_emb", default="false", type=str)
+    parser.add_argument("--run_emb", default="true", type=str)
     parser.add_argument("--run_nc", default="true", type=str)
-    parser.add_argument("-f", "--filename", default="TBS_2022_01_04_13_58_21", type=str)
+    parser.add_argument("-f", "--filename", default="", type=str)
     parser.add_argument("-d", "--dimensions", default=128, type=int) # 128
     parser.add_argument("--num_walks", default=4, type=int) # 4
     parser.add_argument("--walk_length", default=10, type=int) # 10
@@ -538,6 +554,6 @@ if __name__ == '__main__':
         os.mkdir(outputdir)
     args.outputdir = outputdir
     args.curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-    args.i = ""
+    args.i = "test"
     run_tedge(args)
 

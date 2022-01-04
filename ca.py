@@ -26,6 +26,7 @@ from fagcn import get_FAGCN
 from h2gcn import get_H2GCN, sp_to_tensor
 from dgl import DGLGraph
 from dgl import function as fn
+from tedge import get_tedge
 
 
 def get_model(model_name, args, graph, is_embed=False, is_model=False):
@@ -210,9 +211,13 @@ def get_attacker(args, graph):
         else:
             attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
-        args.train_nodes = list(range(graph.node_label.shape[0]))
-        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
-        surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+        if args.dataset == "tedge":
+            surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
+            surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
+        else:
+            args.train_nodes = list(range(graph.node_label.shape[0]))
+            surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
+            surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
         if args.us:
             attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -227,12 +232,20 @@ def get_atk_models(args, graph):
         # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
         args.atked_model_ = atked_types[0]
     else:
-        attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
-        attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
-        attacked_models = [attacked_model]
-        # todo: check the influence
-        args.atked_model_ = attacked_model.name
-        args.attacked_models_acc = [0]
+        if args.dataset == 'tedge':
+            attacked_model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
+            attacked_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
+            attacked_models = [attacked_model]
+            args.atked_model_ = attacked_model.name
+            args.attacked_models_acc = [0]
+            print('tedge, atked_model :{}, clean_acc: {}'.format('SGC', 0))
+        else:
+            attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
+            attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+            attacked_models = [attacked_model]
+            args.atked_model_ = attacked_model.name
+            args.attacked_models_acc = [0]
+            print('blockchain, atked_model :{}, clean_acc: {}'.format('SGCPD', 0))
     return attacked_models
 
 
@@ -531,8 +544,11 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
 def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbose_us=False):
     if args.is_phi:
-        attacked_model = attacked_models[0]
-        original_predict, lgb_model = get_pd(attacked_model, args)
+        if args.dataset != "tedge":
+            attacked_model = attacked_models[0]
+            original_predict, _ = get_pd(attacked_model, args)
+        else:
+            original_predict = get_tedge(args)
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
         args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
@@ -574,6 +590,7 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
 
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
+    assert args.dataset != "tedge", "testBlockACC tedge error"
     attacked_model = attacked_models[0]
     original_predict, lgb_model = get_pd(attacked_model, args)
     if args.is_phi:
@@ -657,22 +674,12 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
 
 
 def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
-    data = NPZDataset(cmd.dataset,
-                      root="~/GraphData/datasets/",
-                      verbose=False,
-                      transform="standardize")
-
-    graph = data.graph
-    gf.random_seed(cmd.seed, gg.backend())
-
-    splits = data.split_nodes(random_state=15)
-    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-
+    graph, splits, targets = get_dataset(cmd)
     cmd.subgraph_type = subgraph_type
     cmd.p = p
     cmd.q = q
     cmd.alpha = alpha
-    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label, adj_matrix=graph.adj_matrix)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, graph=graph)
     print(args.device)
     attacker = get_attacker(args, graph)
     if cmd.target_mode == "correct_sur_labels":
@@ -700,6 +707,18 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     # print(res)
     gc.collect()
     return perturbed_edges_dict, res
+
+
+def get_dataset(cmd):
+    data = NPZDataset(cmd.dataset,
+                      root="~/GraphData/datasets/",
+                      verbose=False,
+                      transform="standardize")
+    graph = data.graph
+    gf.random_seed(cmd.seed, gg.backend())
+    splits = data.split_nodes(random_state=15)
+    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
+    return graph, splits, targets
 
 
 if __name__ == '__main__':
@@ -739,35 +758,14 @@ if __name__ == '__main__':
     parser.add_argument("--test_mode", default="-1", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
+    parser.add_argument("--tedge_features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
+    parser.add_argument("--tedge_train_size", default=0.5, type=float)
 
     cmd = parser.parse_args()
-    cmd.hids = None
-    cmd.acts = None
-    cmd.weight_decay = None
-    cmd.lr = None
-    # cmd.distance_type = "wrong_labels"
-    # cmd.embed_type = "ClusterGCN"
-    # cmd.dataset = 'cora'
-    # cmd.subgraph_type = "cluster"
-    # cmd.atk_model_type = "SimPGCN"
-    # cmd.random = "true"
-    # cmd.topk_cluster = 3
-    # cmd.direct_attack = ""
-    # cmd.is_phi = "true"
-    # cmd.seed = 2012
+    cmd.hids, cmd.acts, cmd.weight_decay, cmd.lr = None, None, None, None
     gg.set_backend("th")
-    # if cmd.atk_model_type == "MixHop":
-    #     gg.set_backend("dgl")
-
-    data = NPZDataset(cmd.dataset,
-                      root="~/GraphData/datasets/",
-                      verbose=False,
-                      transform="standardize")
-    graph = data.graph
-    gf.random_seed(cmd.seed, gg.backend())
-    splits = data.split_nodes(random_state=15)
-    targets = random.sample(list(splits.test_nodes), cmd.target_nums)
-    args = ARGS(cmd=cmd, targets=targets, splits=splits, node_attr=graph.node_attr, node_label=graph.node_label, adj_matrix=graph.adj_matrix)
+    graph, splits, targets = get_dataset(cmd)
+    args = ARGS(cmd=cmd, targets=targets, splits=splits, graph=graph)
     attacker = get_attacker(args, graph)
     if cmd.target_mode == "correct_sur_labels":
         gf.random_seed(cmd.seed, gg.backend())

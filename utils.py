@@ -13,7 +13,7 @@ from numba import jit, int32, int64
 
 DP_MODELS = ['RobustGCN', 'SimPGCN']
 
-DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000']
+DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000', 'tedge']
 
 # RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
