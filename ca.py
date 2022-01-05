@@ -201,7 +201,7 @@ def get_attacked_models(atked_types, args, graph):
 
 
 def get_attacker(args, graph):
-    if not args.blockchain:
+    if not args.blockchain or args.dataset == "tedge":
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
         results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
@@ -211,13 +211,9 @@ def get_attacker(args, graph):
         else:
             attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
     else:
-        if args.dataset == "tedge":
-            surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
-            surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
-        else:
-            args.train_nodes = list(range(graph.node_label.shape[0]))
-            surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
-            surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+        args.train_nodes = list(range(graph.node_label.shape[0]))
+        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
+        surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
         if args.us:
             attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:

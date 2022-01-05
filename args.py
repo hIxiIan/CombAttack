@@ -77,7 +77,7 @@ class ARGS:
             node_attr = pd.read_csv(path).values[nodes_to_keep]
             graph.node_attr = node_attr
             self.node_attr = graph.node_attr
-            self.train_size = cmd.tedge_train_size # 对目标节点的选择有影响
+            self.train_size = cmd.tedge_train_size # make use of the target nodes selection
             self.tedge_features_file = path
             self.nodes_to_keep = nodes_to_keep
 
