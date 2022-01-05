@@ -137,9 +137,10 @@ if __name__ == '__main__':
             count = 0
             total = 0
             for embed_type in method_types:
-                total += len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
+                cur_count = len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
                 if dataset == "tedge":
-                    total += len(tedge_types_)
+                    cur_count *= len(tedge_types_)
+                total += cur_count
 
             for embed_type in method_types:
                 cmd.embed_type = embed_type if not mix_cluster else None
