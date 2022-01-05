@@ -13,10 +13,10 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
 
-def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix=""):
+def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix="", test_assert=False):
     print()
     print('====={}: {} start====='.format(prefix, key))
-    try:
+    if test_assert:
         perturbed_edges_dict, rsps = run(st, cmd=cmd, verbose=False)
         if cmd.edge_flips == "true" and key not in edges_dict:
             edges_dict[key] = perturbed_edges_dict
@@ -25,10 +25,20 @@ def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix="
             for rsp in rsps:
                 res.loc['_'.join([key, rsp[0]])] = rsp[1:]
             res.to_csv(asr_filename + '.csv')
+    else:
+        try:
+            perturbed_edges_dict, rsps = run(st, cmd=cmd, verbose=False)
+            if cmd.edge_flips == "true" and key not in edges_dict:
+                edges_dict[key] = perturbed_edges_dict
+                np.save(edges_filename + '.npy', edges_dict)
+            if cmd.edge_flips == "false":
+                for rsp in rsps:
+                    res.loc['_'.join([key, rsp[0]])] = rsp[1:]
+                res.to_csv(asr_filename + '.csv')
 
-    except Exception as e:
-        res.loc[key] = RES_ERRORS[1:]
-        print('=====ASSERT_ERROR:'.format(repr(e)))
+        except Exception as e:
+            res.loc[key] = RES_ERRORS[1:]
+            print('=====ASSERT_ERROR:'.format(repr(e)))
     print('====={}: {}   end====='.format(prefix, key))
 
 
