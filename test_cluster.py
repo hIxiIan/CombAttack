@@ -71,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument("--test_mode", default="-1", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
-    parser.add_argument("--tedge_type", default="TBS", type=str)
+    parser.add_argument("--tedge_type", default="", type=str)
     parser.add_argument("--tedge_timestamp", default="", type=str)
     parser.add_argument("--tedge_features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
     parser.add_argument("--tedge_train_size", default=0.5, type=float)
@@ -126,10 +126,18 @@ if __name__ == '__main__':
             print(cmd.seed)
             print(asr_filename)
             print(edges_filename)
+
+            count = 0
+            total = len(tedge_types_)
             if cmd.run_sga == "true":
                 cmd.atk_model_type = ','.join(atked_types_)
-                key = '_'.join(['sga'])
-                do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict)
+                for tedge_type in tedge_types_:
+                    count += 1
+                    cmd.tedge_features_file = "_".join([tedge_type, cmd.tedge_timestamp, str(i)])
+                    print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
+                        dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
+                    key = '_'.join(['sga', tedge_type])
+                    do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
 
             if cmd.run_us != "true":
                 continue
