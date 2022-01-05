@@ -21,7 +21,7 @@ from pd import get_lgb_model
 from cluster import Cluster
 from gpu_mem_track import MemTracker
 from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn
-from deeprobust.graph.defense import RGCN, SimPGCN
+from deeprobust.graph.defense import RGCN, SimPGCN, GCN
 from fagcn import get_FAGCN
 from h2gcn import get_H2GCN, sp_to_tensor
 from dgl import DGLGraph
@@ -163,6 +163,8 @@ def get_dr_model(model_name, args, graph):
     elif model_name == "SimPGCN":
         attacked_model = SimPGCN(nnodes=adj.shape[0], nfeat=features.shape[1], nclass=labels.max() + 1,
                               nhid=64, lr=0.01, dropout=0, weight_decay=5e-4, device=device)
+    elif model_name == "GCN":
+        attacked_model = GCN(nfeat=features.shape[1], nhid=64, nclass=labels.max()+1, device=device)
     else:
         assert False, "invalid deeprobust model"
     attacked_model.name = model_name
@@ -547,9 +549,11 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
             original_predict = get_tedge(args)
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
-        args.targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
-        print('attack {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(
-            len(args.targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
+        ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
+        args.targets = random.sample(list(ori_targets), args.target_nums)
+
+        print('attack {} phishing nodes, total {} phishing nodes, total true phishing nodes:{}, total surrogate_phishing_nodes:{}'.format(
+            len(args.targets), len(ori_targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
     else:
         print('attack phishing or non-phishing nodes')
 

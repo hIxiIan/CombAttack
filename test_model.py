@@ -51,7 +51,7 @@ if __name__ == '__main__':
                               verbose=False,
                               transform="standardize")
             graph = data.graph
-            splits = data.split_nodes(random_state=15)
+            splits = data.split_nodes(random_state=15, train=0.1, val=0.1, test=0.8)
             args.splits = splits
             gf.random_seed(args.seed, gg.backend())
             for model_name in models:

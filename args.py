@@ -47,6 +47,7 @@ class ARGS:
         self.subgraph_type = cmd.subgraph_type
         self.sample_ratio = cmd.sample_ratio
         self.targets = targets
+        self.target_nums = cmd.target_nums
         self.splits = splits
         self.direct_attack = True if cmd.direct_attack == "true" else False
         self.atk_model_type = cmd.atk_model_type
