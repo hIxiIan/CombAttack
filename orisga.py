@@ -71,7 +71,7 @@ class SGA(TargetedAttacker):
 
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
-        X = torch.tensor(self.graph.node_attr).to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(torch.float32).to(self.device)
         self.b = b
         self.XW = X @ W.T
         self.SGC = SGConv(K).to(self.device)
@@ -317,7 +317,7 @@ class SGAPD(SGA):
 
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
-        X = torch.tensor(self.graph.node_attr).to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(torch.float32).to(self.device)
         self.b = b
         self.XW = X @ W.T
         self.SGC = SGConv(K).to(self.device)

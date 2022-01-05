@@ -75,7 +75,7 @@ class SCA(TargetedAttacker):
 
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
-        X = torch.tensor(self.graph.node_attr).to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(torch.float32).to(self.device)
 
         self.b = b
         self.XW = X @ W.T
@@ -122,7 +122,6 @@ class SCA(TargetedAttacker):
         if logit is None:
             logit = self.logits[target]
         idx = list(set(range(logit.size)) - set([self.target_label]))
-        # wrong_label是次大概率的label
         wrong_label = idx[logit[idx].argmax()]
 
         # self.sampler = Sampler(self.graph.adj_matrix, self.graph.node_label, wrong_label, prob, p, q, self.seed, self.logits)
@@ -147,21 +146,20 @@ class SCA(TargetedAttacker):
             #                        disable=disable):
             edge_grad, non_edge_grad = self.compute_gradient()
 
-            with torch.no_grad():  # 不计算梯度
+            with torch.no_grad():
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
-                gradients = torch.cat([edge_grad, non_edge_grad], dim=0) # 删边和减边的梯度cat成一维数组
-            # 有可能选出来的边已经被攻击了，则选择次大的
+                gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
             potential_times = len(gradients)
             while potential_times > 0:
-                index = torch.argmax(gradients) # 求梯度最大的值的索引
+                index = torch.argmax(gradients)
                 ori_index = index.item()
-                if index < offset: # 该索引属于删边部分
-                    u, v = self.edge_index[:, index] # 取节点
+                if index < offset:
+                    u, v = self.edge_index[:, index]
                     if self.verbose_us:
                         print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
                     add = False
-                else: # 加边部分，直接将删边部分的索引offset减去
+                else:
                     index -= offset
                     u, v = self.non_edge_index[:, index]
                     if self.verbose_us:
@@ -324,6 +322,7 @@ class SCA(TargetedAttacker):
         self_loop = np.row_stack([sub_nodes, sub_nodes])
 
         # sub_edges, sub_edges[[1,0]]是方向相反的边
+
         if self.blockchian or sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
             indices = np.hstack([
                 non_edges,
@@ -370,7 +369,7 @@ class SCAPD(SCA):
 
         W, b = surrogate.model.parameters()
         W, b = W.to(self.device), b.to(self.device)
-        X = torch.tensor(self.graph.node_attr).to(self.device)
+        X = torch.tensor(self.graph.node_attr).to(torch.float32).to(self.device)
 
         self.b = b
         self.XW = X @ W.T
