@@ -311,6 +311,7 @@ class SCA(TargetedAttacker):
         # model calibration
         logit = logit.view(1, -1) / eps
         # 最小化loss，即true_label的概率越小，wrong_label的概率越大
+
         loss = self.loss_fn(logit, self.true_label) - self.loss_fn(logit, self.wrong_label)
         gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
         return gradients
