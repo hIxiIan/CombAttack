@@ -546,7 +546,7 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
             attacked_model = attacked_models[0]
             original_predict, _ = get_pd(attacked_model, args)
         else:
-            original_predict = get_tedge(args)
+            original_predict = get_tedge(args) # lcc
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
         ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)

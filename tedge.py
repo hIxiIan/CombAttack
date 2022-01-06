@@ -171,58 +171,25 @@ class tGraph(object):
             print("Loading file", file_, "...")
         edge_key = 0
 
-        if filetype == "txt_raw":
+        if filetype == "txt_f":
             with open(file_) as f:
                 for l in f:
-                    x, y = l.strip().split(' ')
-                    self.G.add_edge(x, y, key=edge_key)
-                    edge_key = edge_key + 1
-        else:
-            if filetype == "txt_f":
-                with open(file_) as f:
-                    for l in f:
-                        x, y, a, t = l.strip().split(',')
-                        a = float(a)
-                        t = int(t)
-                        x = str(int(x) - 1)
-                        y = str(int(y) - 1)
-                        if self.G.has_edge(x, y, t):
-                            if self.G[x][y][t]['weight'] != a:
-                                self.G[x][y][t]['weight'] += a
-                        else:
-                            self.G.add_edge(x, y, key=t, weight=a)
-                        edge_key = edge_key + 1
-
-                        if t < self.min_time:
-                            self.min_time = t
-                        elif t > self.max_time:
-                            self.max_time = t
-
-            elif filetype == "pkl_f":
-                with open( file_ ,"rb") as f:
-                    df_in = pickle.load(f)
-                for i in df_in.index:
-                    x = str(int(df_in.From[i]))
-                    y = str(int(df_in.To[i]))
-                    t = int(df_in.TimeStamp[i])
-                    a = df_in.Value[i]
-
-                    if self.G.has_edge(x ,y ,t):
-                        self.G[x][y][t]['weight'] += a
+                    x, y, a, t = l.strip().split(',')
+                    a = float(a)
+                    t = int(t)
+                    x = str(int(x) - 1)
+                    y = str(int(y) - 1)
+                    if self.G.has_edge(x, y, t):
+                        if self.G[x][y][t]['weight'] != a:
+                            self.G[x][y][t]['weight'] += a
                     else:
-                        self.G.add_edge(x ,y ,key=t, weight=a)
-
+                        self.G.add_edge(x, y, key=t, weight=a)
                     edge_key = edge_key + 1
+
                     if t < self.min_time:
                         self.min_time = t
                     elif t > self.max_time:
                         self.max_time = t
-
-            if output_Gpkl == True:
-                pklfile_G = "tGraph.pickle"
-                with open(pklfile_G, "wb") as f:
-                    print("Writing", pklfile_G, "...")
-                    pickle.dump( self.G, pklfile_G, pickle.HIGHEST_PROTOCOL )
 
         self.number_of_nodes = self.G.number_of_nodes()
         self.number_of_edges = self.G.number_of_edges()
@@ -236,9 +203,9 @@ class tGraph(object):
 
 
 class tGraphNE(object):
-    def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha,
-                 dimensions, num_walks, walk_length, output, output_pklG=False,
-                 window_size=10, workers=8, hs=1, seed=2022, verbose=0):
+    def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha, output,
+                 dimensions=128, num_walks=4, walk_length=10, output_pklG=False,
+                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, is_test_tedge_edges=False):
         self.G = tG.G
         self.min_time = tG.min_time
         self.max_time = tG.max_time
@@ -266,9 +233,13 @@ class tGraphNE(object):
         index_to_key = np.array(word2vec_model.wv.index_to_key).astype(int)
         tup = sorted(zip(vectors, index_to_key), key=lambda x: x[1], reverse=False)
         features = np.array([t[0] for t in tup])
-        pd.DataFrame(features).to_csv(output, index=None)
+        if not is_test_tedge_edges:
+            pd.DataFrame(features).to_csv(output, index=None)
+        else:
+            self.features = features
 
         if verbose > 0:
+            print('features.shape:{}'.format(features.shape))
             print("Walking time:", t2 - t1)
             print("Learn embeddings time:", t3 - t2)
             print("Embeddings are saved in ", output)

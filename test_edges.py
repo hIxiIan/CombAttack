@@ -217,7 +217,7 @@ if __name__ == '__main__':
             eva_asr = {}
             poi_asr = {}
             for embed_type in embed_types:
-                if args.run_sga == "false" and embed_type.lower() == "sga":
+                if args.run_sga == "false" and "sga" in embed_type.lower():
                     print('skip embed_type:{}'.format(embed_type))
                     continue
                 if args.run_us == "false" and embed_type.lower() in ['mlp', 'gcn2', 'sgc2', 'fastgcn']:

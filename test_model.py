@@ -32,8 +32,11 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--model", default="GCN", type=str, help="model")
     parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--is_gf", default="true", type=str, help="graphgallery / deeprobust")
-    parser.add_argument("--test", default="false", type=str, help="test parms mode")
+    parser.add_argument("--test_mode", default="false", type=str, help="test parms mode")
     parser.add_argument("--save_model", default="false", type=str)
+    parser.add_argument("--train", default=0.1, type=float)
+    parser.add_argument("--val", default=0.1, type=float)
+    parser.add_argument("--test", default=0.8, type=float)
 
     args = parser.parse_args()
     print_args(args)
@@ -43,7 +46,7 @@ if __name__ == '__main__':
 
     models = get_models(args.model)
     datasets = get_datasets(args.dataset)
-    if args.test == "false":
+    if args.test_mode == "false":
         for dataset in datasets:
             args.dataset = dataset
             data = NPZDataset(args.dataset,
@@ -51,7 +54,7 @@ if __name__ == '__main__':
                               verbose=False,
                               transform="standardize")
             graph = data.graph
-            splits = data.split_nodes(random_state=15, train=0.1, val=0.1, test=0.8)
+            splits = data.split_nodes(random_state=15, train=args.train, val=args.val, test=args.test)
             args.splits = splits
             gf.random_seed(args.seed, gg.backend())
             for model_name in models:
