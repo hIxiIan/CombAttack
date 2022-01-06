@@ -1,21 +1,12 @@
 import argparse
-import os
 import random
-
 import pandas as pd
 import numpy as np
 import torch
-import graphgallery as gg
-import graphgallery.functional as gf
-import scipy.sparse as sp
-from ca import get_model, get_dr_model
-from graphgallery.datasets import NPZDataset
-from time import strftime, localtime
-from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
 from time import time
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
-from tedge import load_labels, tGraph, tGraphNE, METHOD_MAP
+from tedge import load_labels, tGraph, tGraphNE, METHOD_MAP, random_seed
 from copy import deepcopy as dc
 
 
@@ -195,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument("-eft", "--edge_flips_timestamp", default="2022_01_05_18_09_43", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("-ie", "--is_evasion", default="true", type=str)
-    parser.add_argument("-ip", "--is_poisoning", default="false", type=str)
+    parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     args = parser.parse_args()
@@ -207,10 +198,9 @@ if __name__ == '__main__':
     print_args(args)
 
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
-    gg.set_backend("th")
 
     models = get_models(args.model)
-    datasets = get_datasets(args.dataset)
+    datasets = [args.dataset]
 
     edgesdir = "result/test_edges/"
     tedgedir = 'result/test_tedge/'
@@ -263,17 +253,16 @@ if __name__ == '__main__':
                 targets = list(targets_edge_flips.keys())
                 # !!!!! targets all in 445 phishing nodes normally
                 for ti, target in enumerate(targets):
-                    if ti % 20 == 0:
-                        print('{} targets attacked'.format(ti))
-                    edge_flips = targets_edge_flips[target]
                     t1 = time()
+                    print('attack target: {}. {}/{} '.format(target, ti + 1, len(targets)))
+                    edge_flips = targets_edge_flips[target]
                     perturbed_tG = get_perturbed_graph(tG_ori, edge_flips)
-                    print('perturbed_tG cost: {} min'.format((time() - t1) / 60))
+
                     for model_name in models:
                         _key = "_".join([model_name, tedge_type])
                         attacked_model = attacked_models[_key]
                         true_label = true_labels[_key][target]
-                        gf.random_seed(seed, gg.backend())
+                        random_seed(seed)
                         t1 = time()
                         is_eva_success, is_poi_success = get_sklearn_results(attacked_model, model_name,
                                                                              true_label, perturbed_tG,
@@ -286,6 +275,7 @@ if __name__ == '__main__':
                             poi_asr[key] = np.zeros(len(targets)).astype('bool')
                         eva_asr[key][ti] = is_eva_success
                         poi_asr[key][ti] = is_poi_success
+                    print('cost: {} min'.format((time() - t1) / 60))
 
                 for model_name in models:
                     _key = "_".join([model_name, tedge_type])
