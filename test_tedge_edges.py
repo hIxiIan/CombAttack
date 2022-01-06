@@ -278,7 +278,7 @@ if __name__ == '__main__':
                         is_eva_success, is_poi_success = get_sklearn_results(attacked_model, model_name,
                                                                              true_label, perturbed_tG,
                                                                              args, target, tedge_type, is_eva, is_poi)
-                        print('perturbed_tG cost: {} min'.format((time() - t1) / 60))
+                        print('get_sklearn_results cost: {} min'.format((time() - t1) / 60))
                         key = "_".join([embed_type, _key])
                         if key not in eva_asr:
                             eva_asr[key] = np.zeros(len(targets)).astype('bool')
