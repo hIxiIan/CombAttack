@@ -275,7 +275,7 @@ if __name__ == '__main__':
                             poi_asr[key] = np.zeros(len(targets)).astype('bool')
                         eva_asr[key][ti] = is_eva_success
                         poi_asr[key][ti] = is_poi_success
-                    print('cost: {} min'.format((time() - t1) / 60))
+                    print('attack target: {}. cost: {} min'.format(target, (time() - t1) / 60))
 
                 for model_name in models:
                     _key = "_".join([model_name, tedge_type])
