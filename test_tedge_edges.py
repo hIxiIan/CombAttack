@@ -189,7 +189,7 @@ if __name__ == '__main__':
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
-    parser.add_argument('--is_dan_mode', default="false", type=str)
+    parser.add_argument('--is_dan_mode', default="true", type=str)
     args = parser.parse_args()
 
     # args.tedge_timestamp = "2022_01_04_23_29_22"

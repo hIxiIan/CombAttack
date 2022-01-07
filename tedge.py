@@ -512,6 +512,8 @@ class tGraphNE(object):
                 unnormalized_probs_a = softmax(unnormalized_probs_a)
 
             if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+                unnormalized_probs_t = np.asarray(unnormalized_probs_t)
+                unnormalized_probs_a = np.asarray(unnormalized_probs_a)
                 if self.amount_biased != "amount_uniform":
                     unnormalized_probs = combine_probs(unnormalized_probs_t, unnormalized_probs_a, self.alpha)
                 else:
