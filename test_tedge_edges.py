@@ -109,7 +109,7 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tG, args, target,
 
     # evasion
     if is_eva:
-        eva_perturbed_label = eva_model.predict([perturbed_features[target]])[0]
+        eva_perturbed_label = eva_model.predict([perturbed_features[args.nodes_to_keep][target]])[0]
 
     # poisoning
     if is_poi:
@@ -119,7 +119,7 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tG, args, target,
                                                             train_size=args.train_size,
                                                             random_state=args.seed)
         poi_model.fit(X_train, y_train)
-        poi_perturbed_label = poi_model.predict([perturbed_features[target]])[0]
+        poi_perturbed_label = poi_model.predict([perturbed_features[args.nodes_to_keep][target]])[0]
 
     eva_asr = true_label != eva_perturbed_label if eva_perturbed_label is not None else False
     poi_asr = true_label != poi_perturbed_label if poi_perturbed_label is not None else False

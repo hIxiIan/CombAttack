@@ -13,6 +13,8 @@ from time import strftime, localtime
 from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
+from numba import jit, njit
+from cluster import make_redundancy
 
 
 METHOD_MAP = {
@@ -46,16 +48,15 @@ def tanh(original_array):
 
 
 def weight_choice(unnormalized_probs):
-    if len(unnormalized_probs) > 0:  # 有符合条件的下一个点
-        norm_const = sum(unnormalized_probs)
-        normalized_probs = [float(u_prob / norm_const) for u_prob in unnormalized_probs]  # 归一化
-
-        J = alias_setup(normalized_probs)[0]
-        q = alias_setup(normalized_probs)[1]
-        idx = alias_draw(J, q)
+    norm_const = sum(unnormalized_probs)
+    normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])  # 归一化
+    J = alias_setup(normalized_probs)[0]
+    q = alias_setup(normalized_probs)[1]
+    idx = alias_draw(J, q)
     return idx
 
 
+@jit(cache=True, nopython=True)
 def alias_setup(probs):
     '''
     Compute utility lists for non-uniform sampling from discrete distributions.
@@ -87,6 +88,7 @@ def alias_setup(probs):
     return J, q
 
 
+@jit(cache=True, nopython=True)
 def alias_draw(J, q):
     '''
     Draw sample from a non-uniform discrete distribution using alias sampling.
@@ -109,14 +111,16 @@ def linear_rank_mapping(original_array, order='ascending'):
         # return (x.argsort() + 1)
 
 
+@jit(cache=True, nopython=True)
 def normalized_probs(unnormalized_probs):
     if len(unnormalized_probs) > 0:  # 有符合条件的下一个点
-        norm_const = sum(unnormalized_probs)
-        normalized_probs = [u_prob / norm_const for u_prob in unnormalized_probs]  # 归一化
+        norm_const = np.sum(unnormalized_probs)
+        normalized_probs = np.array([u_prob / norm_const for u_prob in unnormalized_probs])
 
     return normalized_probs
 
 
+@jit(cache=True, nopython=True)
 def combine_probs(p1, p2, alpha):
     probs1 = normalized_probs(p1)
     probs2 = normalized_probs(p2)
@@ -218,17 +222,9 @@ class tGraphNE(object):
         t1 = time.time()
         walks = self.simulate_walks(num_walks, walk_length)  # 随机游走
         t2 = time.time()
-        # walks = [map(str, walk) for walk in walks]
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
                                   workers=workers, seed=seed)
         t3 = time.time()
-        # self.vectors = {}
-        # for word in list(self.G.nodes()):
-        #     self.vectors[str(word)] = word2vec_model.wv[str(word)]
-        # word2vec_model.wv.save_word2vec_format(output)
-        # self.word2vec_model = word2vec_model
-        # del word2vec_model
-        # exit()
         vectors = word2vec_model.wv.vectors
         index_to_key = np.array(word2vec_model.wv.index_to_key).astype(int)
         tup = sorted(zip(vectors, index_to_key), key=lambda x: x[1], reverse=False)
@@ -272,14 +268,28 @@ class tGraphNE(object):
         返回：
         列表，随机游走序列
         """
-
+        G = self.G
         walk = [start_node]  # 类型：list
         walk_edge = []
         walk_time = []  ##类型：list, 大小比walk的小1
         # walk_key = []
 
         cur = start_node
-        next_node, next_time, next_key = self.get_first_step(cur)
+        cur_nbrs = np.array(list(G.neighbors(cur)))
+        weight_keys = []
+        nbr_keys = []
+        for nbr in cur_nbrs:
+            nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+            nbr_keys.append(nbr_key)
+            weight_keys.append([G[cur][nbr][nk]['weight'] for nk in nbr_key])
+        nbr_keys = np.array(make_redundancy(nbr_keys), dtype=np.int32)
+        weight_keys = np.array(make_redundancy(weight_keys), dtype=np.float32)
+
+        unnormalized_probs_t, tmp_node, tmp_time, tmp_key = get_first_step(cur_nbrs, nbr_keys, self.first_biased_type, self.max_time, self.min_time)
+        selected = weight_choice(unnormalized_probs_t)
+        next_node = tmp_node[selected]
+        next_time = tmp_time[selected]
+        next_key = tmp_key[selected]
         if next_node is not None:
             walk.append(next_node)
             walk_time.append(next_time)
@@ -290,7 +300,20 @@ class tGraphNE(object):
         while len(walk) < walk_length:
             prevtime = walk_time[-1]
             cur = walk[-1]  # 名为walk的list的最后一个元素，当前游走到的结点
-            next_node, next_time, next_key = self.get_next_step(cur, prevtime)
+            cur_nbrs = np.array(list(G.neighbors(cur)))
+            weight_keys = []
+            nbr_keys = []
+            for nbr in cur_nbrs:
+                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+                nbr_keys.append(nbr_key)
+                weight_keys.append([G[cur][nbr][nk]['weight'] for nk in nbr_key])
+            nbr_keys = np.array(make_redundancy(nbr_keys), dtype=np.int32)
+            weight_keys = np.array(make_redundancy(weight_keys), dtype=np.float32)
+            unnormalized_probs_t, tmp_node, tmp_time, tmp_key = self.get_next_step(cur_nbrs, nbr_keys, weight_keys, self.time_biased_type, self.amount_biased, self.max_time, self.max_time, prevtime)
+            selected = weight_choice(unnormalized_probs_t)
+            next_node = tmp_node[selected]
+            next_time = tmp_time[selected]
+            next_key = tmp_key[selected]
             if next_node is not None:
                 walk.append(next_node)
                 walk_time.append(next_time)
@@ -299,146 +322,98 @@ class tGraphNE(object):
                 break
         return walk
 
-    def get_first_step(self, cur):
-        G = self.G
-        tmp_key = []
-        tmp_node = []
-        tmp_time = []
-        unnormalized_probs_t = []
 
-        cur_nbrs = list(G.neighbors(cur))
-        if self.time_biased_type == "simple_graph":  # DeepWalk
-            for nbr in cur_nbrs:
-                tmp_node.append(nbr)
+@njit(cache=True)
+def get_first_step(cur_nbrs, nbr_keys, first_biased_type, max_time, min_time):
+    tmp_key = []
+    tmp_node = []
+    tmp_time = []
+    unnormalized_probs_t = []
+
+    for i, nbr in enumerate(cur_nbrs):
+        nbr_key = nbr_keys[i]  # cur领边的key数组
+        for k in nbr_key:
+            if k == -1:
+                break
+            t = k
+            if first_biased_type == "time_uniform":
                 unnormalized_probs_t.append(1)
+            elif first_biased_type == "time_freq":
+                unnormalized_probs_t.append(max_time - t + 1)
+            elif first_biased_type == "time_close_linear":
+                unnormalized_probs_t.append(max_time - t + 1)
+            elif first_biased_type == "time_far":
+                unnormalized_probs_t.append(t - min_time + 1)
+            elif first_biased_type == "time_far_linear":
+                unnormalized_probs_t.append(t)
 
-            if len(unnormalized_probs_t) > 0:
-                idx = weight_choice(unnormalized_probs_t)
-                next_node = tmp_node[idx]
-                next_time = 0
-                next_key = 0
-                return next_node, next_time, next_key
-            else:
-                return None, None, None  # 没有符合条件的
+            tmp_node.append(nbr)
+            tmp_time.append(t)
+            tmp_key.append(k)
+    unnormalized_probs_t = np.array(unnormalized_probs_t)
 
-        else:
-            for nbr in cur_nbrs:
-                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
-                for k in nbr_key:
-                    t = k
-                    if self.first_biased_type == "time_uniform":
-                        unnormalized_probs_t.append(1)
-                    elif self.first_biased_type == "time_freq":
-                        unnormalized_probs_t.append(self.max_time - t + 1)
-                    elif self.first_biased_type == "time_close_linear":
-                        unnormalized_probs_t.append(self.max_time - t + 1)
-                    elif self.first_biased_type == "time_far":
-                        unnormalized_probs_t.append(t - self.min_time + 1)
-                    elif self.first_biased_type == "time_far_linear":
-                        unnormalized_probs_t.append(t)
+    if first_biased_type == "time_close_linear":  # TBS descending
+        unnormalized_probs_t = np.argsort(-unnormalized_probs_t) + 1
+    elif first_biased_type == "time_far_linear":  # TBS ascending
+        unnormalized_probs_t = np.argsort(unnormalized_probs_t) + 1
 
-                    tmp_node.append(nbr)
-                    tmp_time.append(t)
-                    tmp_key.append(k)
+    if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+        return unnormalized_probs_t, tmp_node, tmp_time, tmp_key
 
-            if self.first_biased_type == "time_close_linear":  # TBS descending
-                unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t, order='descending')
-            elif self.first_biased_type == "time_far_linear":  # TBS ascending
-                unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t)
+    return None, None, None, None
 
-            if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
-                selected = weight_choice(unnormalized_probs_t)
-                next_node = tmp_node[selected]
-                next_time = tmp_time[selected]
-                next_key = tmp_key[selected]
-                return next_node, next_time, next_key
-            else:
-                return None, None, None  # 没有符合条件的
 
-    def get_next_step(self, cur, prevtime=0):
-        """
-        功能：给定一个当前随机游走到的结点cur，这个两个相连的结点（可能有多条边），得出
-        输出：
-        #return J, q
-        直接输出下一个节点，以及时间戳
-        """
-        G = self.G
+@njit(cache=True)
+def get_next_step(cur_nbrs, nbr_keys, weight_keys, time_biased_type, amount_biased, max_time, alpha, prevtime=0):
+    tmp_key = []
+    tmp_node = []
+    tmp_time = []
+    unnormalized_probs_t = []
+    unnormalized_probs_a = []
 
-        tmp_key = []
-        tmp_node = []
-        tmp_time = []
-        unnormalized_probs_t = []
-        unnormalized_probs_a = []
+    for i, nbr in enumerate(cur_nbrs):
+        nbr_key = nbr_keys[i]
+        for j, k in enumerate(nbr_key):
+            if k == -1:
+                break
+            t = k
+            a = weight_keys[i][j]
+            if time_biased_type == "no_time_limit":
+                unnormalized_probs_t.append(1.0)
 
-        cur_nbrs = list(G.neighbors(cur))
-        if self.time_biased_type == "simple_graph":  # DeepWalk
-            for nbr in cur_nbrs:
-                tmp_node.append(nbr)
-                unnormalized_probs_t.append(1)
-
-            if len(unnormalized_probs_t) > 0:
-                idx = weight_choice(unnormalized_probs_t)
-                next_node = tmp_node[idx]
-                next_time = 0
-                next_key = 0
-                return next_node, next_time, next_key
-            else:
-                return None, None, None  # 没有符合条件的
-        else:
-            for nbr in cur_nbrs:
-                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
-                for k in nbr_key:
-                    t = k
-                    a = G[cur][nbr][k]['weight']
-                    if self.time_biased_type == "no_time_limit":
-                        unnormalized_probs_t.append(1)
-
-                    elif t >= prevtime:
-                        unnormalized_probs_a.append(a)
-
-                        if self.time_biased_type == "time_uniform":
-                            unnormalized_probs_t.append(1)
-                        elif self.time_biased_type == "time_close_raw":
-                            unnormalized_probs_t.append(self.max_time - t + 1)
-                        elif self.time_biased_type == "time_close_exp":
-                            unnormalized_probs_t.append(t - prevtime)
-                        else:
-                            unnormalized_probs_t.append(t - prevtime + 1)
-                        tmp_time.append(t)
-                        tmp_node.append(nbr)
-                        tmp_key.append(k)
-
-            if self.time_biased_type == "time_close_linear":  # TBS descending
-                unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t, order='descending')
-            elif self.time_biased_type == "time_far_linear":  # TBS ascending
-                unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t)
-            elif self.time_biased_type == "time_freq_tanh":
-                unnormalized_probs_t = tanh(unnormalized_probs_t)
-            elif self.time_biased_type == "time_close_exp":
-                unnormalized_probs_t = softmax(unnormalized_probs_t)
-
-            # 金额偏好，映射函数缓解过小权重几乎没用
-            if self.amount_biased == "amount_linear":  # WBS ascending
-                unnormalized_probs_a = linear_rank_mapping(unnormalized_probs_a)
-            elif self.amount_biased == "amount_tanh":
-                unnormalized_probs_a = tanh(unnormalized_probs_a)
-            elif self.amount_biased == "amount_exp":
-                unnormalized_probs_a = softmax(unnormalized_probs_a)
-
-            if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
-                if self.amount_biased != "amount_uniform":
-                    unnormalized_probs = combine_probs(unnormalized_probs_t, unnormalized_probs_a, self.alpha)
+            elif t >= prevtime:
+                unnormalized_probs_a.append(a)
+                if time_biased_type == "time_uniform":
+                    unnormalized_probs_t.append(1.0)
+                elif time_biased_type == "time_close_raw":
+                    unnormalized_probs_t.append(max_time - t + 1.0)
+                elif time_biased_type == "time_close_exp":
+                    unnormalized_probs_t.append(t - prevtime + 0.0)
                 else:
-                    unnormalized_probs = unnormalized_probs_t
+                    unnormalized_probs_t.append(t - prevtime + 1.0)
+                tmp_time.append(t)
+                tmp_node.append(nbr)
+                tmp_key.append(k)
 
-                selected = weight_choice(unnormalized_probs)
-                next_node = tmp_node[selected]
-                next_time = tmp_time[selected]
-                next_key = tmp_key[selected]
-                return next_node, next_time, next_key
+    unnormalized_probs_t = np.array(unnormalized_probs_t, dtype=np.float64)
+    unnormalized_probs_a = np.array(unnormalized_probs_a, dtype=np.float64)
 
-            else:
-                return None, None, None  # 没有符合条件的
+    if time_biased_type == "time_close_linear":  # TBS descending
+        unnormalized_probs_t = np.argsort(-unnormalized_probs_t) + 1.0
+    elif time_biased_type == "time_far_linear":  # TBS ascending
+        unnormalized_probs_t = np.argsort(unnormalized_probs_t) + 1.0
+
+    if amount_biased == "amount_linear":  # WBS ascending
+        unnormalized_probs_a = np.argsort(unnormalized_probs_a) + 1.0
+
+    if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+        if amount_biased != "amount_uniform":
+            unnormalized_probs = combine_probs(unnormalized_probs_t, unnormalized_probs_a, alpha)
+        else:
+            unnormalized_probs = unnormalized_probs_t
+        return unnormalized_probs, tmp_node, tmp_time, tmp_key
+
+    return None, None, None, None
 
 
 def get_tedge(args):
