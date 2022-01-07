@@ -14,7 +14,6 @@ from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
 from numba import jit, njit
-from cluster import make_redundancy
 
 
 METHOD_MAP = {
@@ -54,6 +53,16 @@ def weight_choice(unnormalized_probs):
     q = alias_setup(normalized_probs)[1]
     idx = alias_draw(J, q)
     return idx
+
+
+def make_redundancy(arr):
+    new_arr = []
+    col = 0
+    for a in arr:
+        col = max(col, len(a))
+    for a in arr:
+        new_arr.append(list(a) + [-1] * (col - len(a)))
+    return new_arr
 
 
 @jit(cache=True, nopython=True)
