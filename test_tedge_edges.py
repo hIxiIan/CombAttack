@@ -254,11 +254,11 @@ if __name__ == '__main__':
                 targets_edge_flips = cur_edges[embed_type_tedge_type]
                 targets = list(targets_edge_flips.keys())
                 # !!!!! targets all in 445 phishing nodes normally
+                random_seed(seed)
                 for ti, target in enumerate(targets):
                     t1 = time()
                     print('attack target: {}. {}/{} '.format(target, ti + 1, len(targets)))
                     edge_flips = targets_edge_flips[target]
-                    random_seed(seed)
                     perturbed_tG = get_perturbed_graph(tG_ori, edge_flips)
 
                     for model_name in models:
