@@ -187,7 +187,7 @@ if __name__ == '__main__':
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("-ie", "--is_evasion", default="true", type=str)
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
-    parser.add_argument('--run_sga', default="false", type=str)
+    parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('--is_dan_mode', default="false", type=str)
     args = parser.parse_args()
