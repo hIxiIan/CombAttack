@@ -309,7 +309,7 @@ class tGraphNE(object):
                 weight_keys.append([G[cur][nbr][nk]['weight'] for nk in nbr_key])
             nbr_keys = np.array(make_redundancy(nbr_keys), dtype=np.int32)
             weight_keys = np.array(make_redundancy(weight_keys), dtype=np.float32)
-            unnormalized_probs_t, tmp_node, tmp_time, tmp_key = self.get_next_step(cur_nbrs, nbr_keys, weight_keys, self.time_biased_type, self.amount_biased, self.max_time, self.max_time, prevtime)
+            unnormalized_probs_t, tmp_node, tmp_time, tmp_key = get_next_step(cur_nbrs, nbr_keys, weight_keys, self.time_biased_type, self.amount_biased, self.max_time, self.max_time, prevtime)
             selected = weight_choice(unnormalized_probs_t)
             next_node = tmp_node[selected]
             next_time = tmp_time[selected]
