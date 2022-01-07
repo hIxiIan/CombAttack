@@ -258,13 +258,13 @@ if __name__ == '__main__':
                     t1 = time()
                     print('attack target: {}. {}/{} '.format(target, ti + 1, len(targets)))
                     edge_flips = targets_edge_flips[target]
+                    random_seed(seed)
                     perturbed_tG = get_perturbed_graph(tG_ori, edge_flips)
 
                     for model_name in models:
                         _key = "_".join([model_name, tedge_type])
                         attacked_model = attacked_models[_key]
                         true_label = true_labels[_key][target]
-                        random_seed(seed)
                         t1 = time()
                         is_eva_success, is_poi_success = get_sklearn_results(attacked_model, model_name,
                                                                              true_label, perturbed_tG,
