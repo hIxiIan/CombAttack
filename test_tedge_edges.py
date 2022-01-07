@@ -104,7 +104,7 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tG, args, target,
 
     time_biased_type, first_biased_type, amount_biased, alpha = METHOD_MAP[tedge_type]
     tGNE = tGraphNE(perturbed_tG, time_biased_type, first_biased_type, amount_biased, alpha,
-                   seed=args.seed, verbose=args.verbose, output="", is_test_tedge_edges=True)
+                   seed=args.seed, verbose=args.verbose, output="", is_test_tedge_edges=True, is_dan=args.is_dan)
     perturbed_features = tGNE.features
 
     # evasion
@@ -189,6 +189,7 @@ if __name__ == '__main__':
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="false", type=str)
     parser.add_argument('--run_us', default="true", type=str)
+    parser.add_argument('--is_dan_mode', default="false", type=str)
     args = parser.parse_args()
 
     # args.tedge_timestamp = "2022_01_04_23_29_22"
@@ -215,6 +216,7 @@ if __name__ == '__main__':
         # fixed seed
         is_eva = True if args.is_evasion == "true" else False
         is_poi = True if args.is_poisoning == "true" else False
+        args.is_dan = True if args.is_dan_mode == "true" else False
         results = []
         times = args.times
 
