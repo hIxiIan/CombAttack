@@ -49,8 +49,7 @@ def tanh(original_array):
 def weight_choice(unnormalized_probs):
     norm_const = sum(unnormalized_probs)
     normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])  # 归一化
-    J = alias_setup(normalized_probs)[0]
-    q = alias_setup(normalized_probs)[1]
+    J, q = alias_setup(normalized_probs)
     idx = alias_draw(J, q)
     return idx
 
@@ -97,14 +96,13 @@ def alias_setup(probs):
     return J, q
 
 
-@jit(cache=True, nopython=True)
+# @jit(cache=True, nopython=True)
 def alias_draw(J, q):
     '''
     Draw sample from a non-uniform discrete distribution using alias sampling.
     '''
     K = len(J)
-
-    kk = int(np.floor(np.random.rand() * K))
+    kk = np.random.randint(K)
     if np.random.rand() < q[kk]:
         return kk
     else:
@@ -245,6 +243,7 @@ class tGraphNE(object):
             pd.DataFrame(features).to_csv(output, index=None)
         else:
             self.features = features
+            self.walks = walks
 
         if verbose > 0:
             print('features.shape:{}'.format(features.shape))
@@ -266,7 +265,7 @@ class tGraphNE(object):
         for walk_iter in range(num_walks):
             if self.verbose > 0:
                 print(str(walk_iter + 1), '/', str(num_walks))
-            random.shuffle(nodes)
+            np.random.shuffle(nodes)
             for node in nodes:
                 walks.append(self.temporal_walk(walk_length=walk_length, start_node=node))
         return walks
@@ -344,7 +343,7 @@ class tGraphNE(object):
         for walk_iter in range(num_walks):
             if self.verbose > 0:
                 print(str(walk_iter + 1), '/', str(num_walks))
-            random.shuffle(nodes)
+            np.random.shuffle(nodes)
             for node in nodes:
                 walks.append(self.dan_temporal_walk(walk_length=walk_length, start_node=node))
         return walks

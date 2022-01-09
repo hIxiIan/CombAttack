@@ -86,13 +86,13 @@ def get_perturbed_graph(tG_ori, edge_flips):
                 else:
                     g.add_edge(u, v, key=timestamp, weight=amount)
             else:
-                timestamp = random.randint(tG.max_time, tG.max_time + 500000)
+                timestamp = np.random.randint(tG.max_time, tG.max_time + 500000)
                 his_amount = [np.mean([weight['weight'] for weight in list(nbr.values())]) for nbr in list(g[u].values())]
                 if len(his_amount) > 0:
                     amount = np.quantile(his_amount, 0.5)
                 else:
                     u_balance = get_balance(g, u)
-                    amount = random.uniform(0, u_balance)
+                    amount = np.random.uniform(0, u_balance)
                 g.add_edge(u, v, key=timestamp, weight=amount)
         tG.G = g
     return tG
@@ -282,7 +282,9 @@ if __name__ == '__main__':
                 for model_name in models:
                     _key = "_".join([model_name, tedge_type])
                     key = "_".join([embed_type, _key])
-                    cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean(), args.attacked_models_acc[_key]]
+                    cur_asr = [eva_asr[key].mean(), poi_asr[key].mean(), args.attacked_models_acc[_key]]
+                    cur_result.loc[key] = cur_asr
+                    print('attack model: {}, cur_asr: {}'.format(model_name, cur_asr))
                 cur_result.to_csv(filename + '.csv')
                 print('cost:{} min'.format((time() - start) / 60))
             results.append(cur_result)
