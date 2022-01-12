@@ -24,8 +24,14 @@ METHOD_MAP = {
 }
 
 
+@njit
+def numba_seed(sd):
+    np.random.seed(sd)
+
+
 def random_seed(seed=None):
     np.random.seed(seed)
+    numba_seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -46,12 +52,32 @@ def tanh(original_array):
     return (np.exp(x) - np.exp(-x)) / (np.exp(x) + np.exp(-x))
 
 
+@jit(cache=True, nopython=True)
 def weight_choice(unnormalized_probs):
-    norm_const = sum(unnormalized_probs)
+    norm_const = np.sum(unnormalized_probs)
     normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])  # 归一化
     J, q = alias_setup(normalized_probs)
     idx = alias_draw(J, q)
     return idx
+
+
+@jit(cache=True, nopython=True)
+def random_weight_choice(p):
+    """Similar to `numpy.random.choice` and it suppors p=option in numba.
+    refer to <https://github.com/numba/numba/issues/2539#issuecomment-507306369>
+
+    Parameters
+    ----------
+    arr : 1-D array-like
+    p : 1-D array-like
+        The probabilities associated with each entry in arr
+
+    Returns
+    -------
+    sample : ndarray with 1 element
+        The generated random sample
+    """
+    return np.searchsorted(np.cumsum(p), np.random.random(), side="right")
 
 
 def make_redundancy(arr):
@@ -96,7 +122,7 @@ def alias_setup(probs):
     return J, q
 
 
-# @jit(cache=True, nopython=True)
+@jit(cache=True, nopython=True)
 def alias_draw(J, q):
     '''
     Draw sample from a non-uniform discrete distribution using alias sampling.
@@ -216,11 +242,14 @@ class tGraph(object):
 class tGraphNE(object):
     def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha, output,
                  dimensions=128, num_walks=4, walk_length=10, output_pklG=False,
-                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, is_test_tedge_edges=False, is_dan=True):
+                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, save_features=False, is_dan=True, rac=False):
         self.G = tG.G
         self.min_time = tG.min_time
         self.max_time = tG.max_time
         self.verbose = verbose
+        self.weight_choice = weight_choice
+        if rac:
+            self.weight_choice = random_weight_choice
 
         self.time_biased_type = time_biased_type  # choice = "unbiased", "amount-weighted" "linear", "exp"
         self.first_biased_type = first_biased_type
@@ -235,15 +264,13 @@ class tGraphNE(object):
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
                                   workers=workers, seed=seed)
         t3 = time.time()
-        vectors = word2vec_model.wv.vectors
-        index_to_key = np.array(word2vec_model.wv.index_to_key).astype(int)
-        tup = sorted(zip(vectors, index_to_key), key=lambda x: x[1], reverse=False)
-        features = np.array([t[0] for t in tup])
-        if not is_test_tedge_edges:
+        features = word2vec_model.wv.vectors[np.fromiter(map(int, word2vec_model.wv.index_to_key), np.int32).argsort()]
+        self.features = features
+        self.walks = walks
+        self.word2vec_model = word2vec_model
+
+        if not save_features:
             pd.DataFrame(features).to_csv(output, index=None)
-        else:
-            self.features = features
-            self.walks = walks
 
         if verbose > 0:
             print('features.shape:{}'.format(features.shape))
@@ -432,7 +459,7 @@ class tGraphNE(object):
                 unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t)
 
             if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
-                selected = weight_choice(unnormalized_probs_t)
+                selected = self.weight_choice(unnormalized_probs_t)
                 next_node = tmp_node[selected]
                 next_time = tmp_time[selected]
                 next_key = tmp_key[selected]
@@ -518,7 +545,7 @@ class tGraphNE(object):
                 else:
                     unnormalized_probs = unnormalized_probs_t
 
-                selected = weight_choice(unnormalized_probs)
+                selected = self.weight_choice(unnormalized_probs)
                 next_node = tmp_node[selected]
                 next_time = tmp_time[selected]
                 next_key = tmp_key[selected]
@@ -668,7 +695,8 @@ def run_tedge(args):
         tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
-                        workers=args.workers, seed=args.seed, verbose=args.verbose, output=output)
+                        workers=args.workers, seed=args.seed, verbose=args.verbose, output=output,
+                        save_features=False, is_dan=True, rac=args.rac)
     else:
         print('skip embedding process...')
 
@@ -697,7 +725,9 @@ if __name__ == '__main__':
     parser.add_argument("--window_size", default=4, type=int) # 4
     parser.add_argument("--workers", default=1, type=int) # 8
     parser.add_argument("--train_size", default=0.5, type=float)
+    parser.add_argument("--rac", default="false", type=str, help="random_choice or alias table choice")
     args = parser.parse_args()
+    args.rac = True if args.rac == "true" else False
 
     random_seed(args.seed)
     outputdir = "result/test_tedge"
