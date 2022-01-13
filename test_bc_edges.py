@@ -166,8 +166,8 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, targ
         NE_MODEL = tGraphNE(perturbed_tuple, time_biased_type, first_biased_type, amount_biased, alpha,
                        seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=args.rac)
     elif args.dataset == "trans2vec":
-        NE_MODEL = trans2vec(perturbed_tuple=perturbed_tuple, output="", save_features=False, verbose=args.verbose, seed=args.seed,
-                  dimensions=128)
+        NE_MODEL = trans2vec(perturbed_tuple=perturbed_tuple, output="", save_features=False, verbose=args.verbose, seed=args.seed)
+
     perturbed_features = NE_MODEL.features
 
     # evasion
