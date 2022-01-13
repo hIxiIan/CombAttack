@@ -169,7 +169,7 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, targ
     if args.dataset == "tedge":
         time_biased_type, first_biased_type, amount_biased, alpha = METHOD_MAP[tedge_type]
         NE_MODEL = tGraphNE(perturbed_tuple, time_biased_type, first_biased_type, amount_biased, alpha,
-                       seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=False)
+                       seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=False) # 设置false没bug
     elif args.dataset == "trans2vec":
         NE_MODEL = trans2vec(perturbed_tuple=perturbed_tuple, output="", save_features=False, verbose=args.verbose, seed=args.seed)
 
@@ -293,7 +293,7 @@ if __name__ == '__main__':
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
-    parser.add_argument("--rac", default="true", type=str, help="random_choice or alias table choice")
+    parser.add_argument("--rac", default="false", type=str, help="random_choice or alias table choice")
     parser.add_argument("--alpha", default=0.5, type=float)
     parser.add_argument("--gf_alias_mode", default="false", type=str)
     parser.add_argument("--gf", default="false", type=str)
