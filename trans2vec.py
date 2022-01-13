@@ -80,9 +80,10 @@ class tGraph(object):
 
 
 class trans2vec(object):
-    def __init__(self, output, alpha=0.5, gf_alias_mode=True,
-                 dimensions=128, num_walks=4, walk_length=10,
-                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, save_features=False, gf=True):
+    def __init__(self, output, perturbed_tuple=None, alpha=0.5, gf_alias_mode=True,
+                 dimensions=64, num_walks=20, walk_length=5,
+                 window_size=10, workers=1, hs=1, seed=2022, verbose=0, save_features=False, gf=True):
+        self.perturbed_tuple = perturbed_tuple
         self.verbose = verbose
         self.alpha = alpha
         self.dimensions = dimensions
@@ -110,30 +111,44 @@ class trans2vec(object):
     def get_amount_timestamp_data(self):
         N = self.adj_matrix.shape[0]
         amount_timestamp_data = sp.lil_matrix((N, N), dtype=np.float64)
-        amount_data = self.adj_matrix.tolil()
-        timestamp_data = self.timestamp_data.tolil()
-        x, y = amount_data.nonzero()
-        for i in range(len(x)):
-            amount_timestamp_data[x[i], y[i]] = (amount_data[x[i], y[i]] ** self.alpha) * \
-                                                (timestamp_data[x[i], y[i]] ** (1.0 - self.alpha))
-        # amount_timestamp_data = amount_timestamp_data + amount_timestamp_data.T
+        nodes = np.arange(N, dtype=np.int32)
+        indices = self.adj_matrix.indices
+        indptr = self.adj_matrix.indptr
+        amount_data = self.amount_data.data
+        timestamp_data = self.timestamp_data.data
+        for node in nodes:
+            nbrs = indices[indptr[node]: indptr[node + 1]]
+            nbrs_amount_probs = amount_data[indptr[node]: indptr[node + 1]].copy()
+            nbrs_timestamp_probs = timestamp_data[indptr[node]: indptr[node + 1]].copy()
+            nbrs_unnormalized_probs = combine_probs(nbrs_amount_probs, nbrs_timestamp_probs, self.alpha)
+
+            for i, nbr in enumerate(nbrs):
+                amount_timestamp_data[node, nbr] = nbrs_unnormalized_probs[i]
         amount_timestamp_data = amount_timestamp_data.tocsr()
         return amount_timestamp_data.data
 
     def gf_walk(self):
-        data = np.load('dataset/phishing/tedge_trans2vec.npz', allow_pickle=True)
-        self.adj_matrix = data['adj_matrix'].item()
-        self.amount_data = data['amount_data'].item()
-        self.timestamp_data = data['timestamp_data'].item()
-        self.node_label = data['node_label']
-        self.adj_matrix.data = self.get_amount_timestamp_data()
+        if self.perturbed_tuple is None:
+            data = np.load('dataset/phishing/trans2vec.npz', allow_pickle=True)
+            self.adj_matrix = data['adj_matrix'].item()
+            self.amount_data = data['amount_data'].item()
+            self.timestamp_data = data['timestamp_data'].item()
+            self.node_label = data['node_label']
+            self.adj_matrix.data = self.get_amount_timestamp_data()
+        else:
+            self.adj_matrix = self.perturbed_tuple[0]
+            self.amount_data = self.perturbed_tuple[1]
+            self.timestamp_data = self.perturbed_tuple[2]
+            self.adj_matrix.data = self.get_amount_timestamp_data()
         t1 = time()
         if self.gf_alias_mode:
-            print("run gf alias mode")
+            if self.verbose > 0:
+                print("run gf alias mode")
             walks = BiasedRandomWalkerAlias(walk_length=self.walk_length, walk_number=self.num_walks,
                                         p=1.0, q=1.0, extend=False, mode="SparseOTF").walk(self.adj_matrix)
         else:
-            print("run gf normal mode")
+            if self.verbose > 0:
+                print("run gf normal mode")
             walks = BiasedRandomWalker(walk_length=self.walk_length, walk_number=self.num_walks).walk(self.adj_matrix)
         t2 = time()
         word2vec_model = Word2Vec(sentences=walks, vector_size=self.dimensions, window=self.window_size,
@@ -252,7 +267,7 @@ class trans2vec(object):
 
 
 def get_trans2vec(args):
-    path = args.tedge_features_file
+    path = args.features_file
     embeddings = pd.read_csv(path).values #8w6+
     sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 编号的890个节点
     nodes = list([int(node) for node in sample_labels.keys()])
@@ -279,29 +294,18 @@ def node_classification(args, output):
 
     if model_name in ["ocsvm"]:
         # 训练集是无标签节点，测试集是标签+无标签节点
-        X_train = nodes_embeddings[445:]
-        X_test = nodes_embeddings
-        model = OneClassSVM(gamma="auto").fit(X_train)
-        y_pred = model.predict(X_test)
-        y_pred = [1 if _y == -1 else 0 for _y in y_pred]
-        cr = classification_report(y_pred, nodes_labels)
+        # X_train, X_test, y_test = nodes_embeddings[445:], nodes_embeddings, nodes_labels
 
         # 总数据随机选80%
-        # X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size,
-        #                                                     random_state=args.seed)
-        # model = OneClassSVM(gamma="auto").fit(X_train)
-        # y_pred = model.predict(X_test)
-        # y_pred = [1 if _y == -1 else 0 for _y in y_pred]
-        # cr = classification_report(y_pred, y_test)
+        # X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
 
         # 分别随机选80%，分层抽样
-        # X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size,
-        #                                                     random_state=args.seed, stratify=nodes_labels)
-        # model = OneClassSVM(gamma="auto").fit(X_train)
-        # y_pred = model.predict(X_test)
-        # y_pred = [1 if _y == -1 else 0 for _y in y_pred]
-        # cr = classification_report(y_pred, y_test)
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed, stratify=nodes_labels)
 
+        model = OneClassSVM(nu=0.8, gamma="auto").fit(X_train)
+        y_pred = model.predict(X_test)
+        y_pred = [1 if _y == -1 else 0 for _y in y_pred]
+        cr = classification_report(y_pred, y_test)
     elif model_name in ["svm", 'lr']:
         X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
         if model_name == "svm":
@@ -344,7 +348,7 @@ if __name__ == '__main__':
     parser.add_argument("-tt", "--tedge_type", default="TBS+WBS", choices=['TBS+WBS'], type=str)
     parser.add_argument("--run_emb", default="true", type=str)
     parser.add_argument("--run_nc", default="true", type=str)
-    parser.add_argument("-f", "--filename", default="", type=str)
+    parser.add_argument("-f", "--filename", default="TBS+WBS_2022_01_12_18_31_57_test", type=str)
     parser.add_argument("-d", "--dimensions", default=64, type=int) # 128
     parser.add_argument("--num_walks", default=20, type=int) # 4
     parser.add_argument("--walk_length", default=5, type=int) # 10
@@ -360,7 +364,7 @@ if __name__ == '__main__':
     args.gf_alias_mode = True if args.gf and args.gf_alias_mode == "true" else False
 
     random_seed(args.seed)
-    outputdir = "result/test_tran2vec"
+    outputdir = "result/test_trans2vec"
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)
     args.outputdir = outputdir

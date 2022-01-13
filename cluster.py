@@ -244,6 +244,7 @@ class Cluster:
             added_nodes.append(indirect_added_nodes)
         return deleted_nodes, added_nodes
 
+    # todo: 加边集合没有考虑他们本身是否连边
     @staticmethod
     @njit(cache=True)
     def get_edges(targets, deleted_nodes, added_nodes):

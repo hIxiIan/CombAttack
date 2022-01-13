@@ -8,9 +8,16 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from tedge import load_labels, tGraph, tGraphNE, METHOD_MAP, random_seed
 from copy import deepcopy as dc
+from trans2vec import trans2vec
 
 
-ds = ["SVM"]
+ATKED_MODELS_MAP = {
+    "tedge": ["SVM"],
+    "trans2vec": ['SVM'] # "OCSVM"
+}
+
+ATKED_MODELS = ['SVM']
+DATASETS = ['tedge', 'trans2vec']
 
 
 def load_json(filename):
@@ -19,10 +26,17 @@ def load_json(filename):
     return np.load(filename, allow_pickle=True).item()
 
 
-def get_models(models):
+def get_models(args):
+    models = args.model
     if len(models) <= 0:
-        return ds
+        return ATKED_MODELS_MAP[args.dataset]
     return models.split(",")
+
+
+def get_datasets(datasets):
+    if len(datasets) <= 0:
+        return DATASETS
+    return datasets.split(",")
 
 
 def print_args(args):
@@ -69,7 +83,8 @@ def get_balance(g, u):
     return u_balance
 
 
-def get_perturbed_graph(tG_ori, edge_flips):
+# todo: 都是钓鱼节点转出
+def get_tedge_perturbed_graph(tG_ori, edge_flips):
     tG = dc(tG_ori)
     adj_flips = get_adj_flips(edge_flips)
     if adj_flips is not None:
@@ -98,14 +113,62 @@ def get_perturbed_graph(tG_ori, edge_flips):
     return tG
 
 
-def get_sklearn_results(eva_model, name, true_label, perturbed_tG, args, target, tedge_type, is_eva, is_poi):
+def get_trans2vec_perturbed_graph(_adj_matrix, _amount_data, _timestamp_data, edge_flips):
+    indices = _adj_matrix.indices
+    indptr = _adj_matrix.indptr
+    adj_matrix = _adj_matrix.tolil()
+    amount_data = _amount_data.tolil()
+    timestamp_data = _timestamp_data.tolil()
+
+    def has_edge(u, v):
+        return adj_matrix[u, v] > 0.
+
+    adj_flips = get_adj_flips(edge_flips)
+    if adj_flips is not None:
+        for edge in adj_flips:
+            u, v = edge[0], edge[1]
+            u_out_nbrs = indices[indptr[u]:indptr[u + 1]]
+            u_in_nbrs = adj_matrix[:, u].nonzero()[0]
+            if has_edge(u, v):
+                timestamp = timestamp_data[u, v] + 1
+            else:
+                timestamp = 1
+
+            his_out_amount = amount_data[u, u_out_nbrs].toarray()[0]
+            if len(his_out_amount) > 0:
+                amount = np.quantile(his_out_amount, 0.5)
+            else:
+                his_in_amount = np.sum([amount_data[u_in_nbr, u] for u_in_nbr in u_in_nbrs])
+                u_balance = his_in_amount - his_out_amount.sum()
+                amount = np.random.uniform(0, u_balance)
+            adj_matrix[u, v] = 1.0
+            amount_data[u, v] = amount
+            timestamp_data[u, v] = timestamp
+
+    return adj_matrix.tocsr(), amount_data.tocsr(), timestamp_data.tocsr()
+
+
+def get_perturbed_graph(args, ori_data, edge_flips):
+    dataset = args.dataset
+    if dataset == "tedge":
+        return get_tedge_perturbed_graph(ori_data, edge_flips)
+    elif dataset == "trans2vec":
+        return get_trans2vec_perturbed_graph(ori_data[0], ori_data[1], ori_data[2], edge_flips)
+
+    return None
+
+
+def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, target, tedge_type, is_eva, is_poi):
     eva_perturbed_label = None
     poi_perturbed_label = None
-
-    time_biased_type, first_biased_type, amount_biased, alpha = METHOD_MAP[tedge_type]
-    tGNE = tGraphNE(perturbed_tG, time_biased_type, first_biased_type, amount_biased, alpha,
-                   seed=args.seed, verbose=args.verbose, output="", is_test_tedge_edges=True, is_dan=args.is_dan)
-    perturbed_features = tGNE.features
+    if args.dataset == "tedge":
+        time_biased_type, first_biased_type, amount_biased, alpha = METHOD_MAP[tedge_type]
+        NE_MODEL = tGraphNE(perturbed_tuple, time_biased_type, first_biased_type, amount_biased, alpha,
+                       seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=args.rac)
+    elif args.dataset == "trans2vec":
+        NE_MODEL = trans2vec(perturbed_tuple=perturbed_tuple, output="", save_features=False, verbose=args.verbose, seed=args.seed,
+                  dimensions=128)
+    perturbed_features = NE_MODEL.features
 
     # evasion
     if is_eva:
@@ -133,8 +196,8 @@ def get_true_labels(attacked_models, args, tedgedir, i):
     for model_name_tedge_type in tedge_types:
         model_name, tedge_type = model_name_tedge_type.split('_')
         attacked_model = attacked_models[model_name + "_" + tedge_type]
-        tedge_features_file = tedgedir + "_".join([tedge_type, args.tedge_timestamp, str(i)]) + '.csv'
-        embeddings = pd.read_csv(tedge_features_file).values
+        features_file = tedgedir + "_".join([tedge_type, args.feature_timestamp, str(i)]) + '.csv'
+        embeddings = pd.read_csv(features_file).values
         # nodes_embeddings = pd.DataFrame(embeddings[args.nodes], index=args.nodes)
         true_labels['_'.join([model_name, tedge_type])] = attacked_model.predict(embeddings[args.nodes_to_keep])
     return true_labels
@@ -155,8 +218,8 @@ def get_attacked_models(models, args, tedgedir, i, embed_types_tedge_types):
     attacked_models_acc = {}
     for model_name in models:
         for tedge_type in tedge_types:
-            tedge_features_file = tedgedir + "_".join([tedge_type, args.tedge_timestamp, str(i)]) + '.csv'
-            embeddings = pd.read_csv(tedge_features_file).values
+            features_file = tedgedir + "_".join([tedge_type, args.feature_timestamp, str(i)]) + '.csv'
+            embeddings = pd.read_csv(features_file).values
             nodes_embeddings = pd.DataFrame(embeddings[args.nodes], index=args.nodes)
             model = get_sklean_model(model_name, args)
             X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, args.nodes_labels,
@@ -174,57 +237,84 @@ def get_attacked_models(models, args, tedgedir, i, embed_types_tedge_types):
     return attacked_models
 
 
+PARAMS_MAP = {
+    'tedge': [0.5, "false", "false", True],
+    'trans2vec': [0.8, "true", "false", False]
+}
+
+
+def get_ori_data(args):
+    dataset = args.dataset
+    if dataset == "tedge":
+        tedge_adj_file = 'dataset/phishing/TransEdgelist.txt'
+        tG_ori = tGraph(tedge_adj_file, verbose=args.verbose)
+        return tG_ori
+    elif dataset == "trans2vec":
+        trans2vec_adj_file = "dataset/phishing/trans2vec.npz"
+        data = np.load(trans2vec_adj_file, allow_pickle=True)
+        adj_matrix = data['adj_matrix'].item()
+        amount_data = data['amount_data'].item()
+        timestamp_data = data['timestamp_data'].item()
+        return adj_matrix, amount_data, timestamp_data
+    return None
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-m", "--model", default="", type=str, help="model")
-    parser.add_argument("--dataset", default="tedge", type=str, help="dataset")
+    parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--times", default=1, type=int)
-    parser.add_argument("-tt", "--tedge_timestamp", default="2022_01_04_23_29_22", type=str)
+    parser.add_argument("-tt", "--feature_timestamp", default="2022_01_04_23_29_22", type=str)
     parser.add_argument("-eft", "--edge_flips_timestamp", default="2022_01_05_18_09_43", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("-ie", "--is_evasion", default="true", type=str)
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
-    parser.add_argument('--is_dan_mode', default="true", type=str)
+    parser.add_argument("--rac", default="true", type=str, help="random_choice or alias table choice")
+    parser.add_argument("--alpha", default=0.5, type=float)
+    parser.add_argument("--gf_alias_mode", default="false", type=str)
+    parser.add_argument("--gf", default="false", type=str)
     args = parser.parse_args()
 
-    # args.tedge_timestamp = "2022_01_04_23_29_22"
+    # args.feature_timestamp = "2022_01_04_23_29_22"
     # args.edge_flips_timestamp = "2022_01_05_18_09_43"
-    assert args.tedge_timestamp != "", "tedge_timestamp is invalid"
+    assert args.feature_timestamp != "", "feature_timestamp is invalid"
     assert args.edge_flips_timestamp != "", "edge_flips_timestamp is invalid"
-    print_args(args)
 
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
 
-    models = get_models(args.model)
-    datasets = [args.dataset]
-
-    edgesdir = "result/test_edges/"
-    tedgedir = 'result/test_tedge/'
-
+    datasets = get_datasets(args.dataset)
     print(datasets)
-    print(models)
+    edgesdir = "result/test_edges/"
+    labels_file = 'dataset/phishing/label.txt'
+    nodes_to_keep_file = 'dataset/phishing/tedge_nodes_to_keep.csv'
+
     count = 0
     total = args.times * len(datasets)
     for dataset in datasets:
-        tG_ori = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+        models = get_models(args)
+        print(models)
+        ori_data = get_ori_data(args)
         args.dataset = dataset
+        featuredir = 'result/test_' + args.dataset + '/'
+        args.train_size, args.gf, args.gf_alias_mode, args.is_dan = PARAMS_MAP[args.dataset]
         # fixed seed
         is_eva = True if args.is_evasion == "true" else False
         is_poi = True if args.is_poisoning == "true" else False
-        args.is_dan = True if args.is_dan_mode == "true" else False
+        args.gf = True if args.gf == "true" else False
+        args.gf_alias_mode = True if args.gf and args.gf_alias_mode == "true" else False
         results = []
         times = args.times
-
+        print_args(args)
         for i in range(times):
-            sample_labels = load_labels('dataset/phishing/label.txt')
+            sample_labels = load_labels(labels_file)
             args.nodes = list([int(node) for node in sample_labels.keys()])
             args.nodes_labels = list(sample_labels.values())
-            args.nodes_to_keep = pd.read_csv('dataset/phishing/tedge_nodes_to_keep.csv').values.ravel()
+            args.nodes_to_keep = pd.read_csv(nodes_to_keep_file).values.ravel()
             count += 1
             print('\ncount:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
             cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr', 'clean_acc'])
@@ -234,9 +324,15 @@ if __name__ == '__main__':
             args.seed = seed
             del cur_edges['seed']
             embed_types_tedge_types = cur_edges.keys()
+            # 调试使用
+            if args.dataset == "trans2vec":
+                embed_types_tedge_types = []
+                for ettt in cur_edges.keys():
+                    if "TBS+WBS" in ettt:
+                        embed_types_tedge_types.append(ettt)
 
-            attacked_models = get_attacked_models(models, args, tedgedir, i, embed_types_tedge_types)
-            true_labels = get_true_labels(attacked_models, args, tedgedir, i)
+            attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
+            true_labels = get_true_labels(attacked_models, args, featuredir, i)
             eva_asr = {}
             poi_asr = {}
             for embed_type_tedge_type in embed_types_tedge_types:
@@ -247,7 +343,7 @@ if __name__ == '__main__':
                 if args.run_us == "false" and "sga" not in embed_type.lower():
                     print('skip embed_type_tedge_type:{}'.format(embed_type_tedge_type))
                     continue
-                args.tedge_features_file = tedgedir + "_".join([tedge_type, args.tedge_timestamp, str(i)]) + '.csv'
+                args.features_file = featuredir + "_".join([tedge_type, args.feature_timestamp, str(i)]) + '.csv'
 
                 start = time()
                 print('embed_type:{}, tedge_type: {}, atk_models:{}'.format(embed_type, tedge_type, models))
@@ -259,7 +355,7 @@ if __name__ == '__main__':
                     t1 = time()
                     print('attack target: {}. {}/{} '.format(target, ti + 1, len(targets)))
                     edge_flips = targets_edge_flips[target]
-                    perturbed_tG = get_perturbed_graph(tG_ori, edge_flips)
+                    perturbed_tuple = get_perturbed_graph(args, ori_data, edge_flips)
 
                     for model_name in models:
                         _key = "_".join([model_name, tedge_type])
@@ -267,7 +363,7 @@ if __name__ == '__main__':
                         true_label = true_labels[_key][target]
                         t1 = time()
                         is_eva_success, is_poi_success = get_sklearn_results(attacked_model, model_name,
-                                                                             true_label, perturbed_tG,
+                                                                             true_label, perturbed_tuple,
                                                                              args, target, tedge_type, is_eva, is_poi)
                         print('get_sklearn_results cost: {} min'.format((time() - t1) / 60))
                         key = "_".join([embed_type, _key])

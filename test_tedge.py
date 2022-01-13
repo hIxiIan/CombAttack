@@ -1,8 +1,6 @@
-import graphgallery as gg
-import graphgallery.functional as gf
 import argparse
 import os
-from tedge import run_tedge
+from tedge import run_tedge, random_seed
 from time import strftime, localtime
 
 
@@ -33,7 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('--times', default=1, type=int)
     args = parser.parse_args()
 
-    gf.random_seed(args.seed, gg.backend())
+    random_seed(args.seed)
     outputdir = "result/test_tedge"
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)

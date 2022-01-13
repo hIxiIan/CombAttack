@@ -82,9 +82,9 @@ if __name__ == '__main__':
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
     parser.add_argument("--tedge_type", default="", type=str)
-    parser.add_argument("--tedge_timestamp", default="", type=str)
-    parser.add_argument("--tedge_features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
-    parser.add_argument("--tedge_train_size", default=0.5, type=float)
+    parser.add_argument("--feature_timestamp", default="", type=str)
+    parser.add_argument("--features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
+    parser.add_argument("--train_size", default=0.5, type=float)
 
     cmd = parser.parse_args()
     cmd.hids = None
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     for dataset in dataset_:
         if dataset == "tedge":
-            assert len(cmd.tedge_timestamp) > 0, 'tedge_timestamp error'
+            assert len(cmd.feature_timestamp) > 0, 'feature_timestamp error'
             cmd.edge_flips = "true"
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])
@@ -143,7 +143,7 @@ if __name__ == '__main__':
                 cmd.atk_model_type = ','.join(atked_types_)
                 for tedge_type in tedge_types_:
                     count += 1
-                    cmd.tedge_features_file = "_".join([tedge_type, cmd.tedge_timestamp, str(i)])
+                    cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
                     print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
                         dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
                     key = '_'.join(['sga', tedge_type])
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                         cmd.atk_model_type = ','.join(atked_type)
                         for tedge_type in tedge_types_:
                             count += 1
-                            cmd.tedge_features_file = "_".join([tedge_type, cmd.tedge_timestamp, str(i)])
+                            cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
                             print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}, tedge_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type, tedge_type))
                             key = '_'.join(['&'.join(embed_type), tedge_type]) if mix_cluster else '_'.join([embed_type, tedge_type])
                             prefix = '_'.join(['&'.join(embed_type), tedge_type]) if mix_cluster else '_'.join([embed_type, tedge_type])

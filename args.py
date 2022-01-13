@@ -72,14 +72,14 @@ class ARGS:
         self.node_label = graph.node_label
         if self.dataset == "tedge":
             nodes_to_keep = pd.read_csv('dataset/phishing/tedge_nodes_to_keep.csv').values.ravel()
-            path = 'result/test_tedge/' + cmd.tedge_features_file
+            path = 'result/test_tedge/' + cmd.features_file
             if 'csv' not in path:
                 path += '.csv'
             node_attr = pd.read_csv(path).values[nodes_to_keep]
             graph.node_attr = node_attr
             self.node_attr = graph.node_attr
-            self.train_size = cmd.tedge_train_size # make use of the target nodes selection
-            self.tedge_features_file = path
+            self.train_size = cmd.train_size # make use of the target nodes selection
+            self.features_file = path
             self.nodes_to_keep = nodes_to_keep
 
         random = True if cmd.random == "true" else False

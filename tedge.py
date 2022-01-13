@@ -242,7 +242,7 @@ class tGraph(object):
 class tGraphNE(object):
     def __init__(self, tG, time_biased_type, first_biased_type, amount_biased, alpha, output,
                  dimensions=128, num_walks=4, walk_length=10, output_pklG=False,
-                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, save_features=False, is_dan=True, rac=False):
+                 window_size=4, workers=1, hs=1, seed=2022, verbose=0, save_features=True, is_dan=True, rac=False):
         self.G = tG.G
         self.min_time = tG.min_time
         self.max_time = tG.max_time
@@ -269,7 +269,7 @@ class tGraphNE(object):
         self.walks = walks
         self.word2vec_model = word2vec_model
 
-        if not save_features:
+        if save_features:
             pd.DataFrame(features).to_csv(output, index=None)
 
         if verbose > 0:
@@ -459,6 +459,7 @@ class tGraphNE(object):
                 unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t)
 
             if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+                unnormalized_probs_t = np.asarray(unnormalized_probs_t)
                 selected = self.weight_choice(unnormalized_probs_t)
                 next_node = tmp_node[selected]
                 next_time = tmp_time[selected]
@@ -649,7 +650,7 @@ def get_next_step(cur_nbrs, nbr_keys, weight_keys, time_biased_type, amount_bias
 
 
 def get_tedge(args):
-    path = args.tedge_features_file
+    path = args.features_file
     embeddings = pd.read_csv(path).values #8w6+
     sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 编号的890个节点
     nodes = list([int(node) for node in sample_labels.keys()])
@@ -725,7 +726,7 @@ if __name__ == '__main__':
     parser.add_argument("--window_size", default=4, type=int) # 4
     parser.add_argument("--workers", default=1, type=int) # 8
     parser.add_argument("--train_size", default=0.5, type=float)
-    parser.add_argument("--rac", default="false", type=str, help="random_choice or alias table choice")
+    parser.add_argument("--rac", default="true", type=str, help="random_choice or alias table choice")
     args = parser.parse_args()
     args.rac = True if args.rac == "true" else False
 
