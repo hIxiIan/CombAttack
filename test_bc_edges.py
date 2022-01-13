@@ -324,12 +324,6 @@ if __name__ == '__main__':
             args.seed = seed
             del cur_edges['seed']
             embed_types_tedge_types = cur_edges.keys()
-            # 调试使用
-            if args.dataset == "trans2vec":
-                embed_types_tedge_types = []
-                for ettt in cur_edges.keys():
-                    if "TBS+WBS" in ettt:
-                        embed_types_tedge_types.append(ettt)
 
             attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
             true_labels = get_true_labels(attacked_models, args, featuredir, i)
