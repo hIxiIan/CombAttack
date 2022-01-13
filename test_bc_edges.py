@@ -1,4 +1,5 @@
 import argparse
+import os.path
 import random
 import pandas as pd
 import numpy as np
@@ -93,7 +94,11 @@ def get_tedge_perturbed_graph(tG_ori, edge_flips):
             u, v = str(edge[0]), str(edge[1])
             if g.has_edge(u, v):
                 timestamps = list(g[u][v].keys())
-                timestamp = timestamps[-1] + int(np.diff(timestamps).mean())
+                if len(timestamps) > 1:
+                    added_timestamp = int(np.diff(timestamps).mean())
+                else:
+                    added_timestamp = np.random.randint(0, 500000)
+                timestamp = timestamps[-1] + added_timestamp
                 amount = np.mean([g[u][v][timestamp]['weight'] for timestamp in timestamps])
                 if g.has_edge(u, v, timestamp):
                     if g[u][v][timestamp]['weight'] != amount:
@@ -164,7 +169,7 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, targ
     if args.dataset == "tedge":
         time_biased_type, first_biased_type, amount_biased, alpha = METHOD_MAP[tedge_type]
         NE_MODEL = tGraphNE(perturbed_tuple, time_biased_type, first_biased_type, amount_biased, alpha,
-                       seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=args.rac)
+                       seed=args.seed, verbose=args.verbose, output="", save_features=False, is_dan=args.is_dan, rac=False)
     elif args.dataset == "trans2vec":
         NE_MODEL = trans2vec(perturbed_tuple=perturbed_tuple, output="", save_features=False, verbose=args.verbose, seed=args.seed)
 
@@ -259,6 +264,20 @@ def get_ori_data(args):
     return None
 
 
+def get_remain_ettt(filename, cur_edges, cur_result):
+    if '.csv' not in filename:
+        filename += '.csv'
+    if os.path.exists(filename):
+        df = pd.read_csv(filename, index_col=0)
+        idx = list(df.index)
+        for i in idx:
+            cur_result.loc[i] = df.loc[i]
+            split = i.split('_')
+            del_key = split[0] + "_" + split[2]
+            del cur_edges[del_key]
+    return cur_edges.keys()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
@@ -296,10 +315,10 @@ if __name__ == '__main__':
     count = 0
     total = args.times * len(datasets)
     for dataset in datasets:
+        args.dataset = dataset
+        ori_data = get_ori_data(args)
         models = get_models(args)
         print(models)
-        ori_data = get_ori_data(args)
-        args.dataset = dataset
         featuredir = 'result/test_' + args.dataset + '/'
         args.train_size, args.gf, args.gf_alias_mode, args.is_dan = PARAMS_MAP[args.dataset]
         # fixed seed
@@ -323,8 +342,9 @@ if __name__ == '__main__':
             seed = cur_edges['seed']
             args.seed = seed
             del cur_edges['seed']
-            embed_types_tedge_types = cur_edges.keys()
-
+            embed_types_tedge_types = get_remain_ettt(filename, cur_edges, cur_result)
+            print(embed_types_tedge_types)
+            print(cur_result)
             attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
             true_labels = get_true_labels(attacked_models, args, featuredir, i)
             eva_asr = {}

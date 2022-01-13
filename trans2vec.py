@@ -294,17 +294,23 @@ def node_classification(args, output):
 
     if model_name in ["ocsvm"]:
         # 训练集是无标签节点，测试集是标签+无标签节点
-        # X_train, X_test, y_test = nodes_embeddings[445:], nodes_embeddings, nodes_labels
+        X_train, X_test, y_test = nodes_embeddings[445:], nodes_embeddings, nodes_labels
+
+        # 训练集是钓鱼节点，测试集是钓鱼与非钓鱼节点
+        # X_train, X_test, y_test = nodes_embeddings[:445], nodes_embeddings, nodes_labels
 
         # 总数据随机选80%
         # X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
 
         # 分别随机选80%，分层抽样
-        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed, stratify=nodes_labels)
+        # X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed, stratify=nodes_labels)
 
-        model = OneClassSVM(nu=0.8, gamma="auto").fit(X_train)
+        # 有标签数据的80%作为训练集，20%作为测试集
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], nodes_labels[:445], train_size=args.train_size, random_state=args.seed)
+        model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3).fit(X_train)
         y_pred = model.predict(X_test)
-        y_pred = [1 if _y == -1 else 0 for _y in y_pred]
+        y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred])
+        # acc = np.mean(y_pred == y_test) 就是cr中1的precision
         cr = classification_report(y_pred, y_test)
     elif model_name in ["svm", 'lr']:
         X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
@@ -317,7 +323,7 @@ def node_classification(args, output):
         cr = classification_report(y_pred, y_test)
     else:
         assert False, "get_model invalid model"
-    print('classification_report:\n{}'.format(cr))
+    print('acc:{}, classification_report:\n{}'.format(cr))
 
 
 def run_trans2vec(args):
