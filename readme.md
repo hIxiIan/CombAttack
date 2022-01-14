@@ -14,3 +14,16 @@ args.gf=True and args.gf_alias_mode=True
 args.gf=True and args.gf_alias_mode=False
 
 采用基于邻居权重的偏置随机游走
+
+
+需要安装以下库：
+```
+scipy
+numpy
+pandas
+torch
+gensim
+sklearn
+numba
+networkx
+```
