@@ -147,8 +147,7 @@ def linear_rank_mapping(original_array, order='ascending'):
 @jit(cache=True, nopython=True)
 def normalized_probs(unnormalized_probs):
     if len(unnormalized_probs) > 0:  # 有符合条件的下一个点
-        norm_const = np.sum(unnormalized_probs)
-        normalized_probs = np.array([u_prob / norm_const for u_prob in unnormalized_probs])
+        normalized_probs = unnormalized_probs / unnormalized_probs.sum()
 
     return normalized_probs
 

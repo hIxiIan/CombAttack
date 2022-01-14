@@ -160,7 +160,7 @@ def get_perturbed_graph(args, ori_data, edge_flips):
     elif dataset == "trans2vec":
         return get_trans2vec_perturbed_graph(ori_data[0], ori_data[1], ori_data[2], edge_flips)
 
-    return None
+    assert False, "get_perturbed_graph invalid"
 
 
 def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, target, tedge_type, is_eva, is_poi):
@@ -261,7 +261,7 @@ def get_ori_data(args):
         amount_data = data['amount_data'].item()
         timestamp_data = data['timestamp_data'].item()
         return adj_matrix, amount_data, timestamp_data
-    return None
+    assert False, "get_ori_data invalid"
 
 
 def get_remain_ettt(filename, cur_edges, cur_result):
@@ -275,7 +275,7 @@ def get_remain_ettt(filename, cur_edges, cur_result):
             split = i.split('_')
             del_key = split[0] + "_" + split[2]
             del cur_edges[del_key]
-    return cur_edges.keys()
+    return list(cur_edges.keys())
 
 
 if __name__ == '__main__':
