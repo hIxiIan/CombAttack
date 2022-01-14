@@ -1,21 +1,21 @@
-import networkx as nx
-import numpy as np
-from time import time
-import random
-import argparse
-import torch
 import os
+import argparse
+import random
+import torch
+import numpy as np
 import pandas as pd
+import scipy.sparse as sp
+
 from gensim.models import Word2Vec
 from time import strftime, localtime
 from sklearn.svm import SVC, OneClassSVM
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
-from numba import njit
-from graphgallery.gallery.embedding.walker import BiasedRandomWalker, BiasedRandomWalkerAlias
-import scipy.sparse as sp
-from tedge import weight_choice, combine_probs
+from numba import jit, njit
+from tGraph import tGraph
+from walker import BiasedRandomWalker, BiasedRandomWalkerAlias
+from time import time
 
 
 @njit
@@ -29,6 +29,60 @@ def random_seed(seed=None):
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+
+
+@jit(cache=True, nopython=True)
+def weight_choice(unnormalized_probs):
+    norm_const = np.sum(unnormalized_probs)
+    normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])  # 归一化
+    J, q = alias_setup(normalized_probs)
+    idx = alias_draw(J, q)
+    return idx
+
+
+@jit(cache=True, nopython=True)
+def alias_setup(probs):
+    '''
+    Compute utility lists for non-uniform sampling from discrete distributions.
+    Refer to https://hips.seas.harvard.edu/blog/2013/03/03/the-alias-method-efficient-sampling-with-many-discrete-outcomes/
+    for details
+    '''
+    K = len(probs)
+    q = np.zeros(K, dtype=np.float32)
+    J = np.zeros(K, dtype=np.int32)
+
+    smaller = []
+    larger = []
+    for kk, prob in enumerate(probs):
+        q[kk] = K * prob
+        if q[kk] < 1.0:
+            smaller.append(kk)
+        else:
+            larger.append(kk)
+
+    while len(smaller) > 0 and len(larger) > 0:
+        small = smaller.pop()
+        large = larger.pop()
+        J[small] = large
+        q[large] = q[large] + q[small] - 1.0
+        if q[large] < 1.0:
+            smaller.append(large)
+        else:
+            larger.append(large)
+    return J, q
+
+
+@jit(cache=True, nopython=True)
+def alias_draw(J, q):
+    '''
+    Draw sample from a non-uniform discrete distribution using alias sampling.
+    '''
+    K = len(J)
+    kk = np.random.randint(K)
+    if np.random.rand() < q[kk]:
+        return kk
+    else:
+        return J[kk]
 
 
 def load_labels(filename):
@@ -45,35 +99,21 @@ def load_labels(filename):
     return labels
 
 
-class tGraph(object):
-    def __init__(self, file_='dataset/phishing/TransEdgelist.txt', verbose=0):
-        self.G = nx.MultiDiGraph()
+@jit(cache=True, nopython=True)
+def normalized_probs(unnormalized_probs):
+    if len(unnormalized_probs) > 0:  # 有符合条件的下一个点
+        normalized_probs = unnormalized_probs / unnormalized_probs.sum()
+    return normalized_probs
 
-        if verbose > 0:
-            print("Loading file", file_, "...")
-        edge_key = 0
 
-        with open(file_) as f:
-            for l in f:
-                x, y, a, t = l.strip().split(',')
-                a = float(a)
-                t = int(t)
-                x = str(int(x) - 1)
-                y = str(int(y) - 1)
-                if self.G.has_edge(x, y, t):
-                    if self.G[x][y][t]['weight'] != a:
-                        self.G[x][y][t]['weight'] += a
-                else:
-                    self.G.add_edge(x, y, key=t, weight=a)
-                edge_key = edge_key + 1
+@jit(cache=True, nopython=True)
+def combine_probs(p1, p2, alpha):
+    probs1 = normalized_probs(p1)
+    probs2 = normalized_probs(p2)
 
-        self.number_of_nodes = self.G.number_of_nodes()
-        self.number_of_edges = self.G.number_of_edges()
-        if verbose > 0:
-            print("Summary of graph:")
-            print("Number of nodes: ", self.number_of_nodes)
-            print("Number of edges: ", self.number_of_edges)
-            print("Number of edge_key: ", edge_key)
+    assert len(probs1) == len(probs2), "combine_probs invalid"
+    combine_probs = np.multiply(np.power(probs1, alpha), np.power(probs2, 1 - alpha))
+    return combine_probs
 
 
 class trans2vec(object):
@@ -93,6 +133,9 @@ class trans2vec(object):
         self.save_features = save_features
         self.gf_alias_mode = gf_alias_mode
 
+        self.walks = None
+        self.word2vec_model = None
+        self.features = None
         self.do(gf=gf)
 
     def do(self, gf=True):
@@ -105,6 +148,7 @@ class trans2vec(object):
             print('run dan w2v')
         self.dan_walk()
 
+    # gf_walk 预处理转移概率 alpha * TBS * (1-alpha) * WBS
     def get_amount_timestamp_data(self):
         N = self.adj_matrix.shape[0]
         amount_timestamp_data = sp.lil_matrix((N, N), dtype=np.float64)
@@ -187,11 +231,6 @@ class trans2vec(object):
             print("w2v cost: {} min".format((t3 - t2) / 60))
 
     def simulate_walks(self, num_walks, walk_length):
-        """
-        Repeatedly simulate random walks from each node.
-        对每个结点，根据num_walks得出其多条随机游走路径
-
-        """
         G = self.G
         walks = []
         nodes = list(G.nodes())
@@ -206,9 +245,9 @@ class trans2vec(object):
         return walks
 
     def temporal_walk(self, walk_length, start_node):
-        walk = [start_node]  # 类型：list
+        walk = [start_node]
         walk_edge = []
-        walk_time = []  ##类型：list, 大小比walk的小1
+        walk_time = []
 
         cur = start_node
         next_node, next_time, next_key = self.get_next_step(cur)
@@ -263,33 +302,6 @@ class trans2vec(object):
             return None, None, None  # 没有符合条件的
 
 
-def get_trans2vec(args):
-    path = args.features_file
-    embeddings = pd.read_csv(path).values #8w6+
-    sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 编号的890个节点
-    nodes = list([int(node) for node in sample_labels.keys()])
-    nodes_labels = list(sample_labels.values())
-    nodes_embeddings = pd.DataFrame(embeddings[nodes], index=nodes)
-
-    model_name = args.trans2vec_model.lower()
-
-    if model_name in ["ocsvm"]:
-        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], nodes_labels[:445], train_size=args.train_size, random_state=args.seed)
-        model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3).fit(X_train) # 训练集只有钓鱼节点，那么1是正常（钓鱼节点），-1是异常（非钓鱼节点）
-        y_pred = model.predict(embeddings)[args.nodes_to_keep]
-        y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred]) # 将预测为1的映射为1，预测为-1的映射为0
-        return y_pred
-
-    X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
-    if model_name == "svm":
-        model = SVC(kernel='linear', C=0.4, random_state=args.seed)
-    elif model_name == "lr":
-        model = LogisticRegression(random_state=args.seed)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(embeddings)[args.nodes_to_keep]
-    return y_pred
-
-
 # trans2vec原论文的数据集实验设置不明，暂时没有复现原来的效果
 def node_classification(args, output):
     if 'csv' not in output:
@@ -334,7 +346,7 @@ def node_classification(args, output):
         cr = classification_report(y_pred, y_test)
     else:
         assert False, "get_model invalid model"
-    print('acc:{}, classification_report:\n{}'.format(cr))
+    print('classification_report:\n{}'.format(cr))
 
 
 def run_trans2vec(args):
@@ -360,7 +372,7 @@ def run_trans2vec(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
-    parser.add_argument("--verbose", default=0, type=int, help="print details if verbose > 0")
+    parser.add_argument("--verbose", default=1, type=int, help="print details if verbose > 0")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
     parser.add_argument("-tt", "--tedge_type", default="TBS+WBS", choices=['TBS+WBS'], type=str, help="trans2vec settings")
     parser.add_argument("--run_emb", default="true", type=str, help="run embedding process")

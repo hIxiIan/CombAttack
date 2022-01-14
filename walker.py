@@ -1,763 +1,691 @@
-import random
 import numpy as np
-from graphgallery import functional as gf
-from utils import get_purity, stochastic_accept, get_wl, get_hop_neighbors, get_cross_entropy_target_nbrs, get_cross_entropy_list, get_wl_list, get_purity_list, get_purity_gains, get_wl_gains, random_choice
-from time import time
-from numba import jit, int64, int32
-from sklearn import preprocessing
+import scipy.sparse as sp
+from numba import njit, prange, boolean
 
 
-class Walker:
-    def __init__(self, targets, sample_ratio, subgraph_type, adj_matrix, labels, p=1.0, q=1.0, ori_logits=None, logits=None, wl_limit=1.0, eps=1e-4):
+@njit
+def random_choice(arr, p):
+    """Similar to `numpy.random.choice` and it suppors p=option in numba.
+    refer to <https://github.com/numba/numba/issues/2539#issuecomment-507306369>
+
+    Parameters
+    ----------
+    arr : 1-D array-like
+    p : 1-D array-like
+        The probabilities associated with each entry in arr
+
+    Returns
+    -------
+    sample : ndarray with 1 element
+        The generated random sample
+    """
+    return arr[np.searchsorted(np.cumsum(p), np.random.random(), side="right")]
+
+
+class RandomWalker:
+    """ Fast first-order random walks in DeepWalk
+
+    Parameters:
+    -----------
+    walk_number (int): Number of random walks. Default is 10.
+    walk_length (int): Length of random walks. Default is 80.
+    """
+
+    def __init__(self, walk_length: int = 80, walk_number: int = 10):
+        self.walk_length = walk_length
+        self.walk_number = walk_number
+
+    def walk(self, graph: sp.csr_matrix):
+        walks = self.random_walk(graph.indices,
+                                 graph.indptr,
+                                 walk_length=self.walk_length,
+                                 walk_number=self.walk_number)
+        return walks
+
+    @staticmethod
+    @njit(nogil=True)
+    def random_walk(indices,
+                    indptr,
+                    walk_length,
+                    walk_number):
+        N = len(indptr) - 1
+        for _ in range(walk_number):
+            for n in range(N):
+                walk = [n]
+                current_node = n
+                for _ in range(walk_length - 1):
+                    neighbors = indices[
+                        indptr[current_node]:indptr[current_node + 1]]
+                    if neighbors.size == 0:
+                        break
+                    current_node = np.random.choice(neighbors)
+                    walk.append(current_node)
+
+                yield walk
+
+
+class BiasedRandomWalker:
+    """Biased second order random walks in Node2Vec.
+
+    Parameters:
+    -----------
+    walk_number (int): Number of random walks. Default is 10.
+    walk_length (int): Length of random walks. Default is 80.
+    p (float): Return parameter (1/p transition probability) to move towards from previous node.
+    q (float): In-out parameter (1/q transition probability) to move away from previous node.
+    """
+
+    def __init__(self, walk_length: int = 80,
+                 walk_number: int = 10,
+                 p: float = 0.5,
+                 q: float = 0.5):
+        self.walk_length = walk_length
+        self.walk_number = walk_number
+        try:
+            _ = 1 / p
+        except ZeroDivisionError:
+            raise ValueError("The value of p is too small or zero to be used in 1/p.")
         self.p = p
+        try:
+            _ = 1 / q
+        except ZeroDivisionError:
+            raise ValueError("The value of q is too small or zero to be used in 1/q.")
         self.q = q
-        self.indices = adj_matrix.indices
-        self.indptr = adj_matrix.indptr
-        self.adj_matrix = adj_matrix.tolil()  # weight默认为0/1
-        self.adj_matrix_csr = adj_matrix
-        self.labels = labels
-        self.subgraph_type = subgraph_type
-        self.ori_logits = ori_logits
-        self.logits = logits
 
-        self.purity = None
-        self.purity_r = None
-        self.wl_limit = wl_limit
-        self.purity_list = None
-        self.ce_list = None
-        self.wl_list = None
-        self.eps = eps
-        self.min_max_scaler = preprocessing.MinMaxScaler()
+    def walk(self, graph: sp.csr_matrix):
+        data = graph.data
+        indices = graph.indices
+        indptr = graph.indptr
+        walk_length = self.walk_length
+        walk_number = self.walk_number
 
-        self.wrong_labels = None
-        self.targets_map = {}
-        self.sample_edges = []
-        self.sample_nodes = []
-        self.targets = np.asarray(targets)
-        for i, target in enumerate(self.targets):
-            self.targets_map[target] = i
-        self.sample_nums = int(sample_ratio * adj_matrix.shape[0])
-        self.wls = None
-        self.wl_cnts = None
-        self.alias_edges_ = []
-        self.alias_nodes_ = []
+        @njit(nogil=False)
+        def random_walk():
+            N = len(indptr) - 1
+            for _ in range(walk_number):
+                nodes = np.arange(N, dtype=np.int32)
+                np.random.shuffle(nodes)
+                for n in nodes:
+                    walk = [n]
+                    current_node = n
+                    for _ in range(walk_length - 1):
+                        neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
+                        if neighbors.size == 0:
+                            break
 
-    def get_wrong_labels(self):
-        wrong_labels = []
-        for target in self.targets:
-            logit = self.ori_logits[target]
-            idx = list(set(range(logit.size)) - set([self.labels[target]]))
-            wrong_label = idx[logit[idx].argmax()]
-            wrong_labels.append(wrong_label)
-        self.wrong_labels = np.array(wrong_labels)
+                        probability = data[indptr[current_node]: indptr[current_node + 1]].copy()
+                        norm_probability = probability / np.sum(probability)
+                        current_node = random_choice(neighbors, norm_probability)
+                        walk.append(current_node)
+                    yield walk
 
-    def get_all_wl(self):
-        self.get_wrong_labels()
-        wls = []
-        wl_cnts = []
-        for wrong_label in self.wrong_labels:
-            wl, wl_cnt = get_wl(self.indices, self.indptr, self.labels, wrong_label,
-                                          self.eps)
-            wls.append(wl)
-            wl_cnts.append(wl_cnt)
+        walks = [list(map(str, walk)) for walk in random_walk()]
+        return walks
 
-            if 'n2v' in self.subgraph_type:
-                self.wl_list = get_wl_list(self.indices, self.indptr, wl)
-                self.preprocess_transition_probs()
-                self.alias_edges_.append(self.alias_edges)
-                self.alias_nodes_.append(self.alias_nodes)
 
-        self.wls = np.array(wls)
-        self.wl_cnts = np.array(wl_cnts)
+class BiasedRandomWalkerAlias:
+    """Motivated by `PecanPy: A parallelized, efficient, and accelerated node2vec(+) in Python`
+    Github: `https://github.com/krishnanlab/PecanPy`.
 
-    def get_all_purity(self):
-        self.get_wrong_labels()
-        self.purity = get_purity(self.indices, self.indptr, self.labels)  # 纯度
-        self.purity_r = 1 - self.purity + self.eps  # 杂度
-        self.purity += self.eps
+    Parameters:
+    -----------
+    walk_number (int): Number of random walks. Default is 10.
+    walk_length (int): Length of random walks. Default is 80.
+    p (float): Return parameter (1/p transition probability) to move towards from previous node.
+    q (float): In-out parameter (1/q transition probability) to move away from previous node.
+    extend (bool): whether to use the extended version (`node2vec`). See below.
+    mode (str): different modes including `PreComp` and `SparseOTF`. See below.
 
-        if 'n2v' in self.subgraph_type:
-            self.purity_list = get_purity_list(self.indices, self.indptr, self.purity_r)
-            self.preprocess_transition_probs()
 
-    def get_all_ce(self):
-        if 'n2v' not in self.subgraph_type:
-            return
-        self.ce_list = get_cross_entropy_list(self.indices, self.indptr, self.logits)
-        self.preprocess_transition_probs()
+    Specify `extend=True` for using node2vec+, which is a natural extension of
+    node2vec and handles weighted graph more effectively. For more information, see
+    `Accurately Modeling Biased Random Walks on Weighted Wraphs Using Node2vec+`(https://arxiv.org/abs/2109.08031)
 
-    def random_walk(self):
-        if 'dw' in self.subgraph_type:
-            if 'wl' in self.subgraph_type:
-                self.get_all_wl()
-                if self.subgraph_type == 'dw_wl':
-                    sub_edges, sub_nodes = self.deepwalk_wl_sample(self.wls, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_wl_topk':
-                    sub_edges, sub_nodes = self.deepwalk_wl_sample(self.wls, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=True)
-                elif self.subgraph_type == 'dw_wl_dynamic':
-                    sub_edges, sub_nodes = self.deepwalk_wl_dynamic_sample(self.wls, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_wl_dynamic_topk':
-                    sub_edges, sub_nodes = self.deepwalk_wl_dynamic_sample(self.wls, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=True)
-                elif self.subgraph_type == 'dw_wl_gains':
-                    sub_edges, sub_nodes = self.deepwalk_wl_gains_sample(self.wls, self.labels, self.wrong_labels, self.indices, self.indptr, self.targets, self.sample_nums)
-                elif self.subgraph_type == 'dw_wl_kh':
-                    sub_edges, sub_nodes = self.deepwalk_wl_kh_sample(self.targets, self.sample_nums)
-                elif self.subgraph_type == 'dw_biased_wl':
-                    sub_edges, sub_nodes = self.deepwalk_biased_wl_sample(self.wls, self.p, self.q, self.indices, self.indptr, self.targets, self.sample_nums)
-            elif 'purity' in self.subgraph_type:
-                self.get_all_purity()
-                if self.subgraph_type == 'dw_purity':
-                    sub_edges, sub_nodes = self.deepwalk_purity_sample(self.purity, self.purity_r, self.labels, self.wrong_labels, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_purity_topk':
-                    sub_edges, sub_nodes = self.deepwalk_purity_sample(self.purity, self.purity_r, self.labels, self.wrong_labels, self.indices, self.indptr, self.targets, self.sample_nums, is_topk=True)
-                elif self.subgraph_type == 'dw_purity_gains':
-                    sub_edges, sub_nodes = self.deepwalk_purity_gains_sample(self.purity, self.labels, self.indices, self.indptr, self.targets, self.sample_nums)
-                elif self.subgraph_type == 'dw_purity_gains_select':
-                    sub_edges, sub_nodes = self.deepwalk_purity_gains_select_sample(self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_purity_gains_select_topk':
-                    sub_edges, sub_nodes = self.deepwalk_purity_gains_select_sample(self.targets, self.sample_nums, is_topk=True)
-                elif self.subgraph_type == 'dw_biased_purity':
-                    sub_edges, sub_nodes = self.deepwalk_biased_purity_sample(self.purity, self.purity_r, self.labels, self.wrong_labels, self.p, self.q, self.indices, self.indptr, self.targets, self.sample_nums)
-            elif 'ce' in self.subgraph_type:
-                if self.subgraph_type == 'dw_ce':
-                    sub_edges, sub_nodes = self.deepwalk_ce_sample(self.logits, self.indices,self.indptr, self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_ce_topk':
-                    sub_edges, sub_nodes = self.deepwalk_ce_sample(self.logits, self.indices,self.indptr, self.targets, self.sample_nums, is_topk=True)
-                elif self.subgraph_type == 'dw_ce_dynamic':
-                    sub_edges, sub_nodes = self.deepwalk_ce_dynamic_sample(self.logits, self.indices,self.indptr, self.targets, self.sample_nums, is_topk=False)
-                elif self.subgraph_type == 'dw_ce_dynamic_topk':
-                    sub_edges, sub_nodes = self.deepwalk_ce_dynamic_sample(self.logits, self.indices,self.indptr, self.targets, self.sample_nums, is_topk=True)
-            else:
-                if self.subgraph_type == 'dw':
-                    sub_edges, sub_nodes = self.deepwalk_sample(self.indices, self.indptr, self.targets, self.sample_nums)
-                elif self.subgraph_type == 'dw_biased':
-                    sub_edges, sub_nodes = self.deepwalk_biased_sample(self.p, self.q, self.indices, self.indptr, self.targets, self.sample_nums)
-        elif 'n2v' in self.subgraph_type:
-            if 'wl' in self.subgraph_type:
-                self.get_all_wl()
-            elif 'purity' in self.subgraph_type:
-                self.get_all_purity()
-            elif 'ce' in self.subgraph_type:
-                self.get_all_ce()
-            else:
-                self.preprocess_transition_probs()
-            sub_edges, sub_nodes = self.node2vec_sample(self.targets, self.sample_nums)
 
-        self.sample_edges = [gf.asedge(sub_edge, shape='row_wise') if len(sub_edge) > 0 else np.array([[], []], dtype='int64') for sub_edge in sub_edges]
-        self.sample_nodes = [np.unique(sub_node) for sub_node in sub_nodes]
+    `BiasedRandomWalkerAlias` operates in three different modes – PreComp and SparseOTF – that are optimized for networks of different sizes and densities:
+    - `PreComp` for networks that are small (≤10k nodes; any density),
+    - `SparseOTF` for networks that are large and sparse (>10k nodes; ≤10% of edges),
+    These modes appropriately take advantage of compact/dense graph data structures, precomputing transition probabilities, and computing 2nd-order transition probabilities during walk generation to achieve significant improvements in performance.
 
-    # 纯随机游走
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_sample(indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
+    """
 
-                if len(nbrs) > 0:
-                    u = np.random.choice(nbrs)
-                    tmp_nodes.append(u)
-                    if (u, head) not in tmp_edges:
-                        tmp_edges[(head, u)] = 1
+    def __init__(self, walk_length: int = 80,
+                 walk_number: int = 10,
+                 p: float = 0.5,
+                 q: float = 0.5,
+                 extend: bool = True,
+                 mode='PreComp'):
+        self.walk_length = walk_length
+        self.walk_number = walk_number
+        try:
+            _ = 1 / p
+        except ZeroDivisionError:
+            raise ValueError("The value of p is too small or zero to be used in 1/p.")
+        self.p = p
+        try:
+            _ = 1 / q
+        except ZeroDivisionError:
+            raise ValueError("The value of q is too small or zero to be used in 1/q.")
+        self.q = q
+
+        self.extend = extend
+
+        if mode == 'PreComp':
+            self.get_move_forward = get_move_forward_PreComp
+        elif mode == 'SparseOTF':
+            self.get_move_forward = get_move_forward_SparseOTF
+        else:
+            raise ValueError("`mode` should be one of 'PreComp' and 'SparseOTF'")
+
+    def walk(self, graph: sp.csr_matrix):
+        """Generate walks starting from each nodes ``walk_number`` time.
+
+            Note:
+            ----------
+            This is the master process that spawns worker processes, where the
+            worker function ``random_walk`` genearte a single random walk
+            starting from a vertex of the graph.
+
+            Parameters
+            ----------
+            graph: scipy.sparse.csr_matrix, the input graph
+
+        """
+        self.preprocess_transition_probs(graph)
+        walk_number = self.walk_number
+        walk_length = self.walk_length
+        num_nodes = graph.shape[0]
+        nodes = np.arange(num_nodes, dtype=np.int32)
+        start_nodes = np.concatenate([nodes] * walk_number)
+        np.random.shuffle(start_nodes)
+
+        move_forward = self.get_move_forward(self, graph)
+        has_nbrs = get_has_nbrs(graph)
+
+        @njit(parallel=True, nogil=True)
+        def random_walk():
+            """Simulate a random walk starting from start node."""
+            n = start_nodes.size
+            # use last entry of each walk index array to keep track of effective walk length
+            walk_idx_mat = np.zeros((n, walk_length + 1), dtype=np.int32)
+            walk_idx_mat[:, 0] = start_nodes  # initialize seeds
+            walk_idx_mat[:, -1] = walk_length  # set to full walk length by default
+
+            for i in prange(n):
+                # initialize first step as normal random walk
+                start_node_idx = walk_idx_mat[i, 0]
+                if has_nbrs(start_node_idx):
+                    walk_idx_mat[i, 1] = move_forward(start_node_idx)
                 else:
-                    break
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
+                    walk_idx_mat[i, -1] = 1
+                    continue
 
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
-    def deepwalk_biased_sample(p, q, indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        N = len(indptr) - 1
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            current_node = target
-            previous_node = N
-            previous_node_neighbors = np.empty(0, dtype=np.int32)
-            while len(tmp_nodes) < sample_nums:
-                neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
-                if neighbors.size == 0:
-                    break
+                # start bias random walk
+                for j in range(2, walk_length):
+                    cur_idx = walk_idx_mat[i, j - 1]
+                    if has_nbrs(cur_idx):
+                        prev_idx = walk_idx_mat[i, j - 2]
+                        walk_idx_mat[i, j] = move_forward(cur_idx, prev_idx)
+                    else:
+                        walk_idx_mat[i, -1] = j
+                        break
 
-                probability = np.array([1 / q] * neighbors.size)
-                probability[previous_node == neighbors] = 1 / p
-                for i, nbr in enumerate(neighbors):
-                    if np.any(nbr == previous_node_neighbors):
-                        probability[i] = 1.
+            return walk_idx_mat
 
-                norm_probability = probability / np.sum(probability)
-                u = random_choice(neighbors, norm_probability)
-                tmp_nodes.append(u)
-                if (u, current_node) not in tmp_edges:
-                    tmp_edges[(current_node, u)] = 1
-                previous_node_neighbors = neighbors
-                previous_node = u
-                current_node = u
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
+        walks = [list(map(str, walk[:walk[-1]])) for walk in random_walk()]
 
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
-    def deepwalk_biased_wl_sample(wls, p, q, indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        N = len(indptr) - 1
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            current_node = target
-            previous_node = N
-            previous_node_neighbors = np.empty(0, dtype=np.int32)
-            while len(tmp_nodes) < sample_nums:
-                neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
-                if neighbors.size == 0:
-                    break
+        return walks
 
-                nbrs_wl = wls[i][neighbors]
-                probability = np.array([1 / q] * neighbors.size)
-                probability[previous_node == neighbors] = 1 / p
-                for i, nbr in enumerate(neighbors):
-                    if np.any(nbr == previous_node_neighbors):
-                        probability[i] = 1.
-                probability = probability * nbrs_wl
-                norm_probability = probability / np.sum(probability)
-                # norm_probability = norm_probability * nbrs_wl
-                # norm_probability = norm_probability / np.sum(norm_probability)
-                u = random_choice(neighbors, norm_probability)
-                tmp_nodes.append(u)
-                if (u, current_node) not in tmp_edges:
-                    tmp_edges[(current_node, u)] = 1
-                previous_node_neighbors = neighbors
-                previous_node = u
-                current_node = u
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_wl_sample(wls, indices, indptr, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-
-                if len(nbrs) == 0:
-                    break
-                nbrs_wl = wls[i][nbrs]
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_wl)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_wl = nbrs_wl[idx_topk]
-
-                u = nbrs[stochastic_accept(nbrs_wl)]
-                tmp_nodes.append(u)
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # 轮盘赌+动态wrong_label阈值
-    # 轮盘赌+动态wrong_label阈值+topk
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_wl_dynamic_sample(wls, indices, indptr, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            wl_limit = 0.5
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-                if len(nbrs) == 0:
-                    break
-                nbrs_wl = wls[i][nbrs]
-                one_wl_idx = nbrs_wl >= wl_limit
-                if one_wl_idx.sum() >= topk:
-                    nbrs = nbrs[one_wl_idx]
-                    nbrs_wl = wls[i][nbrs]
-
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_wl)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_wl = nbrs_wl[idx_topk]
-
-                u = nbrs[stochastic_accept(nbrs_wl)]
-                tmp_nodes.append(u)
-                wl_limit = max(wl_limit, wls[i][u])
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int32, 'u': int32})
-    def deepwalk_wl_gains_sample(wls, labels, wrong_labels, indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        left = 1
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = np.random.choice(np.array(tmp_nodes[-left:]))
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-
-                if len(nbrs) == 0:
-                    break
-                nbrs_wl_gains = get_wl_gains(indices, indptr, labels, wls[i], target,
-                                             nbrs, wrong_labels[i])
-
-                nbrs_wl_gains = nbrs_wl_gains.ravel()
-                idx = nbrs_wl_gains <= 0
-                if idx.sum() > 0:
-                    nbrs = nbrs[idx]
-                    left = len(nbrs)
-                    for u in nbrs:
-                        tmp_nodes.append(u)
-                        if (u, head) not in tmp_edges:
-                            tmp_edges[(head, u)] = 1
-                else:
-                    # nbrs_wl_gains = self.min_max_scaler.fit_transform(nbrs_wl_gains).ravel()
-                    # nbrs_wl_gains = nbrs_wl_gains + self.eps
-                    # u = nbrs[stochastic_accept(nbrs_wl_gains)]
-                    nbrs_wl_gains = nbrs_wl_gains[~idx]
-                    nbrs = nbrs[~idx]
-                    u = nbrs[nbrs_wl_gains.argmax()]
-                    # u = random.choice(nbrs)
-                    left = 1
-                    tmp_nodes.append(u)
-                    if (u, head) not in tmp_edges:
-                        tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # 轮盘赌
-    # 轮盘赌+topk
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_ce_sample(logits, indices, indptr, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-                nbrs_ce = get_cross_entropy_target_nbrs(target, nbrs, logits)
-                if len(nbrs) == 0:
-                    break
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_ce)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_ce = nbrs_ce[idx_topk]
-
-                u = nbrs[stochastic_accept(nbrs_ce)]
-                tmp_nodes.append(u)
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # 轮盘赌+动态cross_entropy阈值
-    # 轮盘赌+动态cross_entropy阈值+topk
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_ce_dynamic_sample(logits, indices, indptr, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            ce_limit = 1.0
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-                nbrs_ce = get_cross_entropy_target_nbrs(target, nbrs, logits)
-                if len(nbrs) == 0:
-                    break
-                one_ce_idx = nbrs_ce >= ce_limit
-                if one_ce_idx.sum() >= topk:
-                    nbrs = nbrs[one_ce_idx]
-                    nbrs_ce = nbrs_ce[one_ce_idx]
-
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_ce)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_ce = nbrs_ce[idx_topk]
-
-                idx = stochastic_accept(nbrs_ce)
-                u = nbrs[idx]
-                tmp_nodes.append(u)
-                ce_limit = max(ce_limit, nbrs_ce[idx])
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # 轮盘赌
-    # 轮盘赌+topk
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int64, 'u': int64})
-    def deepwalk_purity_sample(purity, purity_r, labels, wrong_labels, indices, indptr, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-
-                if len(nbrs) == 0:
-                    break
-                nbrs_purity = purity_r[nbrs]
-                nbrs_labels = labels[nbrs]
-                wrong_label_idx = nbrs_labels == wrong_labels[i]
-
-                if wrong_label_idx.sum() >= topk:
-                    nbrs = nbrs[wrong_label_idx]
-                    nbrs_purity = purity[nbrs]
-
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_purity)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_purity = nbrs_purity[idx_topk]
-
-                u = nbrs[stochastic_accept(nbrs_purity)]
-                tmp_nodes.append(u)
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'current_node': int64, 'u': int64})
-    def deepwalk_biased_purity_sample(purity, purity_r, labels, wrong_labels, p, q, indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        N = len(indptr) - 1
-        for i, target in enumerate(targets):
-            tmp_edges = {}
-            tmp_nodes = [target]
-            topk = len(indices[indptr[target]:indptr[target + 1]])
-            current_node = target
-            previous_node = N
-            previous_node_neighbors = np.empty(0, dtype=np.int32)
-            while len(tmp_nodes) < sample_nums:
-                neighbors = indices[indptr[current_node]:indptr[current_node + 1]]
-                if neighbors.size == 0:
-                    break
-
-                nbrs_purity = purity_r[neighbors]
-                nbrs_labels = labels[neighbors]
-                wrong_label_idx = nbrs_labels == wrong_labels[i]
-                if wrong_label_idx.sum() >= topk:
-                    neighbors = neighbors[wrong_label_idx]
-                    nbrs_purity = purity[neighbors]
-
-                probability = np.array([1 / q] * neighbors.size)
-                probability[previous_node == neighbors] = 1 / p
-                for i, nbr in enumerate(neighbors):
-                    if np.any(nbr == previous_node_neighbors):
-                        probability[i] = 1.
-
-                probability = probability * nbrs_purity
-                norm_probability = probability / np.sum(probability)
-
-                u = random_choice(neighbors, norm_probability)
-                tmp_nodes.append(u)
-                if (u, current_node) not in tmp_edges:
-                    tmp_edges[(current_node, u)] = 1
-                previous_node_neighbors = neighbors
-                previous_node = u
-                current_node = u
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # dw + 纯度幅度偏好
-    def deepwalk_purity_gains_select_sample(self, targets, sample_nums, is_topk):
-        edges = []
-        nodes = []
-
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            topk = len(self.indices[self.indptr[target]:self.indptr[target + 1]])
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                if len(nbrs) == 0:
-                    break
-                nbrs_purity_gains = get_purity_gains(self.indices, self.indptr, self.labels, self.purity,
-                                                     target,
-                                                     nbrs)
-                nbrs_purity_gains = self.min_max_scaler.fit_transform(nbrs_purity_gains).ravel()
-                nbrs_purity_gains = 1 - nbrs_purity_gains + self.eps
-                if is_topk and topk < len(nbrs):
-                    idx_topk = np.argsort(nbrs_purity_gains)[-topk:]
-                    nbrs = nbrs[idx_topk]
-                    nbrs_purity_gains = nbrs_purity_gains[idx_topk]
-
-                u = nbrs[stochastic_accept(nbrs_purity_gains)]
-                tmp_nodes.append(u)
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    @staticmethod
-    @jit(cache=True, nopython=True, locals={'head': int32, 'u': int32})
-    def deepwalk_purity_gains_sample(purity, labels, indices, indptr, targets, sample_nums):
-        edges = []
-        nodes = []
-        left = 1
-        for target in targets:
-            tmp_edges = {}
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = np.random.choice(np.array(tmp_nodes[-left:]))
-                nbrs = indices[indptr[head]:indptr[head + 1]]
-
-                if len(nbrs) == 0:
-                    break
-                nbrs_purity_gains = get_purity_gains(indices, indptr, labels, purity,
-                                                     target,
-                                                     nbrs)
-                nbrs_purity_gains = nbrs_purity_gains.ravel()
-                idx = nbrs_purity_gains <= 0
-                if idx.sum() > 0:
-                    nbrs = nbrs[idx]
-                    left = len(nbrs)
-                    for u in nbrs:
-                        tmp_nodes.append(u)
-                        if (u, head) not in tmp_edges:
-                            tmp_edges[(head, u)] = 1
-                else:
-                    nbrs_purity_gains = nbrs_purity_gains[~idx]
-                    nbrs = nbrs[~idx]
-                    u = nbrs[nbrs_purity_gains.argmin()]
-                    # nbrs_purity_gains = self.min_max_scaler.fit_transform(nbrs_purity_gains).ravel()
-                    # nbrs_purity_gains = 1 - nbrs_purity_gains + self.eps
-                    # u = nbrs[stochastic_accept(nbrs_purity_gains)]
-                    left = 1
-                    tmp_nodes.append(u)
-                    if (u, head) not in tmp_edges:
-                        tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    # 仅作保留
-    def deepwalk_wl_kh_sample(self, targets, sample_nums):
-        edges = []
-        nodes = []
-        for i, target in enumerate(targets):
-            self.wl_limit = 0.5
-            tmp_nodes, tmp_edges = get_hop_neighbors(self.indices, self.indptr, target, hops=2)
-            nodes = list(nodes)
-            while len(nodes) < sample_nums:
-                head = np.random.choice(np.array(tmp_nodes))
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                if len(nbrs) == 0:
-                    break
-                nbrs_wl = self.wls[i][nbrs]
-                one_wl_idx = nbrs_wl >= self.wl_limit
-                if np.any(one_wl_idx):
-                    nbrs = nbrs[one_wl_idx]
-                    nbrs_wl = self.wl[nbrs]
-
-                u = nbrs[stochastic_accept(nbrs_wl)]
-                nodes.append(u)
-                if (u, head) not in tmp_edges:
-                    tmp_edges[(head, u)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    def node2vec_sample(self, targets, sample_nums):
-        '''
-        Repeatedly simulate random walks from each node.
-        '''
-
-        edges = []
-        nodes = []
-        for i, target in enumerate(targets):
-            if 'wl' in self.subgraph_type:
-                alias_nodes = self.alias_nodes_[i]
-                alias_edges = self.alias_edges_[i]
-            else:
-                alias_nodes = self.alias_nodes
-                alias_edges = self.alias_edges
-            tmp_edges = {}
-            tmp_nodes = [target]
-            while len(tmp_nodes) < sample_nums:
-                head = tmp_nodes[-1]
-                nbrs = self.indices[self.indptr[head]:self.indptr[head + 1]]
-                if len(nbrs) == 0:
-                    break
-                if len(tmp_nodes) == 1:
-                    u = nbrs[alias_draw(alias_nodes[head][0], alias_nodes[head][1])]
-                    tmp_nodes.append(u)
-                    if (u, head) not in tmp_edges:
-                        tmp_edges[(head, u)] = 1
-                else:
-                    prev = tmp_nodes[-2]
-                    pos = (prev, head)
-                    next = nbrs[alias_draw(alias_edges[pos][0], alias_edges[pos][1])]
-                    tmp_nodes.append(next)
-                    if (next, head) not in tmp_edges:
-                        tmp_edges[(head, next)] = 1
-            edges.append(list(tmp_edges.keys()))
-            nodes.append(tmp_nodes)
-        return edges, nodes
-
-    def get_weight(self, dst, dst_nbr_idx):
-        if self.subgraph_type == "n2v_wl":
-            return self.wl_list[dst][dst_nbr_idx]
-        elif self.subgraph_type == "n2v_purity":
-            return self.purity_list[dst][dst_nbr_idx]
-        elif self.subgraph_type == "n2v_ce":
-            return self.ce_list[dst][dst_nbr_idx]
-
-        return 1.0
-
-    def get_alias_edge(self, src, dst):
-        '''
-        Get the alias edge setup lists for a given edge.
-        '''
+    def preprocess_transition_probs(self, graph):
+        """Precompute and store 2nd order transition probabilities."""
+        data = graph.data
+        indices = graph.indices
+        indptr = graph.indptr
         p = self.p
         q = self.q
 
-        unnormalized_probs = []
-        nbrs = self.indices[self.indptr[dst]:self.indptr[dst + 1]]
+        num_nodes = graph.shape[0]  # number of nodes
+        num_nbrs = indptr[1:] - indptr[:-1]  # number of nbrs per node
+        num_nbrs_2nd = np.power(num_nbrs, 2)  # number of 2nd order trans probs per node
 
-        for dst_nbr_idx, dst_nbr in enumerate(nbrs):
-            # p控制重复访问过的节点概率，若p校高，则访问刚刚访问过的节点src概率会变低
-            if dst_nbr == src:
-                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / p)
-            elif self.adj_matrix[dst_nbr, src] != 0 or self.adj_matrix[src, dst_nbr] != 0:
-                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx))
-            else:
-                # q控制BFS和DFS，若q>1，则倾向于访问和target接近的点（BFS），反之DFS
-                unnormalized_probs.append(self.get_weight(dst, dst_nbr_idx) / q)
-        norm_const = sum(unnormalized_probs)
-        normalized_probs = np.array([float(u_prob) / norm_const for u_prob in unnormalized_probs])
-
-        return alias_setup(normalized_probs)
-
-    def preprocess_transition_probs(self):
-        '''
-        Preprocessing of transition probabilities for guiding the random walks.
-        '''
-        N = self.adj_matrix.shape[0]
-
-        alias_nodes = {}
-        for node in range(N):
-            nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
-            if self.subgraph_type == "n2v_purity":
-                unnormalized_probs = self.purity_list[node]
-            elif self.subgraph_type == "n2v_wl":
-                unnormalized_probs = self.wl_list[node]
-            elif self.subgraph_type == "n2v_ce":
-                unnormalized_probs = self.ce_list[node]
-            else:
-                unnormalized_probs = [1 for _ in nbrs]
-
-            norm_const = sum(unnormalized_probs)
-            normalized_probs = np.array([float(u_prob) / norm_const for u_prob in unnormalized_probs])
-            alias_nodes[node] = alias_setup(normalized_probs)
-
-        alias_edges = {}
-        for node in range(N):
-            nbrs = self.indices[self.indptr[node]:self.indptr[node + 1]]
-            for u in nbrs:
-                alias_edges[(node, u)] = self.get_alias_edge(node, u)
-                alias_edges[(u, node)] = self.get_alias_edge(u, node)
-
-        self.alias_nodes = alias_nodes
-        self.alias_edges = alias_edges
-
-        return
-
-
-@jit(cache=True, nopython=True)
-def alias_setup(probs):
-    '''
-    Compute utility lists for non-uniform sampling from discrete distributions.
-    Refer to https://hips.seas.harvard.edu/blog/2013/03/03/the-alias-method-efficient-sampling-with-many-discrete-outcomes/
-    for details
-    '''
-    K = len(probs)
-    q = np.zeros(K, dtype=np.float32)
-    J = np.zeros(K, dtype=np.int32)
-
-    smaller = []
-    larger = []
-    for kk, prob in enumerate(probs):
-        q[kk] = K * prob
-        if q[kk] < 1.0:
-            smaller.append(kk)
+        if self.extend:
+            compute_fn = get_normalized_probs_extended
+            deg = graph.sum(1).A1
+            avg_wts = deg / num_nbrs  # average edge weights
         else:
-            larger.append(kk)
+            compute_fn = get_normalized_probs
+            avg_wts = None
 
-    while len(smaller) > 0 and len(larger) > 0:
-        small = smaller.pop()
-        large = larger.pop()
+        alias_dim = num_nbrs
+        # use 64 bit unsigned int to prevent overfloating of alias_indptr
+        alias_indptr = np.zeros(indptr.size, dtype=np.uint64)
+        alias_indptr[1:] = np.cumsum(num_nbrs_2nd)
+        n_probs = alias_indptr[-1]  # total number of 2nd order transition probs
 
-        J[small] = large
+        @njit(parallel=True, nogil=True)
+        def compute_all_transition_probs():
+            alias_j = np.zeros(n_probs, dtype=np.int32)
+            alias_q = np.zeros(n_probs, dtype=np.float64)
+
+            for idx in range(num_nodes):
+                offset = alias_indptr[idx]
+                dim = alias_dim[idx]
+
+                nbrs = indices[indptr[idx]: indptr[idx + 1]]
+                for nbr_idx in prange(num_nbrs[idx]):
+                    nbr = nbrs[nbr_idx]
+                    probs = compute_fn(data, indices, indptr, p, q, idx, nbr, avg_wts)
+
+                    start = offset + dim * nbr_idx
+                    j_tmp, q_tmp = alias_setup(probs)
+
+                    for i in range(dim):
+                        alias_j[start + i] = j_tmp[i]
+                        alias_q[start + i] = q_tmp[i]
+
+            return alias_j, alias_q
+
+        alias_j, alias_q = compute_all_transition_probs()
+
+        self.alias_j = alias_j
+        self.alias_q = alias_q
+        self.alias_dim = alias_dim
+        self.alias_indptr = alias_indptr
+
+
+def get_move_forward_PreComp(self, graph):
+    """Wrap ``move_forward``.
+
+    This function returns a ``numba.jit`` compiled function that takes
+    current vertex index (and the previous vertex index if available) and
+    return the next vertex index by sampling from a discrete random
+    distribution based on the transition probabilities that are read off
+    the precomputed transition probabilities table.
+
+    Note:
+        The returned function is used by the ``walk`` method.
+
+    """
+    alias_j = self.alias_j
+    alias_q = self.alias_q
+    alias_dim = self.alias_dim
+    alias_indptr = self.alias_indptr
+    p, q = self.p, self.q
+    data = graph.data
+    indices = graph.indices
+    indptr = graph.indptr
+
+    compute_fn = get_normalized_probs
+
+    @njit(nogil=True)
+    def move_forward(cur_idx, prev_idx=None):
+        """Move to next node based on transition probabilities."""
+        if prev_idx is None:
+            normalized_probs = compute_fn(data, indices, indptr, p, q, cur_idx, None, None)
+            cdf = np.cumsum(normalized_probs)
+            choice = np.searchsorted(cdf, np.random.random())
+        else:
+            # find index of neighbor for reading alias
+            start = indptr[cur_idx]
+            end = indptr[cur_idx + 1]
+            nbr_idx = np.searchsorted(indices[start:end], prev_idx)
+            if indices[start + nbr_idx] != prev_idx:
+                raise RuntimeError("FATAL ERROR! Neighbor not found.")
+
+            dim = alias_dim[cur_idx]
+            start = alias_indptr[cur_idx] + dim * nbr_idx
+            end = start + dim
+            choice = alias_draw(alias_j[start:end], alias_q[start:end])
+
+        return indices[indptr[cur_idx] + choice]
+
+    return move_forward
+
+
+def get_move_forward_SparseOTF(self, graph):
+    """Wrap ``move_forward``.
+
+    This function returns a ``numba.jit`` compiled function that takes
+    current vertex index (and the previous vertex index if available) and
+    return the next vertex index by sampling from a discrete random
+    distribution based on the transition probabilities that are calculated
+    on-the-fly.
+
+    Note:
+        The returned function is used by the ``walk`` method.
+
+    """
+    p, q = self.p, self.q
+    data = graph.data
+    indices = graph.indices
+    indptr = graph.indptr
+
+    if self.extend:
+        compute_fn = get_normalized_probs_extended
+        deg = graph.sum(1).A1
+        num_nbrs = indptr[1:] - indptr[:-1]  # number of nbrs per node
+        avg_wts = deg / num_nbrs  # average edge weights
+    else:
+        compute_fn = get_normalized_probs
+        avg_wts = None
+
+    @njit(nogil=True)
+    def move_forward(cur_idx, prev_idx=None):
+        """Move to next node."""
+        normalized_probs = compute_fn(
+            # data, indices, indptr, p, q, cur_idx, prev_idx)
+            data, indices, indptr, p, q, cur_idx, prev_idx, avg_wts)
+        cdf = np.cumsum(normalized_probs)
+        choice = np.searchsorted(cdf, np.random.random())
+
+        return indices[indptr[cur_idx] + choice]
+
+    return move_forward
+
+
+@njit(nogil=True)
+def get_normalized_probs(data, indices, indptr, p, q, cur_idx, prev_idx, avg_wts):
+    """Calculate node2vec transition probabilities.
+
+    Calculate 2nd order transition probabilities by first finidng the
+    neighbors of the current state that are not reachable from the previous
+    state, and devide the according edge weights by the in-out parameter
+    ``q``. Then devide the edge weight from previous state by the return
+    parameter ``p``. Finally, the transition probabilities are computed by
+    normalizing the biased edge weights.
+
+    Note:
+        If ``prev_idx`` present, calculate 2nd order biased transition,
+    otherwise calculate 1st order transition.
+
+    """
+    def get_nbrs_idx(idx):
+        return indices[indptr[idx]: indptr[idx + 1]]
+
+    def get_nbrs_weight(idx):
+        return data[indptr[idx]: indptr[idx + 1]].copy()
+
+    nbrs_idx = get_nbrs_idx(cur_idx)
+    unnormalized_probs = get_nbrs_weight(cur_idx)
+
+    if prev_idx is not None:  # 2nd order biased walk
+        prev_ptr = np.where(nbrs_idx == prev_idx)[0]  # find previous state index
+        src_nbrs_idx = get_nbrs_idx(prev_idx)  # neighbors of previous state
+        non_com_nbr = isnotin(nbrs_idx, src_nbrs_idx)  # neighbors of current but not previous
+        non_com_nbr[prev_ptr] = False  # exclude previous state from out biases
+
+        unnormalized_probs[non_com_nbr] /= q  # apply out biases
+        unnormalized_probs[prev_ptr] /= p  # apply the return bias
+
+    normalized_probs = unnormalized_probs / unnormalized_probs.sum()
+
+    return normalized_probs
+
+
+@njit(nogil=True)
+def get_normalized_probs_extended(data, indices, indptr, p, q, cur_idx, prev_idx, average_weight_ary):
+    """Calculate node2vec+ transition probabilities."""
+    def get_nbrs_idx(idx):
+        return indices[indptr[idx]: indptr[idx + 1]]
+
+    def get_nbrs_weight(idx):
+        return data[indptr[idx]: indptr[idx + 1]].copy()
+
+    nbrs_idx = get_nbrs_idx(cur_idx)
+    unnormalized_probs = get_nbrs_weight(cur_idx)
+
+    if prev_idx is not None:  # 2nd order biased walk
+        prev_ptr = np.where(nbrs_idx == prev_idx)[0]  # find previous state index
+        src_nbrs_idx = get_nbrs_idx(prev_idx)  # neighbors of previous state
+        out_ind, t = isnotin_extended(nbrs_idx, src_nbrs_idx,
+                                      get_nbrs_weight(prev_idx),
+                                      average_weight_ary)  # determine out edges
+        out_ind[prev_ptr] = False  # exclude previous state from out biases
+
+        # compute out biases
+        alpha = (1 / q + (1 - 1 / q) * t[out_ind])
+
+        # surpress noisy edges
+        alpha[unnormalized_probs[out_ind] < average_weight_ary[cur_idx]] = np.minimum(1, 1 / q)
+        unnormalized_probs[out_ind] *= alpha  # apply out biases
+        unnormalized_probs[prev_ptr] /= p  # apply the return bias
+
+    normalized_probs = unnormalized_probs / unnormalized_probs.sum()
+
+    return normalized_probs
+
+
+@njit(nogil=True)
+def alias_setup(probs):
+    """Construct alias lookup table.
+
+    This code is modified from the blog post here:
+    https://lips.cs.princeton.edu/the-alias-method-efficient-sampling-with-many-discrete-outcomes/
+    , where you can find more details about how the method work. In general,
+    the alias method improves the time complexity of sampling from a discrete
+    random distribution to O(1) if the alias table is setup in advance.
+
+    Parameters:
+    -----------
+    probs (list(float64)): normalized transition probabilities array, could
+        be in either list or numpy.ndarray, of float64 values.
+
+    """
+    k = probs.size
+    q = np.zeros(k, dtype=np.float64)
+    j = np.zeros(k, dtype=np.int32)
+
+    smaller = np.zeros(k, dtype=np.int32)
+    larger = np.zeros(k, dtype=np.int32)
+    smaller_ptr = 0
+    larger_ptr = 0
+
+    for kk in range(k):
+        q[kk] = k * probs[kk]
+        if q[kk] < 1.0:
+            smaller[smaller_ptr] = kk
+            smaller_ptr += 1
+        else:
+            larger[larger_ptr] = kk
+            larger_ptr += 1
+
+    while (smaller_ptr > 0) & (larger_ptr > 0):
+        smaller_ptr -= 1
+        small = smaller[smaller_ptr]
+        larger_ptr -= 1
+        large = larger[larger_ptr]
+
+        j[small] = large
         q[large] = q[large] + q[small] - 1.0
         if q[large] < 1.0:
-            smaller.append(large)
+            smaller[smaller_ptr] = large
+            smaller_ptr += 1
         else:
-            larger.append(large)
+            larger[larger_ptr] = large
+            larger_ptr += 1
 
-    return J, q
+    return j, q
 
 
-@jit(cache=True, nopython=True)
-def alias_draw(J, q):
-    '''
-    Draw sample from a non-uniform discrete distribution using alias sampling.
-    '''
-    K = len(J)
+@njit(nogil=True)
+def alias_draw(j, q):
+    """Draw sample from a non-uniform discrete distribution using alias sampling."""
+    k = j.size
 
-    kk = int(np.floor(np.random.rand() * K))
+    kk = np.random.randint(k)
     if np.random.rand() < q[kk]:
         return kk
     else:
-        return J[kk]
+        return j[kk]
+
+
+def get_has_nbrs(graph):
+    """Wrap ``has_nbrs``."""
+    indptr = graph.indptr
+
+    @njit(nogil=True)
+    def has_nbrs(idx):
+        return indptr[idx] != indptr[idx + 1]
+
+    return has_nbrs
+
+
+@njit(nogil=True)
+def isnotin(ptr_ary1, ptr_ary2):
+    """Find node2vec out edges.
+
+    The node2vec out edges is determined by non-common neighbors. This function
+    find out neighbors of node1 that are not neighbors of node2, by picking out
+    values in ``ptr_ary1`` but not in ``ptr_ary2``, which correspond to the
+    neighbor pointers for the current state and the previous state, resp.
+
+    Note:
+        This function does not remove the index of the previous state. Instead,
+    the index of the previous state will be removed once the indicator is
+    returned to the ``get_normalized_probs``.
+
+    Parameters:
+    -----------
+    ptr_ary1 (:obj:`numpy.ndarray` of :obj:`int32`): array of pointers to
+        the neighbors of the current state
+    ptr_ary2 (:obj:`numpy.ndarray` of :obj:`int32`): array of pointers to
+        the neighbors of the previous state
+
+    Returns:
+    -----------
+    Indicator of whether a neighbor of the current state is considered as
+        an "out edge"
+
+    Example:
+    -----------
+    The values in the two neighbor pointer arrays are sorted ascendingly.
+    The main idea is to scan through ``ptr_ary1`` and compare the values in
+    ``ptr_ary2``. In this way, at most one pass per array is needed to find
+    out the non-common neighbor pointers instead of a nested loop (for each
+    element in ``ptr_ary1``, compare against every element in``ptr_ary2``),
+    which is much slower. Checkout the following example for more intuition.
+    The ``*`` above ``ptr_ary1`` and ``ptr_ary2`` indicate the indices
+    ``idx1`` and ``idx2``, respectively, which keep track of the scaning
+    progress.
+
+    >>> ptr_ary1 = [1, 2, 5]
+    >>> ptr_ary2 = [1, 5]
+    >>>
+    >>> # iteration1: indicator = [False, True, True]
+    >>>  *
+    >>> [1, 2, 5]
+    >>>  *
+    >>> [1, 5]
+    >>>
+    >>> # iteration2: indicator = [False, True, True]
+    >>>     *
+    >>> [1, 2, 5]
+    >>>     *
+    >>> [1, 5]
+    >>>
+    >>> # iteration3: indicator = [False, True, False]
+    >>>        *
+    >>> [1, 2, 5]
+    >>>     *
+    >>> [1, 5]
+    >>>
+    >>> # end of loop
+
+    """
+    indicator = np.ones(ptr_ary1.size, dtype=boolean)
+    idx2 = 0
+    for idx1 in range(ptr_ary1.size):
+        if idx2 == ptr_ary2.size:  # end of ary2
+            break
+
+        ptr1 = ptr_ary1[idx1]
+        ptr2 = ptr_ary2[idx2]
+
+        if ptr1 < ptr2:
+            continue
+
+        elif ptr1 == ptr2:  # found a matching value
+            indicator[idx1] = False
+            idx2 += 1
+
+        elif ptr1 > ptr2:
+            # sweep through ptr_ary2 until ptr2 catch up on ptr1
+            for j in range(idx2, ptr_ary2.size):
+                ptr2 = ptr_ary2[j]
+                if ptr2 == ptr1:
+                    indicator[idx1] = False
+                    idx2 = j + 1
+                    break
+
+                elif ptr2 > ptr1:
+                    idx2 = j
+                    break
+
+    return indicator
+
+
+@njit(nogil=True)
+def isnotin_extended(ptr_ary1, ptr_ary2, wts_ary2, avg_wts):
+    """Find node2vec+ out edges.
+
+    The node2vec+ out edges is determined by considering the edge weights
+    connecting node2 (the potential next state) to the previous state. Unlinke
+    node2vec, which only considers neighbors of current state that are not
+    neighbors of the previous state, node2vec+ also considers neighbors of
+    the previous state as out edges if the edge weight is below average.
+
+    Parameters:
+    -----------
+    ptr_ary1 (:obj:`numpy.ndarray` of :obj:`uint32`): array of pointers to
+        the neighbors of the current state
+    ptr_ary2 (:obj:`numpy.ndarray` of :obj:`uint32`): array of pointers to
+        the neighbors of the previous state
+    wts_ary2 (:obj: `numpy.ndarray` of :obj:`float64`): array of edge
+        weights of the previous state
+    avg_wts (:obj: `numpy.ndarray` of :obj:`float64`): array of average
+        edge weights of each node
+
+    Return:
+    -----------
+    Indicator of whether a neighbor of the current state is considered as
+        an "out edge", with the corresponding parameters used to fine tune
+        the out biases
+
+    """
+    indicator = np.ones(ptr_ary1.size, dtype=boolean)
+    t = np.zeros(ptr_ary1.size, dtype=np.float64)
+    idx2 = 0
+    for idx1 in range(ptr_ary1.size):
+        if idx2 == ptr_ary2.size:  # end of ary2
+            break
+
+        ptr1 = ptr_ary1[idx1]
+        ptr2 = ptr_ary2[idx2]
+
+        if ptr1 < ptr2:
+            continue
+
+        elif ptr1 == ptr2:  # found a matching value
+            if wts_ary2[idx2] >= avg_wts[ptr2]:  # check if loose
+                indicator[idx1] = False
+            else:
+                t[idx1] = wts_ary2[idx2] / avg_wts[ptr2]
+            idx2 += 1
+
+        elif ptr1 > ptr2:
+            # sweep through ptr_ary2 until ptr2 catch up on ptr1
+            for j in range(idx2, ptr_ary2.size):
+                ptr2 = ptr_ary2[j]
+                if ptr2 == ptr1:
+                    if wts_ary2[j] >= avg_wts[ptr2]:
+                        indicator[idx1] = False
+                    else:
+                        t[idx1] = wts_ary2[j] / avg_wts[ptr2]
+                    idx2 = j + 1
+                    break
+
+                elif ptr2 > ptr1:
+                    idx2 = j
+                    break
+
+    return indicator, t
