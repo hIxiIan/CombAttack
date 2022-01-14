@@ -27,6 +27,7 @@ from h2gcn import get_H2GCN, sp_to_tensor
 from dgl import DGLGraph
 from dgl import function as fn
 from tedge import get_tedge
+from trans2vec import get_trans2vec
 
 
 def get_model(model_name, args, graph, is_embed=False, is_model=False):
@@ -203,7 +204,7 @@ def get_attacked_models(atked_types, args, graph):
 
 
 def get_attacker(args, graph):
-    if not args.blockchain or args.dataset == "tedge":
+    if not args.blockchain or args.dataset in ["tedge", "trans2vec"]:
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
         results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
@@ -230,7 +231,7 @@ def get_atk_models(args, graph):
         # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
         args.atked_model_ = atked_types[0]
     else:
-        if args.dataset == 'tedge':
+        if args.dataset in ['tedge', 'trans2vec']:
             attacked_model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
             attacked_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
             attacked_models = [attacked_model]
@@ -542,11 +543,14 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
 def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbose_us=False):
     if args.is_phi:
-        if args.dataset != "tedge":
+        if args.dataset not in ["tedge", "trans2vec"]:
             attacked_model = attacked_models[0]
             original_predict, _ = get_pd(attacked_model, args)
         else:
-            original_predict = get_tedge(args) # lcc
+            if args.dataset == "tedge":
+                original_predict = get_tedge(args) # lcc
+            elif args.dataset == "trans2vec":
+                original_predict = get_trans2vec(args)
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
         ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
@@ -590,7 +594,7 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
 
 
 def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
-    assert args.dataset != "tedge", "testBlockACC tedge error"
+    assert args.dataset not in ["tedge", "trans2vec"], "testBlockACC tedge, trans2vec error"
     attacked_model = attacked_models[0]
     original_predict, lgb_model = get_pd(attacked_model, args)
     if args.is_phi:
@@ -758,8 +762,9 @@ if __name__ == '__main__':
     parser.add_argument("--test_mode", default="-1", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
-    parser.add_argument("--tedge_features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
-    parser.add_argument("--tedge_train_size", default=0.5, type=float)
+    parser.add_argument("--features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
+    parser.add_argument("--train_size", default=0.5, type=float)
+    parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
 
     cmd = parser.parse_args()
     cmd.hids, cmd.acts, cmd.weight_decay, cmd.lr = None, None, None, None

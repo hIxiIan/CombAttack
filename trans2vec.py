@@ -1,6 +1,4 @@
-import sys
 import networkx as nx
-import pickle
 import numpy as np
 from time import time
 import random
@@ -14,8 +12,7 @@ from sklearn.svm import SVC, OneClassSVM
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
-from numba import jit, njit
-from graphgallery.gallery.embedding import Node2VecE
+from numba import njit
 from graphgallery.gallery.embedding.walker import BiasedRandomWalker, BiasedRandomWalkerAlias
 import scipy.sparse as sp
 from tedge import weight_choice, combine_probs
@@ -273,13 +270,27 @@ def get_trans2vec(args):
     nodes = list([int(node) for node in sample_labels.keys()])
     nodes_labels = list(sample_labels.values())
     nodes_embeddings = pd.DataFrame(embeddings[nodes], index=nodes)
+
+    model_name = args.trans2vec_model.lower()
+
+    if model_name in ["ocsvm"]:
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], nodes_labels[:445], train_size=args.train_size, random_state=args.seed)
+        model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3).fit(X_train) # 训练集只有钓鱼节点，那么1是正常（钓鱼节点），-1是异常（非钓鱼节点）
+        y_pred = model.predict(embeddings)[args.nodes_to_keep]
+        y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred]) # 将预测为1的映射为1，预测为-1的映射为0
+        return y_pred
+
     X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size, random_state=args.seed)
-    model = SVC(kernel='linear', C=0.4, random_state=args.seed)
+    if model_name == "svm":
+        model = SVC(kernel='linear', C=0.4, random_state=args.seed)
+    elif model_name == "lr":
+        model = LogisticRegression(random_state=args.seed)
     model.fit(X_train, y_train)
+    y_pred = model.predict(embeddings)[args.nodes_to_keep]
+    return y_pred
 
-    return model.predict(embeddings)[args.nodes_to_keep]
 
-
+# trans2vec原论文的数据集实验设置不明，暂时没有复现原来的效果
 def node_classification(args, output):
     if 'csv' not in output:
         output += '.csv'
@@ -290,11 +301,11 @@ def node_classification(args, output):
     nodes_labels = list(sample_labels.values())
     nodes_embeddings = pd.DataFrame(embeddings[nodes])
 
-    model_name = args.classifier.lower()
+    model_name = args.trans2vec_model.lower()
 
     if model_name in ["ocsvm"]:
         # 训练集是无标签节点，测试集是标签+无标签节点
-        X_train, X_test, y_test = nodes_embeddings[445:], nodes_embeddings, nodes_labels
+        # X_train, X_test, y_test = nodes_embeddings[445:], nodes_embeddings, nodes_labels
 
         # 训练集是钓鱼节点，测试集是钓鱼与非钓鱼节点
         # X_train, X_test, y_test = nodes_embeddings[:445], nodes_embeddings, nodes_labels
@@ -349,20 +360,20 @@ def run_trans2vec(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
-    parser.add_argument("--verbose", default=0, type=int, help="print details")
+    parser.add_argument("--verbose", default=0, type=int, help="print details if verbose > 0")
     parser.add_argument("--device", default="gpu", type=str, help="code environment")
-    parser.add_argument("-tt", "--tedge_type", default="TBS+WBS", choices=['TBS+WBS'], type=str)
-    parser.add_argument("--run_emb", default="true", type=str)
-    parser.add_argument("--run_nc", default="true", type=str)
-    parser.add_argument("-f", "--filename", default="TBS+WBS_2022_01_12_18_31_57_test", type=str)
-    parser.add_argument("-d", "--dimensions", default=64, type=int) # 128
-    parser.add_argument("--num_walks", default=20, type=int) # 4
-    parser.add_argument("--walk_length", default=5, type=int) # 10
-    parser.add_argument("--window_size", default=10, type=int) # 4
-    parser.add_argument("--workers", default=1, type=int) # 8
-    parser.add_argument("--train_size", default=0.8, type=float)
-    parser.add_argument("--classifier", default="ocsvm", type=str)
-    parser.add_argument("--alpha", default=0.5, type=float)
+    parser.add_argument("-tt", "--tedge_type", default="TBS+WBS", choices=['TBS+WBS'], type=str, help="trans2vec settings")
+    parser.add_argument("--run_emb", default="true", type=str, help="run embedding process")
+    parser.add_argument("--run_nc", default="true", type=str, help="run node classification process")
+    parser.add_argument("-f", "--filename", default="TBS+WBS_2022_01_12_18_31_57_test", type=str, help="saved embedding filepath")
+    parser.add_argument("-d", "--dimensions", default=64, type=int, help="random walk parameters") # 128
+    parser.add_argument("--num_walks", default=20, type=int, help="random walk parameters")
+    parser.add_argument("--walk_length", default=5, type=int, help="random walk parameters")
+    parser.add_argument("--window_size", default=10, type=int, help="random walk parameters")
+    parser.add_argument("--workers", default=1, type=int, help="random walk parameters")
+    parser.add_argument("--train_size", default=0.8, type=float, help="node classification task train ratio")
+    parser.add_argument("--trans2vec_model", default="ocsvm", type=str, help="node classification machine learning model")
+    parser.add_argument("--alpha", default=0.5, type=float, help="the parameter of balance between TBS and WBS")
     parser.add_argument("--gf_alias_mode", default="false", type=str)
     parser.add_argument("--gf", default="true", type=str)
     args = parser.parse_args()

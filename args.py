@@ -70,7 +70,7 @@ class ARGS:
         self.adj_matrix = graph.adj_matrix
         self.node_attr = graph.node_attr
         self.node_label = graph.node_label
-        if self.dataset == "tedge":
+        if self.dataset in ["tedge", "trans2vec"]:
             nodes_to_keep = pd.read_csv('dataset/phishing/tedge_nodes_to_keep.csv').values.ravel()
             path = 'result/test_tedge/' + cmd.features_file
             if 'csv' not in path:
@@ -81,6 +81,7 @@ class ARGS:
             self.train_size = cmd.train_size # make use of the target nodes selection
             self.features_file = path
             self.nodes_to_keep = nodes_to_keep
+            self.trans2vec_model = cmd.trans2vec_model
 
         random = True if cmd.random == "true" else False
         is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False # 无效

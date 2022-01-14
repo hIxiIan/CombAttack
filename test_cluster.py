@@ -85,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument("--feature_timestamp", default="", type=str)
     parser.add_argument("--features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
+    parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
 
     cmd = parser.parse_args()
     cmd.hids = None
