@@ -131,15 +131,15 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--model", default="", type=str, help="model")
     parser.add_argument("--dataset", default="", type=str, help="dataset")
     parser.add_argument("--times", default=1, type=int)
-    parser.add_argument("-t", "--timestamp", default="", type=str)
+    parser.add_argument("-eft", "--edge_flips_timestamp", default="", type=str)
     parser.add_argument("-ie", "--is_evasion", default="true", type=str)
     parser.add_argument("-ip", "--is_poisoning", default="true", type=str)
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
     args = parser.parse_args()
-    # args.timestamp = "2021_12_24_13_56_01"
-    assert args.timestamp != "", "timestamp is invalid"
+    # args.edge_flips_timestamp = "2021_12_24_13_56_01"
+    assert args.edge_flips_timestamp != "", "edge_flips_timestamp is invalid"
     print_args(args)
 
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
@@ -183,7 +183,7 @@ if __name__ == '__main__':
             count += 1
             print('\ncount:{}/{}, dataset:{}, times:{}/{}'.format(count, total, args.dataset, i + 1, times))
             cur_result = pd.DataFrame(columns=['eva_asr', 'poi_asr', 'clean_acc'])
-            filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)])
+            filename = edgesdir + "_".join([args.dataset, args.edge_flips_timestamp, str(i)])
             cur_edges = load_json(filename)
             seed = cur_edges['seed']
             del cur_edges['seed']
