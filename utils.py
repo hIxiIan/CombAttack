@@ -13,7 +13,7 @@ from numba import jit, int32, int64
 
 DP_MODELS = ['RobustGCN', 'SimPGCN']
 
-DATASET_BLOCKCHAIN = ['blockchain30000', 'blockchain40000', 'blockchain50000', 'tedge', 'trans2vec']
+DATASET_BLOCKCHAIN = ["bc" + str(i+1) for i in range(11)] + ['tedge', 'trans2vec']
 
 # RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']
 
@@ -883,3 +883,35 @@ def get_split_atked_types(dataset, embed_type, atked_types, not_split=False):
             split_atked_types[cur_hash].append(atked_type)
 
     return list(split_atked_types.values())
+
+
+def to_tensor(adj, features, labels=None, device='cpu'):
+    """Convert adj, features, labels from array or sparse matrix to
+    torch Tensor.
+
+    Parameters
+    ----------
+    adj : scipy.sparse.csr_matrix
+        the adjacency matrix.
+    features : scipy.sparse.csr_matrix
+        node features
+    labels : numpy.array
+        node labels
+    device : str
+        'cpu' or 'cuda'
+    """
+    if sp.issparse(adj):
+        adj = sparse_mx_to_torch_sparse_tensor(adj)
+    else:
+        adj = torch.FloatTensor(adj)
+    if sp.issparse(features):
+        features = sparse_mx_to_torch_sparse_tensor(features)
+    else:
+        features = torch.FloatTensor(np.array(features))
+
+    if labels is None:
+        return adj.to(device), features.to(device)
+    else:
+        labels = torch.LongTensor(labels)
+        return adj.to(device), features.to(device), labels.to(device)
+

@@ -207,34 +207,18 @@ class trans2vec(object):
 
     def temporal_walk(self, walk_length, start_node):
         walk = [start_node]  # 类型：list
-        walk_edge = []
-        walk_time = []  ##类型：list, 大小比walk的小1
-
-        cur = start_node
-        next_node, next_time, next_key = self.get_next_step(cur)
-        if next_node is not None:
-            walk.append(next_node)
-            walk_time.append(next_time)
-            walk_edge.append(next_key)
-        else:
-            return walk
-
         while len(walk) < walk_length:
             cur = walk[-1]
-            next_node, next_time, next_key = self.get_next_step(cur)
+            next_node = self.get_next_step(cur)
             if next_node is not None:
                 walk.append(next_node)
-                walk_time.append(next_time)
-                walk_edge.append(next_key)
             else:
                 break
         return walk
 
     def get_next_step(self, cur):
         G = self.G
-        tmp_key = []
         tmp_node = []
-        tmp_time = []
         unnormalized_probs_t = []
         unnormalized_probs_a = []
 
@@ -242,13 +226,10 @@ class trans2vec(object):
         for nbr in cur_nbrs:
             nbr_key = list(G.get_edge_data(cur, nbr))
             k = nbr_key[-1]
-            t = k
             a = G[cur][nbr][k]['weight']
             unnormalized_probs_a.append(a)
             unnormalized_probs_t.append(len(nbr_key))
-            tmp_time.append(t)
             tmp_node.append(nbr)
-            tmp_key.append(k)
 
         if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
             unnormalized_probs_t = np.asarray(unnormalized_probs_t)
@@ -256,11 +237,9 @@ class trans2vec(object):
             unnormalized_probs = combine_probs(unnormalized_probs_t, unnormalized_probs_a, self.alpha)
             selected = weight_choice(unnormalized_probs)
             next_node = tmp_node[selected]
-            next_time = tmp_time[selected]
-            next_key = tmp_key[selected]
-            return next_node, next_time, next_key
+            return next_node
         else:
-            return None, None, None  # 没有符合条件的
+            return None  # 没有符合条件的
 
 
 def get_trans2vec(args):
