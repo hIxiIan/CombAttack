@@ -356,7 +356,7 @@ class BMGCN(nn.Module):
         return acc_test.item()
 
     @torch.no_grad()
-    def predict(self, features=None, adj=None):
+    def predict(self, adj=None):
         """By default, the inputs should be unnormalized adjacency
 
         Parameters
@@ -374,22 +374,24 @@ class BMGCN(nn.Module):
         """
 
         self.eval()
-        if features is None and adj is None:
+        if adj is None:
             return self.forward(self.features, self.adj_norm)
+
+        if type(adj) is not torch.Tensor:
+            _, adj = to_tensor(self.features, adj, device=self.device)
+
+        if is_sparse_tensor(adj):
+            adj_norm = normalize_adj_tensor(adj, sparse=True)
         else:
-            if type(adj) is not torch.Tensor:
-                features, adj = to_tensor(features, adj, device=self.device)
+            adj_norm = normalize_adj_tensor(adj)
 
-            self.features = features
-            if is_sparse_tensor(adj):
-                self.adj_norm = normalize_adj_tensor(adj, sparse=True)
-            else:
-                self.adj_norm = normalize_adj_tensor(adj)
-            return self.forward(self.features, self.adj_norm)
+        return self.forward(self.features, adj_norm)
+
+    def fit(self, ph1, ph2, verbose, epochs):
+        return
 
 
-def get_unlabeled_train_id(args, train=0.2, test=0.8):
-    graph = args.graph
+def get_unlabeled_train_id(args, graph, train=0.2, test=0.8):
     features = graph.node_attr
     labels = graph.node_label
     phishing_train_id = list(np.where(labels == 1)[0])
@@ -408,23 +410,20 @@ def get_unlabeled_train_id(args, train=0.2, test=0.8):
     args.unlabeled_train_ids = unlabeled_train_ids
     args.idx_test = X_test
 
-    path = osp.abspath(osp.expanduser("~/GraphData/datasets/"))
-    bmbc = np.load(''.join([path, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
-    adj_A = bmbc["A"].item()
-    adj_V = bmbc["V"].item()
-    adj_F = bmbc["F"].item()
-    adjs = [adj_A, adj_V, adj_F]
-    return adjs, features, labels
+    return features, labels
 
 
-def get_output(models):
+def get_output(models, adjs=None):
     output = None
-    for model in models:
+    for i, model in enumerate(models):
         model.eval()
+        adj = None
+        if adjs is not None:
+            adj = adjs[i]
         if output is None:
-            output = model.predict().cpu().detach()
+            output = model.predict(adj=adj).detach().cpu()
         else:
-            output = torch.cat((output, model.predict().cpu().detach()), 1)
+            output = torch.cat((output, model.predict(adj=adj).detach().cpu()), 1)
     return F.log_softmax(output, dim=1)
 
 
@@ -434,14 +433,16 @@ def get_acc(args, models):
     idx_test = args.idx_test
     loss_test = F.nll_loss(output[idx_test], labels[idx_test])
     acc_test = accuracy(output[idx_test], labels[idx_test])
-    print("Test set results:",
-          "loss= {:.4f}".format(loss_test.item()),
-          "accuracy= {:.4f}".format(acc_test.item()))
+    if args.verbose > 0:
+        print("Test set results:",
+              "loss= {:.4f}".format(loss_test.item()),
+              "accuracy= {:.4f}".format(acc_test.item()))
+    return acc_test.item()
 
 
-def get_bmgcn(args):
+def get_bmgcn(args, graph, adjs):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    adjs, features, labels = get_unlabeled_train_id(args)
+    features, labels = get_unlabeled_train_id(args, graph)
     models = []
     for adj in adjs:
         model = BMGCN(nfeat=features.shape[1], nhid=16, nclass=labels.max() + 1, device=device)
@@ -463,9 +464,14 @@ if __name__ == "__main__":
                       root="~/GraphData/datasets/",
                       verbose=False,
                       transform="standardize")
-    args.graph = data.graph
+    graph = data.graph
     random_seed(args.seed)
-    get_bmgcn(args)
+
+    bmbc = np.load(''.join([data.root, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
+    adj_A = bmbc["A"].item()
+    adj_V = bmbc["V"].item()
+    adj_F = bmbc["F"].item()
+    get_bmgcn(args, graph, [adj_A, adj_V, adj_F])
 
 
 

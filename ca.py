@@ -9,6 +9,8 @@ import torch
 import scipy.sparse as sp
 import graphgallery.functional as gf
 import dgl
+import os
+import os.path as osp
 from graphgallery.datasets import NPZDataset
 from sga import SCA, SCAPD
 from orisga import SGA, SGAPD
@@ -28,9 +30,10 @@ from dgl import DGLGraph
 from dgl import function as fn
 from tedge import get_tedge
 from trans2vec import get_trans2vec
+from bm_gcn import get_bmgcn, get_acc
 
 
-def get_model(model_name, args, graph, is_embed=False, is_model=False):
+def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
     # GCN
     if model_name == "SGC":
         return gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
@@ -145,6 +148,17 @@ def get_model(model_name, args, graph, is_embed=False, is_model=False):
         model.name = "H2GCN1"
         return model
 
+    elif model_name == "BMGCN":
+        assert "bc" in args.dataset, "BMGCN get_model invalid"
+        if A_V_F is None:
+            path = osp.abspath(osp.expanduser("~/GraphData/datasets/"))
+            bmbc = np.load(''.join([path, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
+            A_V_F = [bmbc["A"].item(), bmbc["V"].item(), bmbc["F"].item()]
+        models = get_bmgcn(args, graph, A_V_F)
+        for i in range(len(models)):
+            models[i].name = "BMGCN"
+        return models
+
     assert False, "invalid graphgallery model"
 
 
@@ -189,6 +203,17 @@ def get_attacked_models(atked_types, args, graph):
             attacked_models_acc.append(acc)
             print('atked_model :{}, clean_acc: {}'.format(atked_type, acc))
             continue
+
+        if atked_type == "BMGCN":
+            attacked_model = get_model(atked_type, args, graph)
+            for i in range(len(attacked_model)):
+                attacked_model[i].is_dr = False
+            acc = get_acc(args, attacked_model)
+            attacked_models.append(attacked_model)
+            attacked_models_acc.append(acc)
+            print('atked_model :{}, clean_acc: {}'.format(atked_type, acc))
+            continue
+
         attacked_model = get_model(atked_type, args, graph)
         attacked_model.is_dr = False
         attacked_model.fit(args.splits.train_nodes,
@@ -736,9 +761,9 @@ if __name__ == '__main__':
     parser.add_argument("-st", "--subgraph_type", default="cluster", type=str, help="sample method")
     parser.add_argument("-sr", "--sample_ratio", default=0.05, type=float, help="ratio of sampled nodes")
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
-    parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
+    parser.add_argument("-tn", "--target_nums", default=5, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
+    parser.add_argument("--dataset", default="bc1", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)

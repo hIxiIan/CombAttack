@@ -121,9 +121,10 @@ def get_tedge_perturbed_graph(tG_ori, edge_flips):
 def get_trans2vec_perturbed_graph(_adj_matrix, _amount_data, _timestamp_data, edge_flips):
     indices = _adj_matrix.indices
     indptr = _adj_matrix.indptr
-    adj_matrix = _adj_matrix.tolil()
-    amount_data = _amount_data.tolil()
-    timestamp_data = _timestamp_data.tolil()
+
+    adj_matrix = _adj_matrix.tolil(copy=True)
+    amount_data = _amount_data.tolil(copy=True)
+    timestamp_data = _timestamp_data.tolil(copy=True)
 
     def has_edge(u, v):
         return adj_matrix[u, v] > 0.
