@@ -83,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
     parser.add_argument("--tedge_type", default="", type=str)
     parser.add_argument("--feature_timestamp", default="", type=str)
-    parser.add_argument("--features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
+    parser.add_argument("--features_file", default="", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     print(tedge_types_)
 
     for dataset in dataset_:
-        if dataset == "tedge":
+        if dataset in ["tedge", "trans2vec"]:
             assert len(cmd.feature_timestamp) > 0, 'feature_timestamp error'
             cmd.edge_flips = "true"
         cmd.dataset = dataset
@@ -141,15 +141,22 @@ if __name__ == '__main__':
             count = 0
             total = len(tedge_types_)
             if cmd.run_sga == "true":
-                cmd.atk_model_type = ','.join(atked_types_)
-                for tedge_type in tedge_types_:
+                if dataset in ["tedge", "trans2vec"]:
+                    cmd.atk_model_type = ','.join(atked_types_)
+                    for tedge_type in tedge_types_:
+                        count += 1
+                        cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
+                        print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
+                            dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
+                        key = '_'.join(['sga', tedge_type])
+                        do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
+                else:
+                    cmd.atk_model_type = ','.join(atked_types_)
                     count += 1
-                    cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
-                    print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
-                        dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
-                    key = '_'.join(['sga', tedge_type])
+                    print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}'.format(
+                        dataset, i, count, total, "sga", cmd.atk_model_type))
+                    key = '_'.join(['sga'])
                     do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
-
             if cmd.run_us != "true":
                 continue
 
@@ -157,7 +164,7 @@ if __name__ == '__main__':
             total = 0
             for embed_type in method_types:
                 cur_count = len(get_split_atked_types(dataset, embed_type, atked_types_, not_split))
-                if dataset == "tedge":
+                if dataset in ["tedge", "trans2vec"]:
                     cur_count *= len(tedge_types_)
                 total += cur_count
 
@@ -165,7 +172,7 @@ if __name__ == '__main__':
                 cmd.embed_type = embed_type if not mix_cluster else None
                 split_atked_types_ = get_split_atked_types(dataset, embed_type, atked_types_, not_split)
                 for atked_type in split_atked_types_:
-                    if dataset == "tedge":
+                    if dataset in ["tedge", "trans2vec"]:
                         cmd.atk_model_type = ','.join(atked_type)
                         for tedge_type in tedge_types_:
                             count += 1

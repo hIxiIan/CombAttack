@@ -137,6 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
+    parser.add_argument('--T', default=100, type=int)
     args = parser.parse_args()
     # args.edge_flips_timestamp = "2021_12_24_13_56_01"
     assert args.edge_flips_timestamp != "", "edge_flips_timestamp is invalid"
