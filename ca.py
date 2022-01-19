@@ -577,7 +577,7 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
             elif args.dataset == "trans2vec":
                 original_predict = get_trans2vec(args)
             elif "bc" in args.dataset and args.bmbc_mode:
-                original_predict = get_bmgcn_sur(args) # todo:如何获取
+                original_predict = get_bmgcn_sur(args)
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
         ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
