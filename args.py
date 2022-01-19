@@ -41,6 +41,7 @@ class ARGS:
         self.is_phi = True if cmd.is_phi == "true" else False
         self.is_topk = True if cmd.is_topk == "true" else False
         self.edge_flips = True if cmd.edge_flips == "true" else False
+        self.bmbc_mode = True if cmd.bmbc_mode == "true" else False
         self.graph = graph
 
         # attack

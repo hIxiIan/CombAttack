@@ -442,7 +442,7 @@ def get_acc(args, models):
 
 def get_bmgcn(args, graph, adjs):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    features, labels = get_unlabeled_train_id(args, graph)
+    features, labels = get_unlabeled_train_id(args, graph, train=args.train_size)
     models = []
     for adj in adjs:
         model = BMGCN(nfeat=features.shape[1], nhid=16, nclass=labels.max() + 1, device=device)
@@ -454,11 +454,30 @@ def get_bmgcn(args, graph, adjs):
     return models
 
 
+def get_bmgcn_sur(args):
+    root = osp.abspath(osp.expanduser("~/GraphData/datasets/"))
+    bmbc = np.load(''.join([root, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
+    A = bmbc["A"].item()
+    V = bmbc["V"].item()
+    F = bmbc["F"].item()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    features, labels = get_unlabeled_train_id(args, args.graph, train=args.train_size)
+    models = []
+    for adj in [A, V, F]:
+        model = BMGCN(nfeat=features.shape[1], nhid=16, nclass=labels.max() + 1, device=device)
+        model = model.to(device)
+        model.fit(features, adj, labels, None, args=args, train_iters=20, verbose=False)
+        models.append(model)
+    output = get_output(models)
+    return output
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=2022, help='random seed')
     parser.add_argument('--dataset', type=str, default='bc1', help='dataset')
     parser.add_argument('--T', type=int, default=100)
+    parser.add_argument("--train_size", default=0.5, type=float)
     args = parser.parse_args()
     data = NPZDataset(args.dataset,
                       root="~/GraphData/datasets/",

@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument("--features_file", default="", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
-
+    parser.add_argument('--bmbc_mode', default="false", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -120,6 +120,8 @@ if __name__ == '__main__':
     for dataset in dataset_:
         if dataset in ["tedge", "trans2vec"]:
             assert len(cmd.feature_timestamp) > 0, 'feature_timestamp error'
+            cmd.edge_flips = "true"
+        if "bc" in dataset and cmd.bmbc_mode == "true":
             cmd.edge_flips = "true"
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])

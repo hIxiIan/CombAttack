@@ -30,7 +30,7 @@ from dgl import DGLGraph
 from dgl import function as fn
 from tedge import get_tedge
 from trans2vec import get_trans2vec
-from bm_gcn import get_bmgcn, get_acc
+from bm_gcn import get_bmgcn, get_acc, get_bmgcn_sur
 
 
 def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
@@ -229,7 +229,7 @@ def get_attacked_models(atked_types, args, graph):
 
 
 def get_attacker(args, graph):
-    if not args.blockchain or args.dataset in ["tedge", "trans2vec"]:
+    if not args.blockchain or args.dataset in ["tedge", "trans2vec"] or ("bc" in args.dataset and args.bmbc_mode):
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
         results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
@@ -256,7 +256,7 @@ def get_atk_models(args, graph):
         # assert len(atked_types) <= 1, 'atked_model need to be equal to 1'
         args.atked_model_ = atked_types[0]
     else:
-        if args.dataset in ['tedge', 'trans2vec']:
+        if args.dataset in ['tedge', 'trans2vec'] or ("bc" in args.dataset and args.bmbc_mode):
             attacked_model = gg.gallery.nodeclas.SGC(device=args.device, seed=args.seed).setup_graph(graph, K=2).build()
             attacked_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
             attacked_models = [attacked_model]
@@ -568,7 +568,7 @@ def testACC(attacked_models, attacker, args, verbose=True, verbose_us=False):
 
 def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, verbose_us=False):
     if args.is_phi:
-        if args.dataset not in ["tedge", "trans2vec"]:
+        if "bc" in args.dataset and not args.bmbc_mode:
             attacked_model = attacked_models[0]
             original_predict, _ = get_pd(attacked_model, args)
         else:
@@ -576,6 +576,8 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
                 original_predict = get_tedge(args) # lcc
             elif args.dataset == "trans2vec":
                 original_predict = get_trans2vec(args)
+            elif "bc" in args.dataset and args.bmbc_mode:
+                original_predict = get_bmgcn_sur(args) # todo:如何获取
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
         ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
