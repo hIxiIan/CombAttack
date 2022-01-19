@@ -582,9 +582,9 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
         true_phishing_targets = np.where(args.node_label == 1)[0]
         ori_targets = np.intersect1d(surrogate_phishing_targets, true_phishing_targets)
         if len(ori_targets) <= args.target_nums:
+            print('len(ori_targets): {}, args.target_nums:{}'.format(len(ori_targets), args.target_nums))
             args.target_nums = len(ori_targets)
             args.targets = list(ori_targets)
-            print('len(ori_targets): {}, args.target_nums:{}'.format(len(ori_targets), args.target_nums))
         else:
             args.targets = random.sample(list(ori_targets), args.target_nums)
 
