@@ -83,6 +83,9 @@ class ARGS:
             self.features_file = path
             self.nodes_to_keep = nodes_to_keep
             self.trans2vec_model = cmd.trans2vec_model
+        if "bc" in self.dataset:
+            self.train_size = cmd.train_size
+            self.T = cmd.T
 
         random = True if cmd.random == "true" else False
         is_het = True if cmd.dataset in ["chameleon", "squirrel"] else False # 无效

@@ -6,7 +6,7 @@ import torch
 import graphgallery as gg
 import graphgallery.functional as gf
 import scipy.sparse as sp
-from ca import get_model, get_dr_model, get_attacked_models
+from ca import get_attacked_models
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
 from utils import load_pickle
@@ -100,12 +100,11 @@ def get_gf_results(eva_model, name, true_label, perturbed_tuple, args, target, i
     A, V, F = perturbed_tuple[0], perturbed_tuple[1], perturbed_tuple[2]
     # evasion
     if is_eva:
-        eva_perturbed_label = get_output(eva_model, [A, V, F])[target].argmax()
+        eva_perturbed_label = get_output(eva_model, [A, V, F], args, is_eva=True)[target].argmax()
 
     # poisoning
     if is_poi:
-        poi_model = get_model(name, args, [A, V, F])
-        poi_perturbed_label = get_output(poi_model)[target].argmax()
+        poi_perturbed_label = get_output(eva_model, [A, V, F], args, is_eva=False)[target].argmax()
 
     eva_asr = true_label != eva_perturbed_label if eva_perturbed_label is not None else False
     poi_asr = true_label != poi_perturbed_label if poi_perturbed_label is not None else False
@@ -116,8 +115,8 @@ def get_gf_results(eva_model, name, true_label, perturbed_tuple, args, target, i
 def get_true_labels(attacked_models):
     true_labels = []
     for attacked_model in attacked_models:
-        assert attacked_model[0].name == "BMGCN", "get_true_labels invalid"
-        output = get_output(attacked_model)
+        assert attacked_model.name == "BMGCN", "get_true_labels invalid"
+        output = attacked_model.output
         true_label = [logit.argmax() for logit in output]
         true_labels.append(true_label)
     return true_labels
@@ -137,6 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_sga', default="true", type=str)
     parser.add_argument('--run_us', default="true", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
+    parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument('--T', default=100, type=int)
     args = parser.parse_args()
     # args.edge_flips_timestamp = "2021_12_24_13_56_01"
@@ -162,6 +162,7 @@ if __name__ == '__main__':
                           verbose=False,
                           transform="standardize")
         graph = data.graph
+        args.graph = graph
         splits = data.split_nodes(random_state=15)
         args.splits = splits
         SAMPLE_GSIZE = int(args.dataset.split('bc')[-1]) * 10000
@@ -212,7 +213,7 @@ if __name__ == '__main__':
                     perturbed_tuple = get_perturbed_tuple(ori_data, edge_flips)
                     for ai, attacked_model in enumerate(attacked_models):
                         gf.random_seed(seed, gg.backend())
-                        name = attacked_model[0].name
+                        name = attacked_model.name
                         is_eva_success, is_poi_success = get_gf_results(attacked_model, name, true_labels[ai][target], perturbed_tuple, args, target, is_eva, is_poi)
                         key = "_".join([embed_type, name])
                         if key not in eva_asr:
@@ -222,7 +223,7 @@ if __name__ == '__main__':
                         eva_asr[key][ti] = is_eva_success
                         poi_asr[key][ti] = is_poi_success
                 for ai, attacked_model in enumerate(attacked_models):
-                    name = attacked_model[0].name
+                    name = attacked_model.name
                     key = "_".join([embed_type, name])
                     cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean(), args.attacked_models_acc[ai]]
                 cur_result.to_csv(filename + '.csv')

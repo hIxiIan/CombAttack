@@ -885,7 +885,7 @@ def get_split_atked_types(dataset, embed_type, atked_types, not_split=False):
     return list(split_atked_types.values())
 
 
-def to_tensor(adj, features, labels=None, device='cpu'):
+def to_tensor(adj=None, features=None, labels=None, device='cpu'):
     """Convert adj, features, labels from array or sparse matrix to
     torch Tensor.
 
@@ -900,18 +900,43 @@ def to_tensor(adj, features, labels=None, device='cpu'):
     device : str
         'cpu' or 'cuda'
     """
-    if sp.issparse(adj):
-        adj = sparse_mx_to_torch_sparse_tensor(adj)
-    else:
-        adj = torch.FloatTensor(adj)
-    if sp.issparse(features):
-        features = sparse_mx_to_torch_sparse_tensor(features)
-    else:
-        features = torch.FloatTensor(np.array(features))
+    is_adj = adj is not None
+    is_features = features is not None
+    is_labels = labels is not None
+    if is_adj:
+        if sp.issparse(adj):
+            adj = sparse_mx_to_torch_sparse_tensor(adj)
+        else:
+            adj = torch.FloatTensor(adj)
+        adj = adj.to(device)
+    if is_features:
+        if sp.issparse(features):
+            features = sparse_mx_to_torch_sparse_tensor(features)
+        else:
+            features = torch.FloatTensor(np.array(features))
+        features = features.to(device)
+    if is_labels:
+        labels = torch.LongTensor(labels).to(device)
 
-    if labels is None:
-        return adj.to(device), features.to(device)
-    else:
-        labels = torch.LongTensor(labels)
-        return adj.to(device), features.to(device), labels.to(device)
+    if is_adj and is_features and is_labels:
+        return adj, features, labels
 
+    if is_adj and is_features and not is_labels:
+        return adj, features
+
+    if is_adj and not is_features and is_labels:
+        return adj, labels
+
+    if not is_adj and is_features and is_labels:
+        return features, labels
+
+    if is_adj and not is_features and not is_labels:
+        return adj
+
+    if not is_adj and is_features and not is_labels:
+        return features
+
+    if not is_adj and not is_features and is_labels:
+        return labels
+
+    assert False, "adj and features and labels all None"

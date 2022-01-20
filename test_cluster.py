@@ -87,6 +87,7 @@ if __name__ == '__main__':
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
     parser.add_argument('--bmbc_mode', default="false", type=str)
+    parser.add_argument('--T', type=int, default=100)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -107,14 +108,14 @@ if __name__ == '__main__':
     tedge_types_ = get_splits(cmd.tedge_type)
     not_split = True if cmd.not_split == "true" else False
     mix_cluster = True if cmd.mix_cluster == "true" else False
-    mix_types_ = get_mix_types(cmd.mix_types)
     method_types = embed_types_
     if mix_cluster:
+        mix_types_ = get_mix_types(cmd.mix_types)
         method_types = mix_types_
+        print(mix_types_)
     print(dataset_)
     print(atked_types_)
     print(embed_types_)
-    print(mix_types_)
     print(tedge_types_)
 
     for dataset in dataset_:

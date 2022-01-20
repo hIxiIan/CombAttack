@@ -313,7 +313,7 @@ def node_classification(args, output):
         cr = classification_report(y_pred, y_test)
     else:
         assert False, "get_model invalid model"
-    print('acc:{}, classification_report:\n{}'.format(cr))
+    print('classification_report:\n{}'.format(cr))
 
 
 def run_trans2vec(args):

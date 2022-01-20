@@ -30,7 +30,7 @@ from dgl import DGLGraph
 from dgl import function as fn
 from tedge import get_tedge
 from trans2vec import get_trans2vec
-from bm_gcn import get_bmgcn, get_acc, get_bmgcn_sur
+from bm_gcn import get_bmgcn, get_bmgcn_sur
 
 
 def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
@@ -154,10 +154,9 @@ def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=Fals
             path = osp.abspath(osp.expanduser("~/GraphData/datasets/"))
             bmbc = np.load(''.join([path, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
             A_V_F = [bmbc["A"].item(), bmbc["V"].item(), bmbc["F"].item()]
-        models = get_bmgcn(args, graph, A_V_F)
-        for i in range(len(models)):
-            models[i].name = "BMGCN"
-        return models
+        model = get_bmgcn(args, graph, A_V_F)
+        model.name = "BMGCN"
+        return model
 
     assert False, "invalid graphgallery model"
 
@@ -206,9 +205,8 @@ def get_attacked_models(atked_types, args, graph):
 
         if atked_type == "BMGCN":
             attacked_model = get_model(atked_type, args, graph)
-            for i in range(len(attacked_model)):
-                attacked_model[i].is_dr = False
-            acc = get_acc(args, attacked_model)
+            attacked_model.is_dr = False
+            acc = attacked_model.get_acc()
             attacked_models.append(attacked_model)
             attacked_models_acc.append(acc)
             print('atked_model :{}, clean_acc: {}'.format(atked_type, acc))
@@ -262,7 +260,7 @@ def get_atk_models(args, graph):
             attacked_models = [attacked_model]
             args.atked_model_ = attacked_model.name
             args.attacked_models_acc = [0]
-            print('tedge, atked_model :{}, clean_acc: {}'.format('SGC', 0))
+            print('{}, atked_model :{}, clean_acc: {}'.format(args.dataset, 'SGC', 0))
         else:
             attacked_model = gg.gallery.nodeclas.SGCPD(device=args.device, seed=args.seed).setup_graph(graph, K=1).build()
             attacked_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
@@ -592,7 +590,6 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
             len(args.targets), len(ori_targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
     else:
         print('attack phishing or non-phishing nodes')
-
     sampler = init_sampler(attacker, args)
     start = time()
     perturbed_edges_dict = {}
@@ -797,6 +794,8 @@ if __name__ == '__main__':
     parser.add_argument("--features_file", default="TBS_2022_01_04_14_34_00_0", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
+    parser.add_argument('--bmbc_mode', default="false", type=str)
+    parser.add_argument('--T', type=int, default=100)
 
     cmd = parser.parse_args()
     cmd.hids, cmd.acts, cmd.weight_decay, cmd.lr = None, None, None, None
