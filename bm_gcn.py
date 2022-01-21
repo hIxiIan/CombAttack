@@ -352,7 +352,7 @@ def get_unlabeled_train_id(args, graph, train=0.2, test=0.8):
     return features, labels
 
 
-#todo: cuda下bmgcn相同随机种子参数下，模型结果不一样
+# todo: cuda下bmgcn相同随机种子参数下，模型结果不一样..
 def get_bmgcn(args, graph, adjs):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     features, labels = get_unlabeled_train_id(args, graph, train=args.train_size)
