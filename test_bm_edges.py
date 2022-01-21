@@ -166,14 +166,13 @@ if __name__ == '__main__':
         splits = data.split_nodes(random_state=15)
         args.splits = splits
         SAMPLE_GSIZE = int(args.dataset.split('bc')[-1]) * 10000
-        SAMPLE_MULDIGS_PATH = os.path.join(data.root, 'graph_%d/SP_MulDiGs.pkl' % SAMPLE_GSIZE)
-        args.DATA_PATH = os.path.join(data.root, 'graph_%d' % SAMPLE_GSIZE)
+        SAMPLE_MULDIGS_PATH = os.path.join(data.root, 'publicdata/graph_%d/SP_MulDiGs.pkl' % SAMPLE_GSIZE)
         mul_dG = load_pickle(SAMPLE_MULDIGS_PATH)
         bmbc = np.load(''.join([data.root, os.sep, "bm" + args.dataset + ".npz"]), allow_pickle=True)
         A = bmbc["A"].item()
         V = bmbc["V"].item()
         F = bmbc["F"].item()
-        ori_data = tuple(A, V, F, mul_dG)
+        ori_data = [A, V, F, mul_dG]
 
         # fixed seed
         is_eva = True if args.is_evasion == "true" else False
@@ -206,6 +205,9 @@ if __name__ == '__main__':
                 print('embed_type:{}, atk_models:{}'.format(embed_type, models))
                 targets_edge_flips = cur_edges[embed_type]
                 targets = list(targets_edge_flips.keys())
+                if len(targets) == 0:
+                    print("!!!!!!!!!!!!!!!!!!!! target is None!!!!!!!!!!!!!!!!!!!!!!!")
+                    continue
                 for ti, target in enumerate(targets):
                     if ti % 20 == 0:
                         print('{} targets attacked'.format(ti))
@@ -226,6 +228,7 @@ if __name__ == '__main__':
                     name = attacked_model.name
                     key = "_".join([embed_type, name])
                     cur_result.loc[key] = [eva_asr[key].mean(), poi_asr[key].mean(), args.attacked_models_acc[ai]]
+                print(cur_result)
                 cur_result.to_csv(filename + '.csv')
                 print('cost:{} min'.format((time() - start) / 60))
             results.append(cur_result)

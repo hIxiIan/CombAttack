@@ -590,6 +590,10 @@ def testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=True, v
             len(args.targets), len(ori_targets), len(true_phishing_targets), len(surrogate_phishing_targets)))
     else:
         print('attack phishing or non-phishing nodes')
+
+    if len(args.targets) == 0:
+        print('!!!!!!!!!!!!!!!!!!!!!!!!target is None!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
     sampler = init_sampler(attacker, args)
     start = time()
     perturbed_edges_dict = {}

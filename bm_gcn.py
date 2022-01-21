@@ -352,6 +352,7 @@ def get_unlabeled_train_id(args, graph, train=0.2, test=0.8):
     return features, labels
 
 
+#todo: cuda下bmgcn相同随机种子参数下，模型结果不一样
 def get_bmgcn(args, graph, adjs):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     features, labels = get_unlabeled_train_id(args, graph, train=args.train_size)
@@ -362,7 +363,7 @@ def get_bmgcn(args, graph, adjs):
         gcn = BMGCN(nfeat=features.shape[1], nhid=16, nclass=labels.max() + 1, device=device)
         gcn = gcn.to(device)
         gcn.fit(features, adj, labels, None, args=args, train_iters=20, verbose=False)
-        output = gcn.predict(adj=adj, softmax=False).detach().cpu()
+        output = gcn.predict(adj=gcn.adj_norm, softmax=False)
         if i == 0:
             combined_embeddings = output
         else:
@@ -395,12 +396,12 @@ def get_output(bmmlp, adjs, args, is_eva=True):
         combined_embeddings = None
         for i, gcn in enumerate(bmmlp.gcns):
             gcn.eval()
-            adj = to_tensor(adj=adj, device=bmmlp.device)
+            adj = to_tensor(adj=adjs[i], device=bmmlp.device)
             if is_sparse_tensor(adj):
                 adj_norm = normalize_adj_tensor(adj, sparse=True)
             else:
                 adj_norm = normalize_adj_tensor(adj)
-            output = gcn.predict(adj=adj_norm, softmax=False).detach().cpu()
+            output = gcn.predict(adj=adj_norm, softmax=False)
             if i == 0:
                 combined_embeddings = output
             else:

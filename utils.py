@@ -912,7 +912,7 @@ def to_tensor(adj=None, features=None, labels=None, device='cpu'):
     if is_features:
         if sp.issparse(features):
             features = sparse_mx_to_torch_sparse_tensor(features)
-        else:
+        elif type(features) is not torch.Tensor:
             features = torch.FloatTensor(np.array(features))
         features = features.to(device)
     if is_labels:
