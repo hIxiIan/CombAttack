@@ -317,6 +317,7 @@ def node_classification(args, output):
 
 
 def run_trans2vec(args):
+    random_seed(args.seed)
     t1 = time()
     output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)]) + '.csv'
     if args.run_emb == "true":

@@ -687,6 +687,7 @@ def node_classification(args, output):
 
 
 def run_tedge(args):
+    random_seed(args.seed)
     t1 = time.time()
     args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
     output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)]) + '.csv'

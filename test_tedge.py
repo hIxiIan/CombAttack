@@ -31,7 +31,6 @@ if __name__ == '__main__':
     parser.add_argument('--times', default=1, type=int)
     args = parser.parse_args()
 
-    random_seed(args.seed)
     outputdir = "result/test_tedge"
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)

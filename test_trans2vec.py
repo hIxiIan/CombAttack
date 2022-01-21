@@ -28,7 +28,6 @@ if __name__ == '__main__':
     args.gf = True if args.gf == "true" else False
     args.gf_alias_mode = True if args.gf and args.gf_alias_mode == "true" else False
 
-    random_seed(args.seed)
     outputdir = "result/test_trans2vec"
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)
