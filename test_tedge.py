@@ -46,6 +46,8 @@ if __name__ == '__main__':
     total = times * len(tedge_types)
     for i in range(times):
         args.i = i
+        args.seed = seeds[i]
+        print(args.seed)
         for tedge_type in tedge_types:
             count += 1
             print('times:{}, count: {}/{}, tedge_type:{}'.format(i, count, total, tedge_type))

@@ -697,7 +697,7 @@ def run_tedge(args):
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
                         workers=args.workers, seed=args.seed, verbose=args.verbose, output=output,
-                        save_features=False, is_dan=True, rac=args.rac)
+                        save_features=True, is_dan=True, rac=False)
     else:
         print('skip embedding process...')
 
