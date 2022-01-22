@@ -33,7 +33,7 @@ if __name__ == '__main__':
         os.mkdir(outputdir)
     args.outputdir = outputdir
     args.curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
-
+    print(args.curtime)
     seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     times = min(args.times, len(seeds))
 

@@ -41,7 +41,7 @@ if __name__ == '__main__':
     print(tedge_types)
     seeds = [2022, 2012, 1997, 5018, 2413, 97, 21, 32, 56, 44, 94]
     times = min(args.times, len(seeds))
-
+    print(args.curtime)
     count = 0
     total = times * len(tedge_types)
     for i in range(times):
