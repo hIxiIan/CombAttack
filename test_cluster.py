@@ -79,6 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('-mc', '--mix_cluster', default="false", type=str)
     parser.add_argument('-mts', '--mix_types', default="MLP,SGC2", type=str)
     parser.add_argument("--test_mode", default="-1", type=str)
+    parser.add_argument("--features_mode", default="embed", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
     parser.add_argument("--tedge_type", default="", type=str)

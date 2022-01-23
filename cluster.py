@@ -42,6 +42,7 @@ class Cluster:
         self.intertia = None
         self.farthest_idx = None
         self.farthest_idx_dict = None
+        self.average_cluster_nums = None
 
         self.sub_nodes = None
         self.deleted_edges = None
@@ -106,59 +107,38 @@ class Cluster:
         return actIdx[ac][lay_act_cnt - 1]
 
     @torch.no_grad()
-    def get_predict(self):
+    def get_z(self):
         z = None
-        model = self.model
-        for _model in model:
-            name = _model.name
-            if self.parms.lay_act_cnt > 100:
-                t_z = _model.predict(self.n_nodes)
-            elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
-                conv = _model.model.conv
-                conv = conv[:self.get_conv_idx(conv, name) + 1]
-                print(conv)
-                t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
-            elif name in ["MLP", "SGC2"]:
-                lin = _model.model.lin
-                lin = lin[:self.get_conv_idx(lin, name) + 1]
-                print(lin)
-                t_z = lin(_model.cache.X).cpu().numpy()
-            # elif "PPNP" in self.embed_type:
-            #     lin = self.model.model.lin[:-3]
-            #     propagation = self.model.model.propagation
-            #     x = lin(self.model.cache.X)
-            #     self.z = propagation(x, self.model.cache.A).cpu().numpy()
-            # elif self.embed_type in ["DW", 'N2V', 'BANE']:
-            #     self.z = self.model.get_embedding()
-            # elif self.embed_type == "ClusterGCN":
-            #     conv = self.model.model.conv[:-3]
-            #     nums_cluster = len(self.model.cache.cluster_member)
-            #     z = []
-            #     z_idx = []
-            #     for cluster in range(nums_cluster):
-            #         tmp_z = conv(self.model.cache.batch_x[cluster], self.model.cache.batch_adj[cluster]).cpu().numpy()
-            #         z.extend(tmp_z)
-            #         z_idx.extend(self.model.cache.cluster_member[cluster])
-            #     z = np.array(z)
-            #     z_idx = np.array(z_idx)
-            #     idx_ = np.argsort(z_idx)
-            #     self.z = z[idx_]
-            # elif self.embed_type in ["GraphMLP"]:
-            #     self.z = self.model.model.mlp(self.model.cache.X).cpu().numpy()
-            # else:
-            #     self.z = self.model.predict(self.n_nodes)
-            else:
-                assert False, "get_predict invalid model"
-            if z is None:
-                z = t_z
-            else:
-                z = np.hstack((z, t_z))
+        if self.parms.features_mode == "embed":
+            model = self.model
+            for _model in model:
+                name = _model.name
+                if self.parms.lay_act_cnt > 100:
+                    t_z = _model.predict(self.n_nodes)
+                elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
+                    conv = _model.model.conv
+                    conv = conv[:self.get_conv_idx(conv, name) + 1]
+                    print(conv)
+                    t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
+                elif name in ["MLP", "SGC2"]:
+                    lin = _model.model.lin
+                    lin = lin[:self.get_conv_idx(lin, name) + 1]
+                    print(lin)
+                    t_z = lin(_model.cache.X).cpu().numpy()
+                else:
+                    assert False, "get_predict invalid model"
+                if z is None:
+                    z = t_z
+                else:
+                    z = np.hstack((z, t_z))
+        elif self.parms.features_mode == "ori":
+            z = self.graph.node_attr
         self.z = z
         print('z shape: ', self.z.shape)
 
     def do(self):
         start = time()
-        self.get_predict()
+        self.get_z()
         self.do_cluster()
         self.get_candidates()
         # self.visualization()
@@ -228,6 +208,7 @@ class Cluster:
         self.get_farthest_idx()
 
         statis = [(self.cluster_label_pred == label).sum() for label in range(self.n_classes)]
+        self.average_cluster_nums = np.mean(statis)
         print(statis)
 
     @staticmethod
@@ -315,10 +296,14 @@ class Cluster:
                     print('sur >= {}, nums: {}'.format(p, (self.sur_labels_pro >= p).sum()))
                 print('added_node length: {}'.format(len(added_node)))
                 added_nodes = [added_node] * len(self.targets)
+            elif self.parms.test_mode == "random":
+                # ablation
+                added_nodes = get_added_nodes_random(self.targets, self.average_cluster_nums, self.n_nodes)
 
             deleted_nodes = make_redundancy(deleted_nodes)
             added_nodes = make_redundancy(added_nodes)
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
+
         else:
             deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
                                             self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes,
@@ -343,6 +328,7 @@ def get_deleted_nodes(targets, indices, indptr):
 
 @njit(cache=True)
 def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, distance_type, extra_nums_nodes=5, topk_cluster=1, random=False, is_het=False):
+    # randomly select nodes in near cluster
     if random:
         topk_cluster = farthest_idx.shape[1]
     elif topk_cluster == 1:
@@ -373,6 +359,15 @@ def get_added_nodes(targets, label_pred, farthest_idx, n_nodes, z, distance_type
                     nnodes = np.random.choice(nnodes, topk, replace=False)
             added_node.extend(nnodes)
         added_nodes.append(np.array(added_node))
+    return added_nodes
+
+
+@njit(cache=True)
+def get_added_nodes_random(targets, average_cluster_nums, n_nodes):
+    added_nodes = []
+    for _ in targets:
+        cur_nnodes = np.random.choice(n_nodes, average_cluster_nums, replace=False)
+        added_nodes.append(np.array(cur_nnodes))
     return added_nodes
 
 
