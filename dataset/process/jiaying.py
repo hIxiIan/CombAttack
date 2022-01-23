@@ -116,7 +116,7 @@ def get_edges_features(mul_G, mul_dG):
     print('Features ready.')
 
 
-def get_features_map(mul_dG, gsize):
+def get_features_map(mul_dG, PATH, gsize):
     print('Start getting get_features_map ...')
     N = mul_dG.number_of_nodes()
     Aij = sp.lil_matrix((N, N), dtype=np.float64)
@@ -134,8 +134,9 @@ def get_features_map(mul_dG, gsize):
     Aij = Aij.tocsr()
     Vij = Vij.tocsr()
     Fij = Fij.tocsr()
-    fname = int(gsize / 10000)
-    np.savez('C://Users/pc/GraphData/datasets/bmbc' + str(fname) + '.npz', A=Aij, V=Vij, F=Fij)
+    gsize = int(gsize / 10000)
+    filename = PATH + 'bmbc' + str(gsize) + '.npz'
+    np.savez(filename, A=Aij, V=Vij, F=Fij)
     print('get_features_map ready.')
 
 
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     print(nx.is_connected(sp_mul_G))
     print(nx.info(sp_mul_dG))
     get_edges_features(sp_mul_G, sp_mul_dG)
-    get_features_map(sp_mul_dG, SAMPLE_GSIZE)
+    get_features_map(sp_mul_dG, PATH, SAMPLE_GSIZE)
 
     # 转化成npz
     df = load_pickle(FEATURES_PATH)
