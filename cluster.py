@@ -213,7 +213,8 @@ class Cluster:
 
     @staticmethod
     @njit(cache=True)
-    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z, distance_type, topk_cluster, random, is_het):
+    def get_indirect_deleted_added_nodes(targets, indices, indptr, label_pred, farthest_idx, n_nodes, z, distance_type,
+                                         topk_cluster, random, is_het):
         deleted_nodes = []
         added_nodes = []
         for target in targets:
@@ -221,7 +222,23 @@ class Cluster:
             indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
             deleted_nodes.append(indirect_deleted_nodes)
 
-            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z, distance_type, topk_cluster=topk_cluster, random=random, is_het=is_het)
+            indirect_added_nodes = get_added_nodes(indirect_targets, label_pred, farthest_idx, n_nodes, z,
+                                                   distance_type, topk_cluster=topk_cluster, random=random,
+                                                   is_het=is_het)
+            added_nodes.append(indirect_added_nodes)
+        return deleted_nodes, added_nodes
+
+    @staticmethod
+    @njit(cache=True)
+    def get_indirect_deleted_added_nodes_random(targets, indices, indptr, average_cluster_nums, n_nodes):
+        deleted_nodes = []
+        added_nodes = []
+        for target in targets:
+            indirect_targets = indices[indptr[target]:indptr[target + 1]]
+            indirect_deleted_nodes = get_deleted_nodes(indirect_targets, indices, indptr)
+            deleted_nodes.append(indirect_deleted_nodes)
+
+            indirect_added_nodes = get_added_nodes_random(indirect_targets, average_cluster_nums, n_nodes)
             added_nodes.append(indirect_added_nodes)
         return deleted_nodes, added_nodes
 
@@ -305,10 +322,20 @@ class Cluster:
             self.sub_nodes, deleted_edges, added_edges = self.get_edges(self.targets, deleted_nodes, added_nodes)
 
         else:
-            deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
-                                            self.indptr, self.cluster_label_pred, self.farthest_idx, self.n_nodes,
-                                            self.z, self.parms.distance_type, topk_cluster=self.parms.topk_cluster,
-                                            random=self.parms.random, is_het=self.parms.is_het)
+            if self.parms.test_mode == "-1":
+                eleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
+                                                                                  self.indptr, self.cluster_label_pred,
+                                                                                  self.farthest_idx, self.n_nodes,
+                                                                                  self.z, self.parms.distance_type,
+                                                                                  topk_cluster=self.parms.topk_cluster,
+                                                                                  random=self.parms.random,
+                                                                                  is_het=self.parms.is_het)
+            elif self.parms.test_mode == "random":
+                deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes_random(self.targets, self.indices,
+                                                                                          self.indptr,
+                                                                                          self.average_cluster_nums,
+                                                                                          self.n_nodes)
+
             deleted_nodes = make_redundancy(deleted_nodes, False)
             added_nodes = make_redundancy(added_nodes, False)
             self.sub_nodes, deleted_edges, added_edges = self.get_indirect_edges(self.targets, deleted_nodes, added_nodes, self.indices, self.indptr)
