@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from tedge import load_labels, tGraph, tGraphNE, METHOD_MAP, random_seed
 from copy import deepcopy as dc
 from trans2vec import trans2vec
+from utils import get_remain_ettt
 
 
 ATKED_MODELS_MAP = {
@@ -265,20 +266,6 @@ def get_ori_data(args):
     assert False, "get_ori_data invalid"
 
 
-def get_remain_ettt(filename, cur_edges, cur_result):
-    if '.csv' not in filename:
-        filename += '.csv'
-    if os.path.exists(filename):
-        df = pd.read_csv(filename, index_col=0)
-        idx = list(df.index)
-        for i in idx:
-            cur_result.loc[i] = df.loc[i]
-            split = i.split('_')
-            del_key = split[0] + "_" + split[2]
-            del cur_edges[del_key]
-    return list(cur_edges.keys())
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")
@@ -343,9 +330,10 @@ if __name__ == '__main__':
             seed = cur_edges['seed']
             args.seed = seed
             del cur_edges['seed']
-            embed_types_tedge_types = get_remain_ettt(filename, cur_edges, cur_result)
+            embed_types_tedge_types = get_remain_ettt(filename, cur_edges, cur_result, [0, 2])
             print(embed_types_tedge_types)
             print(cur_result)
+
             attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
             true_labels = get_true_labels(attacked_models, args, featuredir, i)
             eva_asr = {}
@@ -364,6 +352,10 @@ if __name__ == '__main__':
                 print('embed_type:{}, tedge_type: {}, atk_models:{}'.format(embed_type, tedge_type, models))
                 targets_edge_flips = cur_edges[embed_type_tedge_type]
                 targets = list(targets_edge_flips.keys())
+                if len(targets) == 0:
+                    print("!!!!!!!!!!!!!!!!!!!! target is None!!!!!!!!!!!!!!!!!!!!!!!")
+                    continue
+
                 # !!!!! targets all in 445 phishing nodes normally
                 random_seed(seed)
                 for ti, target in enumerate(targets):

@@ -3,15 +3,13 @@ import os
 import pandas as pd
 import numpy as np
 import torch
-import graphgallery as gg
-import graphgallery.functional as gf
 import scipy.sparse as sp
 from ca import get_attacked_models
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
-from utils import load_pickle
+from utils import load_pickle, get_remain_ettt
 from time import time
-from bm_gcn import get_output
+from bm_gcn import get_output, random_seed
 from copy import deepcopy as dc
 
 MODELS = ["BMGCN"]
@@ -144,7 +142,6 @@ if __name__ == '__main__':
     print_args(args)
 
     args.device = args.device if args.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
-    gg.set_backend("th")
 
     models = get_models(args.model)
     datasets = get_datasets(args.dataset)
@@ -187,8 +184,11 @@ if __name__ == '__main__':
             filename = edgesdir + "_".join([args.dataset, args.edge_flips_timestamp, str(i)])
             cur_edges = load_json(filename)
             seed = cur_edges['seed']
+            args.seed = seed
             del cur_edges['seed']
-            embed_types = cur_edges.keys()
+            embed_types = get_remain_ettt(filename, cur_edges, cur_result, [0])
+            print(embed_types)
+            print(cur_result)
 
             attacked_models = get_attacked_models(models, args, graph)
             true_labels = get_true_labels(attacked_models)
@@ -208,13 +208,14 @@ if __name__ == '__main__':
                 if len(targets) == 0:
                     print("!!!!!!!!!!!!!!!!!!!! target is None!!!!!!!!!!!!!!!!!!!!!!!")
                     continue
+
+                random_seed(args.seed)
                 for ti, target in enumerate(targets):
                     if ti % 20 == 0:
                         print('{} targets attacked'.format(ti))
                     edge_flips = targets_edge_flips[target]
                     perturbed_tuple = get_perturbed_tuple(ori_data, edge_flips)
                     for ai, attacked_model in enumerate(attacked_models):
-                        gf.random_seed(seed, gg.backend())
                         name = attacked_model.name
                         is_eva_success, is_poi_success = get_gf_results(attacked_model, name, true_labels[ai][target], perturbed_tuple, args, target, is_eva, is_poi)
                         key = "_".join([embed_type, name])

@@ -3,6 +3,7 @@ import pandas as pd
 import torch
 import numpy as np
 import pickle
+import os
 import scipy.sparse as sp
 from bisect import bisect_left
 from pd import get_lgb_model
@@ -940,3 +941,22 @@ def to_tensor(adj=None, features=None, labels=None, device='cpu'):
         return labels
 
     assert False, "adj and features and labels all None"
+
+
+def get_remain_ettt(filename, cur_edges, cur_result, del_key_split_idx):
+    # tedge, trans2vec
+    # del_key = methodType_atkedModel_embedType, such as MLP_SVM_TBS+WBS
+    # bmgcn, normal, jiaying
+    # del_key = methodType_atkedModel, such as MLP_GCN
+    if '.csv' not in filename:
+        filename += '.csv'
+    if os.path.exists(filename):
+        df = pd.read_csv(filename, index_col=0)
+        idx = list(df.index)
+        for i in idx:
+            cur_result.loc[i] = df.loc[i]
+            split = np.array(i.split('_'))
+            split = split[del_key_split_idx]
+            del_key = "_".join(split)
+            del cur_edges[del_key]
+    return list(cur_edges.keys())

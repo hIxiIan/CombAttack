@@ -9,7 +9,7 @@ import scipy.sparse as sp
 from ca import get_model, get_dr_model, get_attacked_models
 from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
-from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS
+from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS, get_remain_ettt
 from time import time
 
 ds = ["GCN", "GCN_Jaccard", "SimPGCN", "RobustGCN"]
@@ -209,8 +209,11 @@ if __name__ == '__main__':
             filename = edgesdir + "_".join([args.dataset, args.timestamp, str(i)])
             cur_edges = load_json(filename)
             seed = cur_edges['seed']
+            args.seed = seed
             del cur_edges['seed']
-            embed_types = cur_edges.keys()
+            embed_types = get_remain_ettt(filename, cur_edges, cur_result, [0])
+            print(embed_types)
+            print(cur_result)
 
             attacked_models = get_attacked_models(models, args, graph)
             true_labels = get_true_labels(attacked_models, len(graph.node_label))
@@ -227,13 +230,18 @@ if __name__ == '__main__':
                 print('embed_type:{}, atk_models:{}'.format(embed_type, models))
                 targets_edge_flips = cur_edges[embed_type]
                 targets = list(targets_edge_flips.keys())
+
+                if len(targets) == 0:
+                    print("!!!!!!!!!!!!!!!!!!!! target is None!!!!!!!!!!!!!!!!!!!!!!!")
+                    continue
+
+                gf.random_seed(args.seed, gg.backend())
                 for ti, target in enumerate(targets):
                     if ti % 20 == 0:
                         print('{} targets attacked'.format(ti))
                     edge_flips = targets_edge_flips[target]
                     perturbed_graph = get_perturbed_graph(graph, edge_flips)
                     for ai, attacked_model in enumerate(attacked_models):
-                        gf.random_seed(seed, gg.backend())
                         name = attacked_model.name
                         if name in DP_MODELS or (args.is_gf == "false" and args.dataset != 'ogbn-arxiv'):
                             is_eva_success, is_poi_success = get_dr_results(attacked_model, name, true_labels[ai][target], perturbed_graph, args, target, is_eva, is_poi)
