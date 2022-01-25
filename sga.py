@@ -139,13 +139,9 @@ class SCA(TargetedAttacker):
             mask = torch.FloatTensor(np.logical_and(row != target, col != target)).to(self.device)
         else:
             mask = 1.0
-
+        t1 = time()
         for it in range(self.num_budgets):
-            #         for it in tqdm(range(self.num_budgets),
-            #                        desc='Peturbing Graph',
-            #                        disable=disable):
             edge_grad, non_edge_grad = self.compute_gradient()
-
             with torch.no_grad():
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
@@ -167,6 +163,9 @@ class SCA(TargetedAttacker):
                     add = True
 
                 if self.is_modified(u, v):
+                    if (time() - t1) / 60 > 30: # running 30 mins
+                        print('iter:{} running over 30 mins, break...'.format(it))
+                        break
                     gradients[ori_index] = 0.0
                     potential_times -= 1
                     continue
@@ -179,6 +178,7 @@ class SCA(TargetedAttacker):
                     else:
                         self.non_added_edges.append((u, v))
                     break
+
             # if potential_times == 0:
             #     assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
         return self
