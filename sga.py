@@ -140,6 +140,7 @@ class SCA(TargetedAttacker):
         else:
             mask = 1.0
         t1 = time()
+        TIME_LIMIT = 60
         for it in range(self.num_budgets):
             edge_grad, non_edge_grad = self.compute_gradient()
             with torch.no_grad():
@@ -162,8 +163,11 @@ class SCA(TargetedAttacker):
                         print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                     add = True
 
+                if ((time() - t1) / 60) % 10 == 0:
+                    print('iter:{} running over 10 mins, potential_times: {}'.format(it, potential_times))
+
                 if self.is_modified(u, v):
-                    if (time() - t1) / 60 > 30: # running 30 mins
+                    if (time() - t1) / 60 > TIME_LIMIT: # running 30 mins
                         print('iter:{} running over 30 mins, break...'.format(it))
                         break
                     gradients[ori_index] = 0.0
@@ -178,7 +182,9 @@ class SCA(TargetedAttacker):
                     else:
                         self.non_added_edges.append((u, v))
                     break
-
+            if (time() - t1) / 60 > TIME_LIMIT:  # running 30 mins
+                print('iter:{} running over 30 mins, break...'.format(it))
+                break
             # if potential_times == 0:
             #     assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
         return self
