@@ -75,7 +75,7 @@ class ARGS:
         self.node_label = graph.node_label
         if self.dataset in ["tedge", "trans2vec"]:
             nodes_to_keep = pd.read_csv('dataset/phishing/tedge_nodes_to_keep.csv').values.ravel()
-            path = 'result/test_tedge/' + cmd.features_file
+            path = 'result/test_' + self.dataset + '/' + cmd.features_file
             if 'csv' not in path:
                 path += '.csv'
             node_attr = pd.read_csv(path).values[nodes_to_keep]

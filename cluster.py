@@ -324,12 +324,12 @@ class Cluster:
         else:
             if self.parms.test_mode == "-1":
                 deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
-                                                                                  self.indptr, self.cluster_label_pred,
-                                                                                  self.farthest_idx, self.n_nodes,
-                                                                                  self.z, self.parms.distance_type,
-                                                                                  topk_cluster=self.parms.topk_cluster,
-                                                                                  random=self.parms.random,
-                                                                                  is_het=self.parms.is_het)
+                                                                                   self.indptr, self.cluster_label_pred,
+                                                                                   self.farthest_idx, self.n_nodes,
+                                                                                   self.z, self.parms.distance_type,
+                                                                                   topk_cluster=self.parms.topk_cluster,
+                                                                                   random=self.parms.random,
+                                                                                   is_het=self.parms.is_het)
             elif self.parms.test_mode == "random":
                 deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes_random(self.targets, self.indices,
                                                                                           self.indptr,
