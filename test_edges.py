@@ -1,5 +1,6 @@
 import argparse
 import os
+import dgl
 import pandas as pd
 import numpy as np
 import torch
@@ -11,6 +12,8 @@ from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
 from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS, get_remain_ettt
 from time import time
+from dgl import DGLGraph
+from h2gcn import sp_to_tensor
 
 ds = ["GCN", "GCN_Jaccard", "SimPGCN", "RobustGCN"]
 
@@ -95,7 +98,30 @@ def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, i
 
     # evasion
     if is_eva:
-        eva_model.setup_graph(perturbed_graph)
+        if name == "FAGCN":
+            g = DGLGraph(perturbed_graph.adj_matrix)
+            g = dgl.to_simple(g)
+            g = dgl.to_bidirected(g)
+            g = dgl.remove_self_loop(g)
+            if args.device == "gpu":
+                g = g.to("cuda")
+                deg = g.in_degrees().cuda().float().clamp(min=1)
+            else:
+                deg = g.in_degrees().float().clamp(min=1)
+            norm = torch.pow(deg, -0.5)
+            g.ndata['d'] = norm
+            attacked_model.g = g
+            for i in range(attacked_model.layer_num):
+                attacked_model.layers[i].g = g
+        elif name in ["H2GCN", "H2GCN1", "H2GCN2"]:
+            adj = perturbed_graph.adj_matrix.tocoo()
+            adj = sp_to_tensor(adj)
+            if args.device == "gpu":
+                adj = adj.to("cuda")
+            attacked_model.adj = adj
+            attacked_model.initialized = False
+        else:
+            eva_model.setup_graph(perturbed_graph)
         if name == "SimPGCN":
             eva_model.model.cache['adj_knn'] = eva_model.cache['knn_graph']
         eva_perturbed_label = eva_model.predict(target, transform="softmax").argmax()
