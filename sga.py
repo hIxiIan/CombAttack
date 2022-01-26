@@ -141,16 +141,14 @@ class SCA(TargetedAttacker):
             mask = 1.0
 
         for it in range(self.num_budgets):
-            #         for it in tqdm(range(self.num_budgets),
-            #                        desc='Peturbing Graph',
-            #                        disable=disable):
             edge_grad, non_edge_grad = self.compute_gradient()
 
             with torch.no_grad():
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
-            potential_times = min(len(gradients), 1000)
+            potential_times = min(len(gradients), 1000) # in case long time
+            potential_times = len(gradients)
             while potential_times > 0:
                 index = torch.argmax(gradients)
                 ori_index = index.item()
@@ -184,13 +182,12 @@ class SCA(TargetedAttacker):
         return self
 
     def subgraph_preprocessing(self, attacker_nodes=None):
-        wrong_label = self.wrong_label # 分类概率次大的label
-        wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
+        wrong_label = self.wrong_label
+        wrong_label_nodes = self.similar_nodes[wrong_label]
         sub_edges = self.sampler.sample_edges[self.sampler.targets_map[self.target]]
         sub_nodes = self.sampler.sample_nodes[self.sampler.targets_map[self.target]]
         sub_edges = sub_edges.T  # shape [2, M]
         # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
-        # 当提取的子图节点数量少于等于10个的时候，直接将wrong_label_nodes加入无连边集合
 
         non_edges = self.get_non_edges(sub_nodes)
 
@@ -203,7 +200,6 @@ class SCA(TargetedAttacker):
         # self._sub_edges = sub_edges
         # self._sub_non_edges = non_edges
 
-        # 构造子图，这一步是为了top_k_wrong_labels_nodes中计算梯度的时候有indices可用
         self.construct_sub_adj(sub_nodes, sub_edges, non_edges)
 
         # if self.verbose_us:
@@ -216,16 +212,16 @@ class SCA(TargetedAttacker):
 
     def get_non_edges(self, sub_nodes, wrong_label_nodes=[]):
         target = self.target
-        neighbors = self.graph.adj_matrix[target].indices  # target的邻居id
-        # 直接攻击或者attacker_nodes不为None
+        neighbors = self.graph.adj_matrix[target].indices
+
         if self.direct_attack:
-            influence_nodes = [target]  # 直接攻击，被影响的就是target
+            influence_nodes = [target]
             target_neighbors = []
             target_neighbors.extend(influence_nodes)
             target_neighbors.extend(neighbors)
             non_nodes = np.setdiff1d(sub_nodes, target_neighbors)
         else:
-            influence_nodes = neighbors  # 间接攻击，被影响的就是neighbors
+            influence_nodes = neighbors
             non_nodes = sub_nodes
             for infl in influence_nodes:
                 infl_neighbors = self.graph.adj_matrix[infl].indices
@@ -252,8 +248,8 @@ class SCA(TargetedAttacker):
         sub_nodes = self.sampler.sub_nodes[self.sampler.targets_map[self.target]]
         deleted_edges = self.sampler.deleted_edges[self.sampler.targets_map[self.target]]
         added_edges = self.sampler.added_edges[self.sampler.targets_map[self.target]]
-        wrong_label = self.wrong_label  # 分类概率次大的label
-        wrong_label_nodes = self.similar_nodes[wrong_label]  # 获取标签为wrong_label的节点
+        wrong_label = self.wrong_label
+        wrong_label_nodes = self.similar_nodes[wrong_label]
         # self._wrong_ratio, self._wrong_length = get_wrong_rate(sub_nodes, wrong_label_nodes)
 
         # self._hop_ratio, self._hop_length, self._walk_length = deleted_edges.shape, added_edges.shape, len(sub_nodes)
@@ -310,26 +306,23 @@ class SCA(TargetedAttacker):
         logit = output[self.target] + self.b
         # model calibration
         logit = logit.view(1, -1) / eps
-        # 最小化loss，即true_label的概率越小，wrong_label的概率越大
 
         loss = self.loss_fn(logit, self.true_label) - self.loss_fn(logit, self.wrong_label)
         gradients = torch.autograd.grad(loss, [edge_weights, non_edge_weights], create_graph=False)
         return gradients
 
     def construct_sub_adj(self, sub_nodes, sub_edges, non_edges):
-        edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx) # 边权重，初始化为1
+        edge_weights = np.ones(sub_edges.shape[1], dtype=self.floatx)
         non_edge_weights = np.zeros(non_edges.shape[1], dtype=self.floatx)
         self_loop_weights = np.ones(sub_nodes.shape[0], dtype=self.floatx)
         self_loop = np.row_stack([sub_nodes, sub_nodes])
-
-        # sub_edges, sub_edges[[1,0]]是方向相反的边
 
         if self.blockchian or sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
             indices = np.hstack([
                 non_edges,
                 non_edges[[1, 0]], self_loop
             ])
-            edge_weights = np.ones(0, dtype=self.floatx)  # 边权重，初始化为1
+            edge_weights = np.ones(0, dtype=self.floatx)
         else:
             indices = np.hstack([
                 sub_edges, sub_edges[[1, 0]], non_edges,
