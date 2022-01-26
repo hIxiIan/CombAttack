@@ -180,7 +180,7 @@ def get_dr_model(model_name, args, graph):
     elif model_name == "GCN":
         attacked_model = GCN(nfeat=features.shape[1], nhid=64, nclass=labels.max()+1, device=device)
     else:
-        assert False, "invalid deeprobust model"
+        assert False, "invalid deeprobust model:{}".format(model_name)
     attacked_model.name = model_name
     attacked_model.is_dr = True
     attacked_model.to(device)
