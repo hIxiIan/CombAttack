@@ -334,7 +334,7 @@ class SCA(TargetedAttacker):
         self.non_edge_weights = nn.Parameter(torch.tensor(non_edge_weights)).to(self.device)
         self.self_loop_weights = torch.tensor(self_loop_weights).to(self.device)
 
-        self.edge_index = sub_edges
+        self.edge_index = np.array([[], []]) if self.blockchain else sub_edges
         self.non_edge_index = non_edges
         self.self_loop = self_loop
 

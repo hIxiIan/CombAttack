@@ -132,19 +132,18 @@ class SGA(TargetedAttacker):
 
         for it in range(self.num_budgets):
             edge_grad, non_edge_grad = self.compute_gradient()
-
             with torch.no_grad():
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
 
             index = torch.argmax(gradients)
-            if index < offset:  # 该索引属于删边部分
+            if index < offset:
                 u, v = self.edge_index[:, index]  # 取节点
                 if self.verbose_us:
                     print('iter:{}, max gradient:{}, delete edge:({}, {})'.format(it, gradients[index], u, v))
                 add = False
-            else:  # 加边部分，直接将删边部分的索引offset减去
+            else:
                 index -= offset
                 u, v = self.non_edge_index[:, index]
                 if self.verbose_us:
@@ -272,7 +271,7 @@ class SGA(TargetedAttacker):
         self.non_edge_weights = nn.Parameter(torch.tensor(non_edge_weights)).to(self.device)
         self.self_loop_weights = torch.tensor(self_loop_weights).to(self.device)
 
-        self.edge_index = sub_edges
+        self.edge_index = np.array([[], []]) if self.blockchain else sub_edges
         self.non_edge_index = non_edges
         self.self_loop = self_loop
 
