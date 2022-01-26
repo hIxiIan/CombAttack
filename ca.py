@@ -158,7 +158,7 @@ def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=Fals
         model.name = "BMGCN"
         return model
 
-    assert False, "invalid graphgallery model"
+    assert False, "invalid graphgallery model:{}".format(model_name)
 
 
 def get_dr_model(model_name, args, graph):
