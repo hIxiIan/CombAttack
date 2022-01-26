@@ -323,7 +323,7 @@ class Cluster:
 
         else:
             if self.parms.test_mode == "-1":
-                eleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
+                deleted_nodes, added_nodes = self.get_indirect_deleted_added_nodes(self.targets, self.indices,
                                                                                   self.indptr, self.cluster_label_pred,
                                                                                   self.farthest_idx, self.n_nodes,
                                                                                   self.z, self.parms.distance_type,
