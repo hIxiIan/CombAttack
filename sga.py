@@ -150,7 +150,7 @@ class SCA(TargetedAttacker):
                 edge_grad *= (-2 * self.edge_weights + 1) * mask
                 non_edge_grad *= (-2 * self.non_edge_weights + 1)
                 gradients = torch.cat([edge_grad, non_edge_grad], dim=0)
-            potential_times = len(gradients)
+            potential_times = min(len(gradients), 1000)
             while potential_times > 0:
                 index = torch.argmax(gradients)
                 ori_index = index.item()
