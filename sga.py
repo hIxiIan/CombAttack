@@ -140,7 +140,7 @@ class SCA(TargetedAttacker):
         else:
             mask = 1.0
         t1 = time()
-        TIME_LIMIT = 60
+        TIME_LIMIT = 30
         for it in range(self.num_budgets):
             edge_grad, non_edge_grad = self.compute_gradient()
             with torch.no_grad():
