@@ -20,7 +20,7 @@ if __name__ == '__main__':
     parser.add_argument("--workers", default=1, type=int)  # 8
     parser.add_argument("--train_size", default=0.8, type=float)
     parser.add_argument('--times', default=1, type=int)
-    parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
+    parser.add_argument("--trans2vec_model", default="OCSVM", type=str)
     parser.add_argument("--alpha", default=0.5, type=float)
     parser.add_argument("--gf_alias_mode", default="false", type=str)
     parser.add_argument("--gf", default="true", type=str)

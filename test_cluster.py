@@ -86,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument("--feature_timestamp", default="", type=str)
     parser.add_argument("--features_file", default="", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
-    parser.add_argument("--trans2vec_model", default="ocsvm", type=str)
+    parser.add_argument("--trans2vec_model", default="OCSVM", type=str)
     parser.add_argument('--bmbc_mode', default="false", type=str)
     parser.add_argument('--T', type=int, default=100)
     cmd = parser.parse_args()

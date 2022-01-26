@@ -15,7 +15,7 @@ from utils import get_remain_ettt
 
 ATKED_MODELS_MAP = {
     "tedge": ["SVM"],
-    "trans2vec": ['SVM'] # "OCSVM"
+    "trans2vec": ['OCSVM'] # "OCSVM"
 }
 
 ATKED_MODELS = ['SVM']
@@ -217,7 +217,7 @@ def get_sklean_model(model_name, args, nodes_embeddings):
         y_pred = model.predict(X_test)
         acc = (y_pred == y_test).mean()
         return model, acc
-    if model_name == "ocsvm":
+    if model_name == "OCSVM":
         model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3)
         model.name = model_name
         X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], args.nodes_labels[:445],

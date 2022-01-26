@@ -352,7 +352,7 @@ if __name__ == '__main__':
     parser.add_argument("--window_size", default=10, type=int, help="random walk parameters")
     parser.add_argument("--workers", default=1, type=int, help="random walk parameters")
     parser.add_argument("--train_size", default=0.8, type=float, help="node classification task train ratio")
-    parser.add_argument("--trans2vec_model", default="ocsvm", type=str, help="node classification machine learning model")
+    parser.add_argument("--trans2vec_model", default="OCSVM", type=str, help="node classification machine learning model")
     parser.add_argument("--alpha", default=0.5, type=float, help="the parameter of balance between TBS and WBS")
     parser.add_argument("--gf_alias_mode", default="false", type=str)
     parser.add_argument("--gf", default="true", type=str)
