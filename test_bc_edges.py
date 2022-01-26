@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from time import time
-from sklearn.svm import SVC
+from sklearn.svm import SVC, OneClassSVM
 from sklearn.model_selection import train_test_split
 from tedge import load_labels, tGraph, tGraphNE, METHOD_MAP, random_seed
 from copy import deepcopy as dc
@@ -162,7 +162,7 @@ def get_perturbed_graph(args, ori_data, edge_flips):
     elif dataset == "trans2vec":
         return get_trans2vec_perturbed_graph(ori_data[0], ori_data[1], ori_data[2], edge_flips)
 
-    assert False, "get_perturbed_graph invalid"
+    assert False, "get_perturbed_graph invalid: {}".format(dataset)
 
 
 def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, target, tedge_type, is_eva, is_poi):
@@ -183,12 +183,8 @@ def get_sklearn_results(eva_model, name, true_label, perturbed_tuple, args, targ
 
     # poisoning
     if is_poi:
-        poi_model = get_sklean_model(name, args)
         nodes_embeddings = pd.DataFrame(perturbed_features[args.nodes], index=args.nodes)
-        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, args.nodes_labels,
-                                                            train_size=args.train_size,
-                                                            random_state=args.seed)
-        poi_model.fit(X_train, y_train)
+        poi_model, acc = get_sklean_model(name, args, nodes_embeddings)
         poi_perturbed_label = poi_model.predict([perturbed_features[args.nodes_to_keep][target]])[0]
 
     eva_asr = true_label != eva_perturbed_label if eva_perturbed_label is not None else False
@@ -210,13 +206,28 @@ def get_true_labels(attacked_models, args, tedgedir, i):
     return true_labels
 
 
-def get_sklean_model(model_name, args):
+def get_sklean_model(model_name, args, nodes_embeddings):
     if model_name == "SVM":
         model = SVC(kernel='linear', C=0.4, random_state=args.seed)
         model.name = model_name
-        return model
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, args.nodes_labels,
+                                                            train_size=args.train_size,
+                                                            random_state=args.seed)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        acc = (y_pred == y_test).mean()
+        return model, acc
+    if model_name == "ocsvm":
+        model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3)
+        model.name = model_name
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], args.nodes_labels[:445],
+                                                            train_size=args.train_size, random_state=args.seed)
+        y_pred = model.predict(X_test)
+        y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred])
+        acc = (y_pred == y_test).mean()
+        return model, acc
 
-    assert False, "get_sklean_model invalid"
+    assert False, "get_sklean_model invalid: {}".format(model_name)
 
 
 def get_attacked_models(models, args, tedgedir, i, embed_types_tedge_types):
@@ -228,13 +239,7 @@ def get_attacked_models(models, args, tedgedir, i, embed_types_tedge_types):
             features_file = tedgedir + "_".join([tedge_type, args.feature_timestamp, str(i)]) + '.csv'
             embeddings = pd.read_csv(features_file).values
             nodes_embeddings = pd.DataFrame(embeddings[args.nodes], index=args.nodes)
-            model = get_sklean_model(model_name, args)
-            X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, args.nodes_labels,
-                                                                train_size=args.train_size,
-                                                                random_state=args.seed)
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
-            acc = (y_pred == y_test).mean()
+            model, acc = get_sklean_model(model_name, args, nodes_embeddings)
             print('atked_model: {}, tedge_type: {}, clean_acc: {}'.format(model_name, tedge_type, acc))
 
             key = '_'.join([model_name, tedge_type])
@@ -263,7 +268,7 @@ def get_ori_data(args):
         amount_data = data['amount_data'].item()
         timestamp_data = data['timestamp_data'].item()
         return adj_matrix, amount_data, timestamp_data
-    assert False, "get_ori_data invalid"
+    assert False, "get_ori_data invalid: {}".format(dataset)
 
 
 if __name__ == '__main__':
