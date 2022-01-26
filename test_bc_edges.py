@@ -222,6 +222,7 @@ def get_sklean_model(model_name, args, nodes_embeddings):
         model.name = model_name
         X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], args.nodes_labels[:445],
                                                             train_size=args.train_size, random_state=args.seed)
+        model.fit(X_train)
         y_pred = model.predict(X_test)
         y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred])
         acc = (y_pred == y_test).mean()
