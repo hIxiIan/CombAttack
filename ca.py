@@ -735,7 +735,9 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
             attacked_models = get_atk_models(args, graph)
             perturbed_edges_dict, res = testACC(attacked_models, attacker, args, verbose=verbose)
     else:
-        attacked_models = get_atk_models(args, graph)
+        attacked_models = None
+        if "bc" in args.dataset and not args.bmbc_mode:
+            attacked_models = get_atk_models(args, graph)
         if args.edge_flips:
             perturbed_edges_dict, res = testBlockACC_get_edge_flips(attacked_models, attacker, args, verbose=verbose)
         else:
