@@ -163,7 +163,7 @@ class SCA(TargetedAttacker):
                         print('iter:{}, max gradient:{}, add edge:({}, {})'.format(it, gradients[index + offset], u, v))
                     add = True
 
-                if ((time() - t1) / 60) % 10 == 0:
+                if ((time() - t1) / 60) % 10 <= 1:
                     print('iter:{} running over 10 mins, potential_times: {}, gradients: {}, total_budget: {}'.format(it, potential_times, len(gradients), self.num_budgets))
 
                 if self.is_modified(u, v):
