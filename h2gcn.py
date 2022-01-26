@@ -233,12 +233,12 @@ def main(model, patience, checkpoint_path, epochs, optimizer, adj, features, lab
 
 
 def preprocess(args, graph, device):
-    features = norm_feat(args.node_attr)
+    features = norm_feat(graph.node_attr)
     features = torch.FloatTensor(features)
-    labels = torch.LongTensor(args.node_label)
-    train_mask = np.zeros(len(args.node_label)).astype('bool')
-    test_mask = np.zeros(len(args.node_label)).astype('bool')
-    val_mask = np.zeros(len(args.node_label)).astype('bool')
+    labels = torch.LongTensor(graph.node_label)
+    train_mask = np.zeros(len(graph.node_label)).astype('bool')
+    test_mask = np.zeros(len(graph.node_label)).astype('bool')
+    val_mask = np.zeros(len(graph.node_label)).astype('bool')
     train_mask[args.splits.train_nodes] = True
     test_mask[args.splits.test_nodes] = True
     val_mask[args.splits.val_nodes] = True
@@ -246,7 +246,7 @@ def preprocess(args, graph, device):
     test_mask = torch.BoolTensor(test_mask)
     val_mask = torch.BoolTensor(val_mask)
     feat_dim = features.shape[1]
-    class_dim = len(np.unique(args.node_label))
+    class_dim = len(np.unique(graph.node_label))
     adj = graph.adj_matrix.tocoo()
     adj = sp_to_tensor(adj)
     return adj.to(device), features.to(device), labels.to(device), train_mask.to(device), test_mask.to(device), val_mask.to(device), feat_dim, class_dim

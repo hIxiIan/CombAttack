@@ -190,6 +190,7 @@ if __name__ == '__main__':
                           verbose=False,
                           transform="standardize")
         graph = data.graph
+        args.graph = graph
         splits = data.split_nodes(random_state=15)
         args.splits = splits
         # todo: random times experiments
