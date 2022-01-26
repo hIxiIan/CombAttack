@@ -112,7 +112,7 @@ def normalize_features(mx):
 
 
 def preprocess(args, graph, device):
-    features = normalize_features(args.node_attr)
+    features = normalize_features(graph.node_attr)
     features = torch.FloatTensor(features)
     labels = torch.LongTensor(graph.node_label)
     train = torch.LongTensor(args.splits.train_nodes)
