@@ -164,7 +164,7 @@ class SCA(TargetedAttacker):
                     add = True
 
                 if ((time() - t1) / 60) % 10 == 0:
-                    print('iter:{} running over 10 mins, potential_times: {}, total_budget: {}'.format(it, potential_times, self.num_budgets))
+                    print('iter:{} running over 10 mins, potential_times: {}, gradients: {}, total_budget: {}'.format(it, potential_times, len(gradients), self.num_budgets))
 
                 if self.is_modified(u, v):
                     if (time() - t1) / 60 > TIME_LIMIT: # running 30 mins
