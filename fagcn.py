@@ -114,7 +114,7 @@ def normalize_features(mx):
 def preprocess(args, graph, device):
     features = normalize_features(args.node_attr)
     features = torch.FloatTensor(features)
-    labels = torch.LongTensor(args.node_label)
+    labels = torch.LongTensor(graph.node_label)
     train = torch.LongTensor(args.splits.train_nodes)
     test = torch.LongTensor(args.splits.test_nodes)
     val = torch.LongTensor(args.splits.val_nodes)
@@ -136,7 +136,7 @@ def get_FAGCN(args, graph):
     dropout = 0.5
     eps = 0.3
     layer_num = 2
-    nclass = len(set(args.node_label))
+    nclass = len(set(graph.node_label))
     device = 'cuda' if torch.cuda.is_available() else "cpu"
     features, labels, train, test, val, g = preprocess(args, graph, device)
 
