@@ -12,7 +12,6 @@ from graphgallery.datasets import NPZDataset
 from time import strftime, localtime
 from utils import get_datasets, _normalize_adj, _normalize_adj_simpgcn, DP_MODELS, get_remain_ettt
 from time import time
-from dgl import DGLGraph
 from h2gcn import sp_to_tensor
 
 ds = ["GCN", "GCN_Jaccard", "SimPGCN", "RobustGCN"]
@@ -99,7 +98,7 @@ def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, i
     # evasion
     if is_eva:
         if name == "FAGCN":
-            g = DGLGraph(perturbed_graph.adj_matrix)
+            g = dgl.graph(perturbed_graph.adj_matrix)
             g = dgl.to_simple(g)
             g = dgl.to_bidirected(g)
             g = dgl.remove_self_loop(g)

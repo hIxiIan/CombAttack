@@ -26,7 +26,6 @@ from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODE
 from deeprobust.graph.defense import RGCN, SimPGCN, GCN
 from fagcn import get_FAGCN
 from h2gcn import get_H2GCN, sp_to_tensor
-from dgl import DGLGraph
 from dgl import function as fn
 from tedge import get_tedge
 from trans2vec import get_trans2vec
@@ -344,7 +343,7 @@ def get_gf_results(attacked_model, attacker, args, target):
     name = attacked_model.name
     # evasion
     if name == "FAGCN":
-        g = DGLGraph(attacker.g.adj_matrix)
+        g = dgl.graph(attacker.g.adj_matrix)
         g = dgl.to_simple(g)
         g = dgl.to_bidirected(g)
         g = dgl.remove_self_loop(g)
