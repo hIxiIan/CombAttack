@@ -164,7 +164,7 @@ class SCA(TargetedAttacker):
                     add = True
 
                 if ((time() - t1) / 60) % 10 == 0:
-                    print('iter:{} running over 10 mins, potential_times: {}'.format(it, potential_times))
+                    print('iter:{} running over 10 mins, potential_times: {}, total_budget: {}'.format(it, potential_times, self.num_budgets))
 
                 if self.is_modified(u, v):
                     if (time() - t1) / 60 > TIME_LIMIT: # running 30 mins
@@ -183,7 +183,7 @@ class SCA(TargetedAttacker):
                         self.non_added_edges.append((u, v))
                     break
             if (time() - t1) / 60 > TIME_LIMIT:  # running 30 mins
-                print('iter:{} running over 30 mins, break...'.format(it))
+                print('iter:{} running over 30 mins, total budget: {}, break...'.format(it, self.num_budgets))
                 break
             # if potential_times == 0:
             #     assert False, 'all of the potential edges ({}) are modified, no more edges to attack'.format(len(gradients))
