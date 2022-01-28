@@ -958,5 +958,5 @@ def get_remain_ettt(filename, cur_edges, cur_result, del_key_split_idx):
             split = np.array(i.split('_'))
             split = split[del_key_split_idx]
             del_key = "_".join(split)
-            del cur_edges[del_key]
+            cur_edges.pop(del_key, None)
     return list(cur_edges.keys())
