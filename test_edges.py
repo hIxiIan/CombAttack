@@ -241,8 +241,9 @@ if __name__ == '__main__':
             print(embed_types)
             print(cur_result)
 
-            attacked_models = get_attacked_models(models, args, graph)
-            true_labels = get_true_labels(attacked_models, len(graph.node_label))
+            if len(embed_types) > 0:
+                attacked_models = get_attacked_models(models, args, graph)
+                true_labels = get_true_labels(attacked_models, len(graph.node_label))
             eva_asr = {}
             poi_asr = {}
             for embed_type in embed_types:
