@@ -92,6 +92,7 @@ if __name__ == '__main__':
     parser.add_argument("--trans2vec_model", default="OCSVM", type=str)
     parser.add_argument('--bmbc_mode', default="false", type=str)
     parser.add_argument('--T', type=int, default=100)
+    parser.add_argument('--save_file_timestamp', type=str, default="")
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -106,6 +107,8 @@ if __name__ == '__main__':
     if not os.path.exists(edgesdir):
         os.mkdir(edgesdir)
     curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
+    if len(cmd.save_file_timestamp) > 0:
+        curtime = cmd.save_file_timestamp
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
@@ -144,6 +147,12 @@ if __name__ == '__main__':
             print(cmd.seed)
             print(asr_filename)
             print(edges_filename)
+            finished_idx = []
+            # todo: only work under bc dataset (sgcpd)
+            if len(cmd.save_file_timestamp) > 0 and os.path.exists(asr_filename):
+                res = pd.read_csv(asr_filename, index_col=0)
+                finished_idx = list(set([idx.split('_')[0] for idx in list(res.index)]))
+                print(res)
 
             count = 0
             if cmd.run_sga == "true":
@@ -164,7 +173,8 @@ if __name__ == '__main__':
                     print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}'.format(
                         dataset, i, count, total, "sga", cmd.atk_model_type))
                     key = '_'.join(['sga'])
-                    do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
+                    if key not in finished_idx:
+                        do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
             if cmd.run_us != "true":
                 continue
 
@@ -194,7 +204,8 @@ if __name__ == '__main__':
                         cmd.atk_model_type = ','.join(atked_type)
                         print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, embed_type, cmd.atk_model_type))
                         key = '&'.join(embed_type) if mix_cluster else '_'.join([embed_type])
-                        do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
+                        if key not in finished_idx:
+                            do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, embed_type)
             print('dataset:{}, times:{}'.format(dataset, i))
         print(_asr_prefix)
         print(_edges_prefix)

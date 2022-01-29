@@ -117,7 +117,7 @@ class SCA(TargetedAttacker):
         self.non_added_edges = []
         self.verbose_us = verbose_us
         self.sampler = sampler
-        self.blockchian = blockchain
+        self.blockchain = blockchain
         self.target_original = gf.astensor(self.graph.adj_matrix[self.target].toarray()).to(self.device)
         if logit is None:
             logit = self.logits[target]
@@ -317,7 +317,7 @@ class SCA(TargetedAttacker):
         self_loop_weights = np.ones(sub_nodes.shape[0], dtype=self.floatx)
         self_loop = np.row_stack([sub_nodes, sub_nodes])
 
-        if self.blockchian or sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
+        if self.blockchain or sub_edges.shape[1] == 0 or sub_edges.shape[0] == 0:
             indices = np.hstack([
                 non_edges,
                 non_edges[[1, 0]], self_loop

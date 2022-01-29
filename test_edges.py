@@ -98,7 +98,7 @@ def get_gf_results(eva_model, name, true_label, perturbed_graph, args, target, i
     # evasion
     if is_eva:
         if name == "FAGCN":
-            g = dgl.graph(perturbed_graph.adj_matrix)
+            g = dgl.from_scipy(perturbed_graph.adj_matrix)
             g = dgl.to_simple(g)
             g = dgl.to_bidirected(g)
             g = dgl.remove_self_loop(g)

@@ -343,7 +343,7 @@ def get_gf_results(attacked_model, attacker, args, target):
     name = attacked_model.name
     # evasion
     if name == "FAGCN":
-        g = dgl.graph(attacker.g.adj_matrix)
+        g = dgl.from_scipy(attacker.g.adj_matrix)
         g = dgl.to_simple(g)
         g = dgl.to_bidirected(g)
         g = dgl.remove_self_loop(g)
