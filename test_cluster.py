@@ -146,9 +146,9 @@ if __name__ == '__main__':
             print(edges_filename)
 
             count = 0
-            total = len(tedge_types_)
             if cmd.run_sga == "true":
                 if dataset in ["tedge", "trans2vec"]:
+                    total = len(tedge_types_)
                     cmd.atk_model_type = ','.join(atked_types_)
                     for tedge_type in tedge_types_:
                         count += 1
@@ -158,6 +158,7 @@ if __name__ == '__main__':
                         key = '_'.join(['sga', tedge_type])
                         do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
                 else:
+                    total = 1
                     cmd.atk_model_type = ','.join(atked_types_)
                     count += 1
                     print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}'.format(
