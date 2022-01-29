@@ -22,6 +22,9 @@ def do_run(res, key, st, cmd, asr_filename, edges_filename, edges_dict, prefix="
             edges_dict[key] = perturbed_edges_dict
             np.save(edges_filename + '.npy', edges_dict)
         if cmd.edge_flips == "false":
+            if key not in edges_dict:
+                edges_dict[key] = perturbed_edges_dict
+                np.save(edges_filename + '.npy', edges_dict)
             for rsp in rsps:
                 res.loc['_'.join([key, rsp[0]])] = rsp[1:]
             res.to_csv(asr_filename + '.csv')
