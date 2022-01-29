@@ -149,8 +149,8 @@ if __name__ == '__main__':
             print(edges_filename)
             finished_idx = []
             # todo: only work under bc dataset (sgcpd)
-            if len(cmd.save_file_timestamp) > 0 and os.path.exists(asr_filename):
-                res = pd.read_csv(asr_filename, index_col=0)
+            if len(cmd.save_file_timestamp) > 0 and os.path.exists(asr_filename + '.csv'):
+                res = pd.read_csv(asr_filename + '.csv', index_col=0)
                 finished_idx = list(set([idx.split('_')[0] for idx in list(res.index)]))
                 print(res)
 
