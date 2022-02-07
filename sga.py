@@ -244,7 +244,7 @@ class SCA(TargetedAttacker):
         ])
         return non_edges
 
-    def subgraph_preprocessing_cluster(self, is_topk=False):
+    def subgraph_preprocessing_cluster(self, is_topk=False, attacker_nodes=3):
         sub_nodes = self.sampler.sub_nodes[self.sampler.targets_map[self.target]]
         deleted_edges = self.sampler.deleted_edges[self.sampler.targets_map[self.target]]
         added_edges = self.sampler.added_edges[self.sampler.targets_map[self.target]]
@@ -262,7 +262,10 @@ class SCA(TargetedAttacker):
         # print('deleted_edges', deleted_edges, len(deleted_edges[1]))
         # print('added_edges', added_edges, len(added_edges[1]))
         if is_topk:
-            added_edges = self.top_k_added_edges(k=self.num_budgets + 1)
+            k = self.num_budgets + 1
+            if not self.direct_attack:
+                k = attacker_nodes
+            added_edges = self.top_k_added_edges(k)
             sub_nodes = self.get_sub_nodes(deleted_edges, added_edges)
             # print('sub_nodes', sub_nodes, len(sub_nodes))
             # print('deleted_edges', deleted_edges, len(deleted_edges[1]))

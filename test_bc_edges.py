@@ -339,9 +339,9 @@ if __name__ == '__main__':
             embed_types_tedge_types = get_remain_ettt(filename, cur_edges, cur_result, [0, 2])
             print(embed_types_tedge_types)
             print(cur_result)
-
-            attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
-            true_labels = get_true_labels(attacked_models, args, featuredir, i)
+            if len(embed_types_tedge_types) > 0:
+                attacked_models = get_attacked_models(models, args, featuredir, i, embed_types_tedge_types)
+                true_labels = get_true_labels(attacked_models, args, featuredir, i)
             eva_asr = {}
             poi_asr = {}
             for embed_type_tedge_type in embed_types_tedge_types:
