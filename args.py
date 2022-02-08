@@ -20,7 +20,7 @@ class ClusterParms:
         self.lay_act_cnt = lay_act_cnt
         self.distance_type = distance_type
         self.mix_cluster = True if mix_cluster == "true" else False
-        self.mix_types = mix_types.split('&')
+        self.mix_types = mix_types.split('&') if mix_types is not None else []
         self.test_mode = test_mode # -1 -> farthest cluster, 0 -> degree and pro, random -> random
         self.deg_limit = deg_limit
         self.sur_label_pro_limit = sur_label_pro_limit
