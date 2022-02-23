@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 from numba import njit
 from sklearn.manifold import TSNE
 from time import time
-from utils import get_wrong_labels, mapCluster2GCN
+from utils import get_wrong_labels, mapCluster2GCN, DP_MODELS
 
 EUCLIDEAN = "euclidean"
 WRONG_LABELS = "wrong_labels"
@@ -113,20 +113,26 @@ class Cluster:
             model = self.model
             for _model in model:
                 name = _model.name
-                if self.parms.lay_act_cnt > 100:
-                    t_z = _model.predict(self.n_nodes)
-                elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
-                    conv = _model.model.conv
-                    conv = conv[:self.get_conv_idx(conv, name) + 1]
-                    print(conv)
-                    t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
-                elif name in ["MLP", "SGC2"]:
-                    lin = _model.model.lin
-                    lin = lin[:self.get_conv_idx(lin, name) + 1]
-                    print(lin)
-                    t_z = lin(_model.cache.X).cpu().numpy()
+                if name in DP_MODELS:
+                    if self.parms.lay_act_cnt > 100:
+                        t_z = _model.predict().detach().cpu().numpy()
+                    else:
+                        assert False, "get_z invalid DP_MODELS"
                 else:
-                    assert False, "get_predict invalid model"
+                    if self.parms.lay_act_cnt > 100:
+                        t_z = _model.predict(self.n_nodes) # non softmax
+                    elif name in ["GCN", "GCN2", "GAT", "FastGCN"]:
+                        conv = _model.model.conv
+                        conv = conv[:self.get_conv_idx(conv, name) + 1]
+                        print(conv)
+                        t_z = conv(_model.cache.X, _model.cache.A).cpu().numpy()
+                    elif name in ["MLP", "SGC2"]:
+                        lin = _model.model.lin
+                        lin = lin[:self.get_conv_idx(lin, name) + 1]
+                        print(lin)
+                        t_z = lin(_model.cache.X).cpu().numpy()
+                    else:
+                        assert False, "get_z invalid model"
                 if z is None:
                     z = t_z
                 else:

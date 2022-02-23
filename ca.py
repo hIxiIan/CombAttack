@@ -274,13 +274,21 @@ def get_embed_model(args, graph):
     if args.cluster_parms.mix_cluster:
         model = [get_model(model_name, args, graph, is_embed=False) for model_name in args.cluster_parms.mix_types]
     else:
-        model = [get_model(args.embed_type, args, graph, is_embed=False)]
+        if args.embed_type in DP_MODELS:
+            m, acc = get_dr_model(args.embed_type, args, graph)
+            m.embed_acc = acc
+            model = [m]
+            print(f'get_embed_model Test accuracy {acc:.2%}')
+        else:
+            model = [get_model(args.embed_type, args, graph, is_embed=False)]
 
     for _model in model:
-        _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
-        results = _model.evaluate(args.splits.test_nodes, verbose=0)
-        print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
-        _model.embed_acc = results.accuracy
+        if args.embed_type not in DP_MODELS:
+            _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
+            results = _model.evaluate(args.splits.test_nodes, verbose=0)
+            _model.embed_acc = results.accuracy
+            print(f'get_embed_model Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+
     return model
 
 
