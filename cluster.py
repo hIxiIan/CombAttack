@@ -265,6 +265,14 @@ class Cluster:
     @staticmethod
     @njit(cache=True)
     def get_indirect_edges(targets, deleted_nodes, added_nodes, indices, indptr):
+        '''
+        有很大问题，比如一个目标节点，有10个间接节点，每个间接节点都要连某个簇
+        当这个簇非常大时，比如5w，那么构造的加边数就会非常大，导致求梯度消耗也会变非常大
+        可能的方案：考虑选择一个简介节点。如何选择？
+        基于节点的embedding，选择一个距离目标节点最远的点？如何定义这个最远？那聚类又是用来做啥？
+        ①算目标节点与间接节点的欧式距离，选择最远的
+        ②算误分类聚类中心与间接节点的欧式距离，选择最近的
+        '''
         sub_nodes = []
         deleted_edges = []
         added_edges = []
