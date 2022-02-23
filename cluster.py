@@ -208,7 +208,7 @@ class Cluster:
         self.get_farthest_idx()
 
         statis = [(self.cluster_label_pred == label).sum() for label in range(self.n_classes)]
-        self.average_cluster_nums = np.mean(statis)
+        self.average_cluster_nums = int(np.mean(statis))
         print(statis)
 
     @staticmethod
