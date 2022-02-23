@@ -402,7 +402,7 @@ def get_added_nodes_random(targets, average_cluster_nums, n_nodes):
     added_nodes = []
     for _ in targets:
         cur_nnodes = np.random.choice(n_nodes, average_cluster_nums, replace=False)
-        added_nodes.append(np.array(cur_nnodes))
+        added_nodes.append(cur_nnodes)
     return added_nodes
 
 
