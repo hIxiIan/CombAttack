@@ -305,7 +305,7 @@ def init_sampler(attacker, args):
         sampler.cluster_cost_time = 0
         print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
     else:
-        model = get_embed_model(args, attacker.graph)
+        model = None if args.embed_type == "ori" else get_embed_model(args, attacker.graph)
         sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
                           attacker.logits, attacker.softmax_logits, args.cluster_parms)
         sampler.type_ = args.subgraph_type
@@ -313,7 +313,7 @@ def init_sampler(attacker, args):
             print('mixed_type:{}, sample process end..., cost:{} min'.format(args.cluster_parms.mix_types, (time() - t1) / 60))
         else:
             print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
-        sampler.embed_acc = np.mean([_model.embed_acc for _model in model])
+        sampler.embed_acc = 0 if args.embed_type == "ori" else np.mean([_model.embed_acc for _model in model])
     return sampler
 
 

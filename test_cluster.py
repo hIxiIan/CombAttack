@@ -124,6 +124,8 @@ if __name__ == '__main__':
     print(atked_types_)
     print(embed_types_)
     print(tedge_types_)
+    if cmd.features_mode == "ori":
+        method_types = ["ori"]
 
     for dataset in dataset_:
         if dataset in ["tedge", "trans2vec"]:
