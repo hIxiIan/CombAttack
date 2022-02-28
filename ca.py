@@ -295,19 +295,7 @@ def init_sampler(attacker, args):
     sampler = None
     t1 = time()
     if not args.cluster:
-        if "dw" in args.subgraph_type or "n2v" in args.subgraph_type:
-            sampler = Walker(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.p, args.q, attacker.logits, attacker.softmax_logits, wl_limit=args.wl_limit)
-            sampler.random_walk()
-        elif "spread" in args.subgraph_type:
-            sampler = Spreader(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.prob, args.hops, attacker.logits, attacker.softmax_logits)
-            sampler.spread_walk()
-        elif "ppr" in args.subgraph_type:
-            sampler = PPRer(args.targets, args.sample_ratio, args.subgraph_type, attacker.graph.adj_matrix, attacker.graph.node_label, args.alpha, attacker.logits, attacker.softmax_logits, args.wl_limit, args.eps)
-            sampler.ppr_walk()
-        sampler.type_ = args.subgraph_type
-        sampler.embed_acc = 0
-        sampler.cluster_cost_time = 0
-        print('subgraph_type:{}, sample process end..., cost:{} min'.format(args.subgraph_type, (time() - t1) / 60))
+        assert False, 'init_sampler args.cluster must be True'
     else:
         model = None if args.embed_type == "ori" else get_embed_model(args, attacker.graph)
         sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
