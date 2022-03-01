@@ -109,6 +109,7 @@ if __name__ == '__main__':
     curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     if len(cmd.save_file_timestamp) > 0:
         curtime = cmd.save_file_timestamp
+    cmd.curtime = curtime
     dataset_ = get_datasets(cmd.dataset)
     embed_types_ = get_embed_types(cmd.embed_type)
     atked_types_ = get_attacked_types(cmd.atk_model_type)
@@ -164,6 +165,7 @@ if __name__ == '__main__':
                     for tedge_type in tedge_types_:
                         count += 1
                         cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
+                        cmd.tedge_type = tedge_type
                         print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
                             dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
                         key = '_'.join(['sga', tedge_type])
@@ -198,6 +200,7 @@ if __name__ == '__main__':
                         for tedge_type in tedge_types_:
                             count += 1
                             cmd.features_file = "_".join([tedge_type, cmd.feature_timestamp, str(i)])
+                            cmd.tedge_type = tedge_type
                             print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}, tedge_type: {}'.format(dataset, i, count, total, cmd.mix_types if mix_cluster else cmd.embed_type, cmd.atk_model_type, tedge_type))
                             key = '_'.join([cmd.mix_types, tedge_type]) if mix_cluster else '_'.join([cmd.embed_type, tedge_type])
                             prefix = '_'.join([cmd.mix_types, tedge_type]) if mix_cluster else '_'.join([cmd.embed_type, tedge_type])

@@ -711,6 +711,29 @@ def run_tedge(args):
     print('run_tedge, cost:{} min'.format((time.time() - t1) / 60))
 
 
+def get_tedge_model(args):
+    random_seed(args.seed)
+    args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
+    tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+    tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
+                    dimensions=args.dimensions, num_walks=args.num_walks,
+                    walk_length=args.walk_length, window_size=args.window_size,
+                    workers=args.workers, seed=args.seed, verbose=args.verbose, output=None,
+                    save_features=False, is_dan=True, rac=False)
+    embeddings = tGNE.features
+    sample_labels = load_labels('dataset/phishing/label.txt')  # 890
+    nodes = list([int(node) for node in sample_labels.keys()])
+    nodes_labels = list(sample_labels.values())
+    nodes_embeddings = pd.DataFrame(embeddings[nodes])
+    X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size,
+                                                        random_state=args.seed)
+    model = SVC(kernel='linear', C=0.4, random_state=args.seed)
+    model.fit(X_train, y_train)
+    y_pred = np.array(model.predict(X_test))
+    acc = (np.array(y_test) == y_pred).mean()
+    return tGNE, acc
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")

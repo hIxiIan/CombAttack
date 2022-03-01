@@ -337,6 +337,39 @@ def run_trans2vec(args):
     print('run_trans2vec, cost:{} min'.format((time() - t1) / 60))
 
 
+def get_tran2vec_model(args):
+    random_seed(args.seed)
+    t2v = trans2vec(output=None, alpha=args.alpha, dimensions=args.dimensions, num_walks=args.num_walks,
+                    walk_length=args.walk_length, window_size=args.window_size, save_features=False,
+                    workers=args.workers, seed=args.seed, verbose=args.verbose, gf_alias_mode=args.gf_alias_mode,
+                    gf=args.gf)
+    embeddings = t2v.features
+    sample_labels = load_labels('dataset/phishing/label.txt')  # 890
+    nodes = list([int(node) for node in sample_labels.keys()])
+    nodes_labels = list(sample_labels.values())
+    nodes_embeddings = pd.DataFrame(embeddings[nodes])
+    model_name = args.trans2vec_model.lower()
+
+    if model_name in ["ocsvm"]:
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings[:445], nodes_labels[:445],
+                                                            train_size=args.train_size, random_state=args.seed)
+        model = OneClassSVM(nu=0.05, gamma="auto", kernel="rbf", tol=1e-3).fit(X_train)
+        y_pred = model.predict(X_test)
+        y_pred = np.array([1 if _y == 1 else 0 for _y in y_pred])
+        acc = np.mean(y_pred == y_test)
+    elif model_name in ["svm", 'lr']:
+        X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size,
+                                                            random_state=args.seed)
+        if model_name == "svm":
+            model = SVC(kernel='linear', C=0.4, random_state=args.seed)
+        elif model_name == "lr":
+            model = LogisticRegression(random_state=args.seed)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        acc = np.mean(y_pred == y_test)
+    return t2v, acc
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", default=2022, type=int, help="random seed")

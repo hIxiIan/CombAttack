@@ -18,15 +18,15 @@ from time import time
 from args import ARGS
 from pd import get_lgb_model
 from cluster import Cluster
-from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn
+from utils import get_attacked_types, get_model_parms, get_pd, get_train_x, BM_MODELS, MODEL_PARAMS, DP_MODELS, accuracy, _normalize_adj, get_wrong_labels, mapCluster2GCN, _normalize_adj_simpgcn, WALK_PARMS, EB_MODELS
 from deeprobust.graph.defense import RGCN, SimPGCN, GCN
 from fagcn import get_FAGCN
 from h2gcn import get_H2GCN, sp_to_tensor
 from dgl import function as fn
-from tedge import get_tedge
-from trans2vec import get_trans2vec
+from tedge import get_tedge, get_tedge_model
+from trans2vec import get_trans2vec, get_tran2vec_model
 from bm_gcn import get_bmgcn, get_bmgcn_sur
-
+from time import strftime, localtime
 
 def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
     # GCN
@@ -156,6 +156,22 @@ def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=Fals
     assert False, "invalid graphgallery model:{}".format(model_name)
 
 
+def get_eb_model(model_name, args):
+    args.dimensions, args.num_walks, args.walk_length, args.window_size, args.workers, args.train_size = WALK_PARMS[model_name]
+    if model_name == "tedge":
+        model, acc = get_tedge_model(args)
+        model.name = model_name
+    elif model_name == "trans2vec":
+        args.alpha = 0.5
+        args.gf_alias_mode = "false"
+        args.gf = "true"
+        model, acc = get_tran2vec_model(args)
+        model.name = model_name
+    else:
+        False, "invalid get_eb_model model:{}".format(model_name)
+    return model, acc
+
+
 def get_dr_model(model_name, args, graph):
     adj = graph.adj_matrix
     features = graph.node_attr
@@ -267,19 +283,28 @@ def get_atk_models(args, graph):
 
 
 def get_embed_model(args, graph):
-    if args.cluster_parms.mix_cluster:
+    if args.cluster_parms.mix_cluster: # todo dp_models
         model = [get_model(model_name, args, graph, is_embed=False) for model_name in args.cluster_parms.mix_types]
     else:
         if args.embed_type in DP_MODELS:
             m, acc = get_dr_model(args.embed_type, args, graph)
             m.embed_acc = acc
             model = [m]
-            print(f'get_embed_model Test accuracy {acc:.2%}')
+            print(f'get_embed_model get_dr_model Test accuracy {acc:.2%}')
+        elif args.embed_type in EB_MODELS:
+            m, acc = get_eb_model(args.embed_type, args)
+            m.embed_acc = acc
+            model = [m]
+            print(f'get_embed_model get_eb_model Test accuracy {acc:.2%}')
         else:
             model = [get_model(args.embed_type, args, graph, is_embed=False)]
 
     for _model in model:
-        if args.embed_type not in DP_MODELS:
+        if _model.name in BM_MODELS:
+            acc = _model.get_acc()
+            _model.embed_acc = acc
+            print(f'get_embed_model get_bm_model Test accuracy {acc:.2%}')
+        if _model.name not in DP_MODELS and _model.name not in EB_MODELS and _model.name not in BM_MODELS:
             _model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=0, epochs=200)
             results = _model.evaluate(args.splits.test_nodes, verbose=0)
             _model.embed_acc = results.accuracy
@@ -292,7 +317,6 @@ def init_sampler(attacker, args):
     if not args.us:
         return None
 
-    sampler = None
     t1 = time()
     if not args.cluster:
         assert False, 'init_sampler args.cluster must be True'
@@ -800,8 +824,10 @@ if __name__ == '__main__':
     parser.add_argument("--trans2vec_model", default="OCSVM", type=str)
     parser.add_argument('--bmbc_mode', default="false", type=str)
     parser.add_argument('--T', type=int, default=100)
-
+    parser.add_argument("--tedge_type", default="TBS", type=str)
+    curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     cmd = parser.parse_args()
+    cmd.curtime = curtime
     cmd.hids, cmd.acts, cmd.weight_decay, cmd.lr = None, None, None, None
     gg.set_backend("th")
     graph, splits, targets = get_dataset(cmd)

@@ -14,6 +14,15 @@ from numba import jit, int32, int64
 
 DP_MODELS = ['RobustGCN', 'SimPGCN']
 
+EB_MODELS = ['tedge', 'trans2vec']
+
+BM_MODELS = ['bmgcn', 'BMGCN']
+
+WALK_PARMS = {
+    'tedge': [128, 4, 10, 4, 1, 0.5],
+    'trans2vec': [64, 20, 5, 10, 1, 0.8]
+}
+
 DATASET_BLOCKCHAIN = ["bc" + str(i+1) for i in range(11)] + ['tedge', 'trans2vec']
 
 # RES_COLUMNS = ['eva_asr', 'eva_asr_wl', 'poi_asr', 'poi_asr_wl', 'cost', 'embed_acc', 'average_atk_time', 'cluster_cost_time']

@@ -45,6 +45,8 @@ class ARGS:
         self.edge_flips = True if cmd.edge_flips == "true" else False
         self.bmbc_mode = True if cmd.bmbc_mode == "true" else False
         self.graph = graph
+        self.curtime = cmd.curtime
+        self.tedge_type = cmd.tedge_type
 
         # attack
         self.subgraph_type = cmd.subgraph_type

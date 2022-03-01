@@ -9,7 +9,7 @@ from sklearn.cluster import KMeans
 from numba import njit
 from sklearn.manifold import TSNE
 from time import time
-from utils import get_wrong_labels, mapCluster2GCN, DP_MODELS
+from utils import get_wrong_labels, mapCluster2GCN, DP_MODELS, EB_MODELS, BM_MODELS
 
 EUCLIDEAN = "euclidean"
 WRONG_LABELS = "wrong_labels"
@@ -118,6 +118,10 @@ class Cluster:
                         t_z = _model.predict().detach().cpu().numpy()
                     else:
                         assert False, "get_z invalid DP_MODELS"
+                elif name in EB_MODELS:
+                    t_z = _model.features
+                elif name in BM_MODELS:
+                    t_z = _model.predict(softmax=False).detach().cpu().numpy()
                 else:
                     if self.parms.lay_act_cnt > 100:
                         t_z = _model.predict(self.n_nodes) # non softmax
