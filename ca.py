@@ -160,6 +160,7 @@ def get_eb_model(model_name, args):
     args.dimensions, args.num_walks, args.walk_length, args.window_size, args.workers, args.train_size = WALK_PARMS[model_name]
     if model_name == "tedge":
         model, acc = get_tedge_model(args)
+        model.features = model.features[args.nodes_to_keep]
         model.name = model_name
     elif model_name == "trans2vec":
         args.alpha = 0.5
@@ -794,14 +795,14 @@ if __name__ == '__main__':
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
+    parser.add_argument("--dataset", default="tedge", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="GCN2", type=str)
+    parser.add_argument("-et", "--embed_type", default="tedge", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
-    parser.add_argument('-atk', '--atk_model_type', default="GCN", type=str)
+    parser.add_argument('-atk', '--atk_model_type', default="SGC", type=str)
 
     parser.add_argument('--max_iter', default=300, type=int)
     parser.add_argument('--n_init', default=40, type=int)
@@ -811,15 +812,15 @@ if __name__ == '__main__':
     parser.add_argument('-lac', '--lay_act_cnt', default=999, type=int)
     parser.add_argument('-dt', '--distance_type', default="euclidean", type=str)
     parser.add_argument('-tk', '--is_topk', default="false", type=str)
-    parser.add_argument('-ef', '--edge_flips', default="false", type=str)
+    parser.add_argument('-ef', '--edge_flips', default="true", type=str)
     parser.add_argument('-tm', '--target_mode', default="sur_labels", type=str)
     parser.add_argument('-mc', '--mix_cluster', default="false", type=str)
     parser.add_argument('-mts', '--mix_types', default="MLP,SGC2", type=str)
     parser.add_argument("--test_mode", default="-1", type=str)
-    parser.add_argument("--features_mode", default="ori", type=str)
+    parser.add_argument("--features_mode", default="embed", type=str)
     parser.add_argument("--deg_limit", default=2, type=int)
     parser.add_argument("--sur_label_pro_limit", default=0.9, type=float)
-    parser.add_argument("--features_file", default="", type=str)
+    parser.add_argument("--features_file", default="TBS_2022_01_04_23_29_22_0", type=str)
     parser.add_argument("--train_size", default=0.5, type=float)
     parser.add_argument("--trans2vec_model", default="OCSVM", type=str)
     parser.add_argument('--bmbc_mode', default="false", type=str)
