@@ -211,10 +211,10 @@ if __name__ == '__main__':
                         if cmd.embed_type in ["tedge", "trans2vec"]:
                             for tedge_type in tedge_types_:
                                 cmd.tedge_type = tedge_type
-                                print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, cmd.mix_types if mix_cluster else cmd.embed_type, cmd.atk_model_type))
-                                key = cmd.mix_types if mix_cluster else '_'.join([cmd.embed_type])
+                                print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, cmd.mix_types if mix_cluster else '_'.join([cmd.embed_type, cmd.tedge_type]), cmd.atk_model_type))
+                                key = cmd.mix_types if mix_cluster else '_'.join([cmd.embed_type, cmd.tedge_type])
                                 if key not in finished_idx:
-                                    do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, cmd.mix_types if mix_cluster else cmd.embed_type)
+                                    do_run(res, key, 'cluster', cmd, asr_filename, edges_filename, edge_dict, cmd.mix_types if mix_cluster else '_'.join([cmd.embed_type, cmd.tedge_type]))
                         else:
                             print('\ndataset: {}, times:{}, {}/{}; embed_type: {} attack atked_type: {}'.format(dataset, i, count, total, cmd.mix_types if mix_cluster else cmd.embed_type, cmd.atk_model_type))
                             key = cmd.mix_types if mix_cluster else '_'.join([cmd.embed_type])
