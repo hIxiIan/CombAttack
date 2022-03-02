@@ -712,7 +712,7 @@ def read_dataset(args):
         tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
     elif "bc" in args.dataset and not args.bmbc_mode:
         PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + os.sep + "publicdata/"
-        SAMPLE_GSIZE = int(args.dataset[2:])
+        SAMPLE_GSIZE = int(args.dataset[2:]) * 10000
         SAMPLE_MULDIGS_PATH = os.path.join(PUBLICDATA_PATH, 'graph_%d/SP_MulDiGs.pkl' % SAMPLE_GSIZE)
         G = load_pickle(SAMPLE_MULDIGS_PATH)
         tG = tGraph(None, DiG=G, filetype="pd_f", verbose=args.verbose)
