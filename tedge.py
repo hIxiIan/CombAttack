@@ -56,7 +56,7 @@ def tanh(original_array):
 @jit(cache=True, nopython=True)
 def weight_choice(unnormalized_probs):
     norm_const = np.sum(unnormalized_probs)
-    normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])  # 归一化
+    normalized_probs = np.array([float(u_prob / norm_const) for u_prob in unnormalized_probs])
     J, q = alias_setup(normalized_probs)
     idx = alias_draw(J, q)
     return idx
@@ -147,7 +147,7 @@ def linear_rank_mapping(original_array, order='ascending'):
 
 @jit(cache=True, nopython=True)
 def normalized_probs(unnormalized_probs):
-    if len(unnormalized_probs) > 0:  # 有符合条件的下一个点
+    if len(unnormalized_probs) > 0:
         normalized_probs = unnormalized_probs / unnormalized_probs.sum()
 
     return normalized_probs
@@ -277,9 +277,9 @@ class tGraphNE(object):
         self.alpha = alpha
         t1 = time.time()
         if is_dan:
-            walks = self.dan_simulate_walks(num_walks, walk_length)  # 随机游走
+            walks = self.dan_simulate_walks(num_walks, walk_length)
         else:
-            walks = self.simulate_walks(num_walks, walk_length)  # 随机游走
+            walks = self.simulate_walks(num_walks, walk_length)
         t2 = time.time()
         word2vec_model = Word2Vec(sentences=walks, vector_size=dimensions, window=window_size, min_count=0, sg=1, hs=1,
                                   workers=workers, seed=seed)
@@ -299,11 +299,6 @@ class tGraphNE(object):
             print("Embeddings are saved in ", output)
 
     def simulate_walks(self, num_walks, walk_length):
-        """
-        Repeatedly simulate random walks from each node.
-        对每个结点，根据num_walks得出其多条随机游走路径
-
-        """
         G = self.G
         walks = []
         nodes = list(G.nodes())
@@ -318,25 +313,17 @@ class tGraphNE(object):
         return walks
 
     def temporal_walk(self, walk_length, start_node):
-        """
-        功能： 从一个初始结点计算一个随机游走
-        输入：
-        walk_length: 随机游走序列长度
-        start_node: 初始结点
-        返回：
-        列表，随机游走序列
-        """
         G = self.G
-        walk = [start_node]  # 类型：list
+        walk = [start_node]
         walk_edge = []
-        walk_time = []  ##类型：list, 大小比walk的小1
+        walk_time = []
         # walk_key = []
 
         cur = start_node
         cur_nbrs = np.array(list(G.neighbors(cur)))
         nbr_keys = []
         for nbr in cur_nbrs:
-            nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+            nbr_key = list(G.get_edge_data(cur, nbr))
             nbr_keys.append(nbr_key)
         nbr_keys = np.array(make_redundancy(nbr_keys), dtype=np.int32)
         if len(cur_nbrs) == 0:
@@ -353,12 +340,12 @@ class tGraphNE(object):
 
         while len(walk) < walk_length:
             prevtime = walk_time[-1]
-            cur = walk[-1]  # 名为walk的list的最后一个元素，当前游走到的结点
+            cur = walk[-1]
             cur_nbrs = np.array(list(G.neighbors(cur)))
             weight_keys = []
             nbr_keys = []
             for nbr in cur_nbrs:
-                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+                nbr_key = list(G.get_edge_data(cur, nbr))
                 nbr_keys.append(nbr_key)
                 weight_keys.append([G[cur][nbr][nk]['weight'] for nk in nbr_key])
             nbr_keys = np.array(make_redundancy(nbr_keys), dtype=np.int32)
@@ -377,11 +364,6 @@ class tGraphNE(object):
         return walk
 
     def dan_simulate_walks(self, num_walks, walk_length):
-        """
-        Repeatedly simulate random walks from each node.
-        对每个结点，根据num_walks得出其多条随机游走路径
-
-        """
         G = self.G
         walks = []
         nodes = list(G.nodes())
@@ -396,18 +378,9 @@ class tGraphNE(object):
         return walks
 
     def dan_temporal_walk(self, walk_length, start_node):
-        """
-        功能： 从一个初始结点计算一个随机游走
-        输入：
-        walk_length: 随机游走序列长度
-        start_node: 初始结点
-        返回：
-        列表，随机游走序列
-        """
-
-        walk = [start_node]  # 类型：list
+        walk = [start_node]
         walk_edge = []
-        walk_time = []  ##类型：list, 大小比walk的小1
+        walk_time = []
         # walk_key = []
 
         cur = start_node
@@ -421,7 +394,7 @@ class tGraphNE(object):
 
         while len(walk) < walk_length:
             prevtime = walk_time[-1]
-            cur = walk[-1]  # 名为walk的list的最后一个元素，当前游走到的结点
+            cur = walk[-1]
             next_node, next_time, next_key = self.get_next_step(cur, prevtime)
             if next_node is not None:
                 walk.append(next_node)
@@ -451,11 +424,11 @@ class tGraphNE(object):
                 next_key = 0
                 return next_node, next_time, next_key
             else:
-                return None, None, None  # 没有符合条件的
+                return None, None, None
 
         else:
             for nbr in cur_nbrs:
-                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+                nbr_key = list(G.get_edge_data(cur, nbr))
                 for k in nbr_key:
                     t = k
                     if self.first_biased_type == "time_uniform":
@@ -478,7 +451,7 @@ class tGraphNE(object):
             elif self.first_biased_type == "time_far_linear":  # TBS ascending
                 unnormalized_probs_t = linear_rank_mapping(unnormalized_probs_t)
 
-            if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+            if len(unnormalized_probs_t) > 0:
                 unnormalized_probs_t = np.asarray(unnormalized_probs_t)
                 selected = self.weight_choice(unnormalized_probs_t)
                 next_node = tmp_node[selected]
@@ -486,15 +459,9 @@ class tGraphNE(object):
                 next_key = tmp_key[selected]
                 return next_node, next_time, next_key
             else:
-                return None, None, None  # 没有符合条件的
+                return None, None, None
 
     def get_next_step(self, cur, prevtime=0):
-        """
-        功能：给定一个当前随机游走到的结点cur，这个两个相连的结点（可能有多条边），得出
-        输出：
-        #return J, q
-        直接输出下一个节点，以及时间戳
-        """
         G = self.G
 
         tmp_key = []
@@ -504,7 +471,7 @@ class tGraphNE(object):
         unnormalized_probs_a = []
 
         cur_nbrs = list(G.neighbors(cur))
-        if self.time_biased_type == "simple_graph":  # DeepWalk
+        if self.time_biased_type == "simple_graph":
             for nbr in cur_nbrs:
                 tmp_node.append(nbr)
                 unnormalized_probs_t.append(1)
@@ -516,10 +483,10 @@ class tGraphNE(object):
                 next_key = 0
                 return next_node, next_time, next_key
             else:
-                return None, None, None  # 没有符合条件的
+                return None, None, None
         else:
             for nbr in cur_nbrs:
-                nbr_key = list(G.get_edge_data(cur, nbr))  # cur领边的key数组
+                nbr_key = list(G.get_edge_data(cur, nbr))
                 for k in nbr_key:
                     t = k
                     a = G[cur][nbr][k]['weight']
@@ -550,7 +517,7 @@ class tGraphNE(object):
             elif self.time_biased_type == "time_close_exp":
                 unnormalized_probs_t = softmax(unnormalized_probs_t)
 
-            # 金额偏好，映射函数缓解过小权重几乎没用
+
             if self.amount_biased == "amount_linear":  # WBS ascending
                 unnormalized_probs_a = linear_rank_mapping(unnormalized_probs_a)
             elif self.amount_biased == "amount_tanh":
@@ -558,7 +525,7 @@ class tGraphNE(object):
             elif self.amount_biased == "amount_exp":
                 unnormalized_probs_a = softmax(unnormalized_probs_a)
 
-            if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+            if len(unnormalized_probs_t) > 0:
                 unnormalized_probs_t = np.asarray(unnormalized_probs_t)
                 unnormalized_probs_a = np.asarray(unnormalized_probs_a)
                 if self.amount_biased != "amount_uniform":
@@ -573,7 +540,7 @@ class tGraphNE(object):
                 return next_node, next_time, next_key
 
             else:
-                return None, None, None  # 没有符合条件的
+                return None, None, None
 
 
 @njit(cache=True)
@@ -584,7 +551,7 @@ def get_first_step(cur_nbrs, nbr_keys, first_biased_type, max_time, min_time):
     unnormalized_probs_t = []
 
     for i, nbr in enumerate(cur_nbrs):
-        nbr_key = nbr_keys[i]  # cur领边的key数组
+        nbr_key = nbr_keys[i]
         for k in nbr_key:
             if k == -1:
                 break
@@ -610,7 +577,7 @@ def get_first_step(cur_nbrs, nbr_keys, first_biased_type, max_time, min_time):
     elif first_biased_type == "time_far_linear":  # TBS ascending
         unnormalized_probs_t = np.argsort(unnormalized_probs_t) + 1
 
-    if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+    if len(unnormalized_probs_t) > 0:
         return unnormalized_probs_t, tmp_node, tmp_time, tmp_key
 
     return None, None, None, None
@@ -659,7 +626,7 @@ def get_next_step(cur_nbrs, nbr_keys, weight_keys, time_biased_type, amount_bias
     if amount_biased == "amount_linear":  # WBS ascending
         unnormalized_probs_a = np.argsort(unnormalized_probs_a) + 1.0
 
-    if len(unnormalized_probs_t) > 0:  # 有符合条件的下一个点
+    if len(unnormalized_probs_t) > 0:
         if amount_biased != "amount_uniform":
             unnormalized_probs = combine_probs(unnormalized_probs_t, unnormalized_probs_a, alpha)
         else:
@@ -672,7 +639,7 @@ def get_next_step(cur_nbrs, nbr_keys, weight_keys, time_biased_type, amount_bias
 def get_tedge(args):
     path = args.features_file
     embeddings = pd.read_csv(path).values #8w6+
-    sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 编号的890个节点
+    sample_labels = load_labels('dataset/phishing/label.txt') # 8w6+ 890 nodes
     nodes = list([int(node) for node in sample_labels.keys()])
     phishing_nodes = nodes[:445]
     non_phishing_nodes = nodes[445:]
@@ -721,6 +688,22 @@ def read_dataset(args):
     return tG
 
 
+def read_labels(args):
+    if args.dataset in ["tedge", "trans2vec"]:
+        sample_labels = load_labels('dataset/phishing/label.txt')  # 890
+        nodes = list([int(node) for node in sample_labels.keys()])
+        nodes_labels = list(sample_labels.values())
+    elif "bc" in args.dataset:
+        labels = args.node_label
+        phishingNodes = list(np.where(labels == 1)[0])
+        nonPhishingNodes = np.where(labels == 0)[0]
+        nodes = phishingNodes + list(np.random.choice(nonPhishingNodes, len(phishingNodes), replace=False))
+        nodes_labels = list(labels[nodes])
+    else:
+        assert "read_labels invalid dataset:{}".format(args.dataset)
+    return nodes, nodes_labels
+
+
 def run_tedge(args):
     random_seed(args.seed)
     t1 = time.time()
@@ -756,9 +739,7 @@ def get_tedge_model(args):
                     workers=args.workers, seed=args.seed, verbose=args.verbose, output=None,
                     save_features=False, is_dan=True, rac=False)
     embeddings = tGNE.features
-    sample_labels = load_labels('dataset/phishing/label.txt')  # 890
-    nodes = list([int(node) for node in sample_labels.keys()])
-    nodes_labels = list(sample_labels.values())
+    nodes, nodes_labels = read_labels(args)
     nodes_embeddings = pd.DataFrame(embeddings[nodes])
     X_train, X_test, y_train, y_test = train_test_split(nodes_embeddings, nodes_labels, train_size=args.train_size,
                                                         random_state=args.seed)
