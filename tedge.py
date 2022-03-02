@@ -228,7 +228,7 @@ class tGraph(object):
                     elif t > self.max_time:
                         self.max_time = t
         elif filetype == "pd_f":
-            for ind, edge in enumerate(nx.edges(DiG)):
+            for ind, edge in enumerate(list(set(nx.edges(DiG)))):
                 (u, v) = edge
                 egs = DiG[u][v]
                 for egi in egs:
