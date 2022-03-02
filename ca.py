@@ -161,7 +161,8 @@ def get_eb_model(model_name, args):
     args.dimensions, args.num_walks, args.walk_length, args.window_size, args.workers, args.train_size = WALK_PARMS[model_name]
     if model_name == "tedge":
         model, acc = get_tedge_model(args)
-        model.features = model.features[args.nodes_to_keep]
+        if "bc" not in args.dataset:
+            model.features = model.features[args.nodes_to_keep]
         model.name = model_name
     elif model_name == "trans2vec":
         args.alpha = 0.5
