@@ -710,7 +710,7 @@ def node_classification(args, output):
 def read_dataset(args):
     if args.dataset in ["tedge", "trans2vec"]:
         tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
-    elif "bc" in args.dataset and not args.bmbc_mode:
+    elif "bc" in args.dataset:
         PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + os.sep + "publicdata/"
         SAMPLE_GSIZE = int(args.dataset[2:]) * 10000
         SAMPLE_MULDIGS_PATH = os.path.join(PUBLICDATA_PATH, 'graph_%d/SP_MulDiGs.pkl' % SAMPLE_GSIZE)
