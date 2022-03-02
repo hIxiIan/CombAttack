@@ -28,6 +28,7 @@ from trans2vec import get_trans2vec, get_tran2vec_model
 from bm_gcn import get_bmgcn, get_bmgcn_sur
 from time import strftime, localtime
 
+
 def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
     # GCN
     if model_name == "SGC":

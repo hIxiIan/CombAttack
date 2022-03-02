@@ -14,6 +14,7 @@ from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score, average_precision_score, roc_curve, f1_score, classification_report
 from sklearn.model_selection import train_test_split
 from numba import jit, njit
+from utils import load_pickle
 
 
 METHOD_MAP = {
@@ -196,7 +197,7 @@ def load_labels(filename):
 
 
 class tGraph(object):
-    def __init__(self, file_, filetype='txt_f', output_Gpkl=False, verbose=0):
+    def __init__(self, file_, DiG=None, filetype='txt_f', output_Gpkl=False, verbose=0):
         self.G = nx.MultiDiGraph()
         self.min_time = sys.maxsize
         self.max_time = 0
@@ -215,6 +216,26 @@ class tGraph(object):
                     t = int(t)
                     x = str(int(x) - 1)
                     y = str(int(y) - 1)
+                    if self.G.has_edge(x, y, t):
+                        if self.G[x][y][t]['weight'] != a:
+                            self.G[x][y][t]['weight'] += a
+                    else:
+                        self.G.add_edge(x, y, key=t, weight=a)
+                    edge_key = edge_key + 1
+
+                    if t < self.min_time:
+                        self.min_time = t
+                    elif t > self.max_time:
+                        self.max_time = t
+        elif filetype == "pd_f":
+            for ind, edge in enumerate(nx.edges(DiG)):
+                (u, v) = edge
+                egs = DiG[u][v]
+                for egi in egs:
+                    eg = egs[egi]
+                    a, t = float(eg['amount']), int(eg['timestamp'])
+                    x = str(u)
+                    y = str(v)
                     if self.G.has_edge(x, y, t):
                         if self.G[x][y][t]['weight'] != a:
                             self.G[x][y][t]['weight'] += a
@@ -686,13 +707,27 @@ def node_classification(args, output):
     print('classification_report:\n{}'.format(cr))
 
 
+def read_dataset(args):
+    if args.dataset in ["tedge", "trans2vec"]:
+        tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+    elif "bc" in args.dataset and not args.bmbc_mode:
+        PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + os.sep + "publicdata/"
+        SAMPLE_GSIZE = int(args.dataset[2:])
+        SAMPLE_MULDIGS_PATH = os.path.join(PUBLICDATA_PATH, 'graph_%d/SP_MulDiGs.pkl' % SAMPLE_GSIZE)
+        G = load_pickle(SAMPLE_MULDIGS_PATH)
+        tG = tGraph(None, DiG=G, filetype="pd_f", verbose=args.verbose)
+    else:
+        assert "read_dataset invalid dataset:{}".format(args.dataset)
+    return tG
+
+
 def run_tedge(args):
     random_seed(args.seed)
     t1 = time.time()
     args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
     output = args.outputdir + os.sep + "_".join([args.tedge_type, args.curtime, str(args.i)]) + '.csv'
     if args.run_emb == "true":
-        tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+        tG = read_dataset(args)
         tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                         dimensions=args.dimensions, num_walks=args.num_walks,
                         walk_length=args.walk_length, window_size=args.window_size,
@@ -714,7 +749,7 @@ def run_tedge(args):
 def get_tedge_model(args):
     random_seed(args.seed)
     args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha = METHOD_MAP[args.tedge_type]
-    tG = tGraph('dataset/phishing/TransEdgelist.txt', verbose=args.verbose)
+    tG = read_dataset(args)
     tGNE = tGraphNE(tG, args.time_biased_type, args.first_biased_type, args.amount_biased, args.alpha,
                     dimensions=args.dimensions, num_walks=args.num_walks,
                     walk_length=args.walk_length, window_size=args.window_size,
