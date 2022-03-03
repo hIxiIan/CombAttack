@@ -47,6 +47,8 @@ class ARGS:
         self.graph = graph
         self.curtime = cmd.curtime
         self.tedge_type = cmd.tedge_type
+        self.noise = True if cmd.noise == "true" else False
+        self.noise_logits = True if cmd.noise_logits == "true" else False
 
         # attack
         self.subgraph_type = cmd.subgraph_type

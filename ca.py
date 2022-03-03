@@ -27,6 +27,7 @@ from tedge import get_tedge, get_tedge_model
 from trans2vec import get_trans2vec, get_tran2vec_model
 from bm_gcn import get_bmgcn, get_bmgcn_sur
 from time import strftime, localtime
+from nga import NGA
 
 
 def get_model(model_name, args, graph, A_V_F=None, is_embed=False, is_model=False):
@@ -324,15 +325,33 @@ def init_sampler(attacker, args):
     if not args.cluster:
         assert False, 'init_sampler args.cluster must be True'
     else:
-        model = None if args.embed_type == "ori" else get_embed_model(args, attacker.graph)
-        sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
-                          attacker.logits, attacker.softmax_logits, args.cluster_parms)
-        sampler.type_ = args.subgraph_type
-        if args.cluster_parms.mix_cluster:
-            print('mixed_type:{}, sample process end..., cost:{} min'.format(args.cluster_parms.mix_types, (time() - t1) / 60))
+        if not args.noise:
+            model = None if args.embed_type == "ori" else get_embed_model(args, attacker.graph)
+            sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph, args.sample_ratio,
+                              attacker.logits, attacker.softmax_logits, args.cluster_parms)
+            sampler.do()
+            sampler.type_ = args.subgraph_type
+            if args.cluster_parms.mix_cluster:
+                print('mixed_type:{}, sample process end..., cost:{} min'.format(args.cluster_parms.mix_types, (time() - t1) / 60))
+            else:
+                print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
+            sampler.embed_acc = 0 if args.embed_type == "ori" else np.mean([_model.embed_acc for _model in model])
         else:
-            print('embed_type:{}, sample process end..., cost:{} min'.format(args.embed_type, (time() - t1) / 60))
-        sampler.embed_acc = 0 if args.embed_type == "ori" else np.mean([_model.embed_acc for _model in model])
+            if not args.noise_logits:
+                sfl = attacker.softmax_logits
+                noise = "surrogate model logits"
+            elif args.noise_logits:
+                model = None if args.embed_type == "ori" else get_embed_model(args, attacker.graph)
+                sampler = Cluster(args.direct_attack, args.embed_type, args.targets, model, attacker.graph,
+                                  args.sample_ratio,
+                                  attacker.logits, attacker.softmax_logits, args.cluster_parms)
+                sampler.get_z(sf=True)
+                sfl = sampler.z
+                noise = "embed model {} logits".format(args.embed_type)
+            sampler = NGA(args.targets, sfl, attacker.graph, args.cluster_parms.test_mode)
+            sampler.type_ = args.subgraph_type
+            sampler.embed_acc = 0
+            print('noise:{}, sample process end..., cost:{} min'.format(noise, (time() - t1) / 60))
     return sampler
 
 
@@ -828,6 +847,8 @@ if __name__ == '__main__':
     parser.add_argument('--bmbc_mode', default="false", type=str)
     parser.add_argument('--T', type=int, default=100)
     parser.add_argument("--tedge_type", default="TBS", type=str)
+    parser.add_argument("--noise", default="false", type=str)
+    parser.add_argument("--noise_logits", default="false", type=str)
     curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     cmd = parser.parse_args()
     cmd.curtime = curtime

@@ -65,7 +65,7 @@ class Cluster:
             'FastGCN': 'ReLU'
         }
 
-        self.do()
+        # self.do()
 
     def get_layer_act_idx(self, layers, embed_type):
         layerMap = self.layerMap
@@ -107,7 +107,7 @@ class Cluster:
         return actIdx[ac][lay_act_cnt - 1]
 
     @torch.no_grad()
-    def get_z(self):
+    def get_z(self, sf=False):
         z = None
         if self.parms.features_mode == "embed":
             model = self.model
@@ -137,12 +137,16 @@ class Cluster:
                         t_z = lin(_model.cache.X).cpu().numpy()
                     else:
                         assert False, "get_z invalid model"
+                if sf:
+                    t_z = gf.get('softmax')(t_z)
                 if z is None:
                     z = t_z
                 else:
                     z = np.hstack((z, t_z))
         elif self.parms.features_mode == "ori":
             z = self.graph.node_attr
+            if sf:
+                z = gf.get('softmax')(z)
         self.z = z
         print('z shape: ', self.z.shape)
 

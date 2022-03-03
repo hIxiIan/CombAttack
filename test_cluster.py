@@ -93,6 +93,8 @@ if __name__ == '__main__':
     parser.add_argument('--bmbc_mode', default="false", type=str)
     parser.add_argument('--T', type=int, default=100)
     parser.add_argument('--save_file_timestamp', type=str, default="")
+    parser.add_argument("--noise", default="false", type=str)
+    parser.add_argument("--noise_logits", default="false", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
