@@ -348,7 +348,7 @@ def init_sampler(attacker, args):
                 sampler.get_z(sf=True)
                 sfl = sampler.z
                 noise = "embed model {} logits".format(args.embed_type)
-            sampler = NGA(args.targets, sfl, attacker.graph, args.cluster_parms.test_mode)
+            sampler = NGA(args.targets, sfl, attacker.graph, args.cluster_parms.test_mode, args.cluster_parms.scale)
             sampler.type_ = args.subgraph_type
             sampler.embed_acc = 0
             print('noise:{}, sample process end..., cost:{} min'.format(noise, (time() - t1) / 60))
@@ -849,6 +849,7 @@ if __name__ == '__main__':
     parser.add_argument("--tedge_type", default="TBS", type=str)
     parser.add_argument("--noise", default="false", type=str)
     parser.add_argument("--noise_logits", default="false", type=str)
+    parser.add_argument("--scale", default=2, type=int)
     curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     cmd = parser.parse_args()
     cmd.curtime = curtime

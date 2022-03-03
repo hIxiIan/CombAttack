@@ -95,6 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_file_timestamp', type=str, default="")
     parser.add_argument("--noise", default="false", type=str)
     parser.add_argument("--noise_logits", default="false", type=str)
+    parser.add_argument("--scale", default=2, type=int)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None

@@ -9,7 +9,7 @@ class ClusterParms:
                  random=False, is_het=False, lay_act="layer", lay_act_cnt=1, distance_type="euclidean",
                  mix_cluster="false", mix_types="MLP&SGC2",
                  test_mode="-1", deg_limit=2, sur_label_pro_limit=0.9,
-                 features_mode="embed"):
+                 features_mode="embed", scale=2):
         self.max_iter = max_iter
         self.n_init = n_init
         self.seed = seed
@@ -25,6 +25,7 @@ class ClusterParms:
         self.deg_limit = deg_limit
         self.sur_label_pro_limit = sur_label_pro_limit
         self.features_mode = features_mode # ori -> original features, embed -> embeddings features
+        self.scale = scale
 
 
 class ARGS:
@@ -110,7 +111,8 @@ class ARGS:
                                           cmd.test_mode,
                                           cmd.deg_limit,
                                           cmd.sur_label_pro_limit,
-                                          cmd.features_mode)
+                                          cmd.features_mode,
+                                          cmd.scale)
         # test_parms
         self.hids = cmd.hids
         self.acts = cmd.acts

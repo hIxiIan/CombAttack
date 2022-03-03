@@ -6,7 +6,7 @@ import numba
 
 
 class NGA:
-    def __init__(self, targets, logits, graph, added_mode):
+    def __init__(self, targets, logits, graph, added_mode, scale):
         self.targets = np.array(targets)
         self.logits = logits
         self.graph = graph
@@ -17,7 +17,7 @@ class NGA:
         self.deg = None
         self.cet = None
         self.added_mode = added_mode
-        self.scale = 2
+        self.scale = scale
 
         self.targets_map = {}
         for i, target in enumerate(targets):
