@@ -52,6 +52,7 @@ class NGA:
         deleted_edges = []
         added_edges = []
         for i, target in enumerate(self.targets):
+            # print('target:{}, deg:{}, scale:{}, added_nodes nums:{}'.format(target, self.deg[target], self.scale, len(added_nodes[i])))
             sub_nodes.append(np.array(list(set(deleted_nodes[i]) | set(added_nodes[i]))))
             deleted_edges.append(list(zip([target] * len(deleted_nodes[i]), deleted_nodes[i])))
             added_edges.append(list(zip([target] * len(added_nodes[i]), added_nodes[i])))
@@ -93,7 +94,7 @@ def get_deleted_nodes(targets, indices, indptr):
 def get_added_nodes(targets, cet, deg, scale):
     added_nodes = []
     for i, target in enumerate(targets):
-        nums = deg[target] * scale
+        nums = min(deg[target] * scale, deg.shape[0])
         added_nodes.append(cet[i][:nums])
     return added_nodes
 
@@ -102,7 +103,7 @@ def get_added_nodes(targets, cet, deg, scale):
 def get_added_nodes_random(targets, deg, scale, n_nodes):
     added_nodes = []
     for target in targets:
-        nums = deg[target] * scale
+        nums = min(deg[target] * scale, deg.shape[0])
         cur_nnodes = np.random.choice(n_nodes, nums, replace=False)
         added_nodes.append(cur_nnodes)
     return added_nodes
