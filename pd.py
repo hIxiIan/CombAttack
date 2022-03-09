@@ -355,7 +355,7 @@ class ARGS:
         self.direct_attack = not cmd.indirect_attack
         self.us = not cmd.n_us
 
-        self.PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + 'publicdata/'
+        self.PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + '/publicdata/'
         self.SAMPLE_MULGS_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/SP_MulGs.pkl' % self.sample_size)
         self.FEATURES_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/features.dat' % self.sample_size)
         self.DATA_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d' % self.sample_size)
