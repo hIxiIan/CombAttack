@@ -23,23 +23,14 @@ def load_pickle(fileName):
         return pickle.load(f)
 
 
-"""常用函数及lgb模型的定义"""
-
-
 def read_embeds(fname):
     with open(fname, 'r') as f:
-        """skip the first row， first col"""
         data = f.readlines()
         npdata = np.loadtxt(data, float, delimiter=' ')
         argsort = np.argsort(npdata[:, 0])
         npdata = npdata[argsort].tolist()
         npdata = np.delete(npdata, 0, axis=1)
         return npdata
-
-
-"""
-根据返回特定下标ilis对应的lis中的元素
-"""
 
 
 def lid(lis, ilis):
@@ -71,8 +62,8 @@ def lgb_train_model(train_x, train_y, random_seed):
         'num_class': 2,
         'force_col_wise': True,
         'min_data_in_leaf': 20,
-        'verbosity': -1, # 控制训练过程是否输出
-        #         'scale_pos_weight':100,
+        'verbosity': -1,
+        #'scale_pos_weight':100,
     }
 
     auc, recall, precision, f1, result_proba = [], [], [], [], []
@@ -118,7 +109,7 @@ def get_lgb_model(train_x, train_y, random_seed):
         'num_class': 2,
         'force_col_wise': True,
         'min_data_in_leaf': 20,
-        'verbosity': -1, # 控制训练过程是否输出
+        'verbosity': -1,
         #         'scale_pos_weight':100,
     }
     tr_x, test_x, tr_y, test_y = train_test_split(train_x, train_y, test_size=0.2, random_state=random_seed) #  stratify=train_y.values.ravel()
@@ -237,21 +228,18 @@ def line_tree():
     return line_res
 
 
-"""无监督gcn做embedding"""
-
-
 def normalize(A):
     lena = A.shape[0]
     row = [i for i in range(lena)]
     col, data = row.copy(), [1 for i in range(lena)]
     eye_mat = coo_matrix((data, (row, col)), shape=(lena, lena))
-    A = A + eye_mat # A + I
-    d = np.power(A.sum(1), -0.5) # D^(-1/2)
-    d = np.ravel(d) # 一维
+    A = A + eye_mat
+    d = np.power(A.sum(1), -0.5)
+    d = np.ravel(d)
     i = [j for j in range(lena)]
     D = coo_matrix((d, (i, i)), shape=(lena, lena))
 
-    scipy_mat = (D * A * D).tocoo() # coo形式的D * A * D
+    scipy_mat = (D * A * D).tocoo()
     return scipy_mat
 
 
@@ -367,8 +355,7 @@ class ARGS:
         self.direct_attack = not cmd.indirect_attack
         self.us = not cmd.n_us
 
-        self.PUBLICDATA_PATH = '/home/whx/GraphData/datasets/jiaying/publicdata/'
-        self.PUBLICDATA_PATH = 'C://Users/pc/GraphData/datasets/jiaying/publicdata/'
+        self.PUBLICDATA_PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + 'publicdata/'
         self.SAMPLE_MULGS_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/SP_MulGs.pkl' % self.sample_size)
         self.FEATURES_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d/features.dat' % self.sample_size)
         self.DATA_PATH = os.path.join(self.PUBLICDATA_PATH, 'graph_%d' % self.sample_size)
@@ -377,6 +364,7 @@ class ARGS:
         self.weight_decay = cmd.weight_decay
         self.cuda = torch.cuda.is_available() and cmd.device == "gpu"
 
+
 # gpu实现
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -384,7 +372,7 @@ if __name__ == '__main__':
     parser.add_argument("--verbose", default=0, type=int, help="print details")
     parser.add_argument("--device", default="cpu", type=str, choices=["cpu", "gpu"], help="code environment")
 
-    parser.add_argument("-ss", "--sample_size", default=30000, type=int, help="sample size")
+    parser.add_argument("-ss", "--sample_size", default=10000, type=int, help="sample size")
     parser.add_argument("-in_da", "--indirect_attack", action="store_true", help="indirect attack")
     parser.add_argument("-lr", "--learning_rate", default=0.005, type=float, help="learning rate")
     parser.add_argument("--epoch", default=6, type=int)
