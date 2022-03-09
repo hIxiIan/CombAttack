@@ -667,7 +667,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     assert args.dataset not in ["tedge", "trans2vec"], "testBlockACC tedge, trans2vec error"
     attacked_model = attacked_models[0]
     original_predict, lgb_model = get_pd(attacked_model, args)
-    print(attacked_model.attacked_models_acc[0])
+    print(lgb_model.attacked_models_acc[0])
     args.attacked_models_acc = lgb_model.attacked_models_acc
     # return {}, [[attacked_model.name, 0.0, 0.0, 0.0, 0.0, args.attacked_models_acc[0], 0.0, 0.0]]
 
