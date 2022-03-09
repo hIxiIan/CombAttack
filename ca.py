@@ -669,6 +669,8 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     original_predict, lgb_model = get_pd(attacked_model, args)
     print(attacked_model.attacked_models_acc[0])
     args.attacked_models_acc = lgb_model.attacked_models_acc
+    # return {}, [[attacked_model.name, 0.0, 0.0, 0.0, 0.0, args.attacked_models_acc[0], 0.0, 0.0]]
+
     if args.is_phi:
         surrogate_phishing_targets = np.where(original_predict == 1)[0]
         true_phishing_targets = np.where(args.node_label == 1)[0]
