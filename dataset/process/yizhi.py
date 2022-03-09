@@ -19,6 +19,8 @@ def load_h(fp, dataset_name):
                 assert (len(line) == 3)
                 assert (int(line[0]) not in graph_node_features_dict and int(line[0]) not in graph_labels_dict)
                 feature_blank = np.zeros(932, dtype=np.uint8)
+                # if '0' in line[1].split(',') or '1' in line[1].split(','):
+                #     print(line[1].split(','))
                 feature_blank[np.array(line[1].split(','), dtype=np.uint16)] = 1
                 graph_node_features_dict[int(line[0])] = feature_blank
                 graph_labels_dict[int(line[0])] = int(line[2])
@@ -61,3 +63,10 @@ if __name__ == "__main__":
     PATH = os.path.abspath(os.path.expanduser("~/GraphData/datasets/")) + os.sep
     filename = PATH + args.dataset + '.npz'
     np.savez(filename, adj_matrix=adj, node_attr=features, node_label=labels)
+
+    # print(adj.shape, adj.size, (adj.T + adj).size)
+    # cnt = 0
+    # for i in range(adj.shape[0]):
+    #     cnt += adj[i, i]
+    # print(adj.data.size - cnt)
+    # print(features.shape, features)

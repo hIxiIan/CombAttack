@@ -136,6 +136,7 @@ def get_lgb_model(train_x, train_y, random_seed):
                           )
     all_predict = np.argmax(lgb_model.predict(train_x, num_iteration=lgb_model.best_iteration), axis=1)
     y_pred = np.argmax(lgb_model.predict(test_x, num_iteration=lgb_model.best_iteration), axis=1)
+    lgb_model.attacked_models_acc = [(np.array(test_y) == y_pred).mean()]
     auc_score = metrics.roc_auc_score(test_y, y_pred)
     recall_score = metrics.recall_score(test_y, y_pred, pos_label=1)
     precision_score = metrics.precision_score(test_y, y_pred, pos_label=1)
