@@ -83,7 +83,8 @@ def lgb_train_model(train_x, train_y, random_seed):
         val_pred = np.argmax(lgb_model.predict(val_x, num_iteration=lgb_model.best_iteration), axis=1)
         auc_score = metrics.roc_auc_score(val_y, val_pred)
         recall_score = metrics.recall_score(val_y, val_pred, pos_label=1)
-        phidx = (np.array(val_y) == 1).ravel()
+        # phidx = (np.array(val_y) == 1).ravel()
+        # precision_score = metrics.precision_score(val_y.values.ravel()[phidx], val_pred[phidx], pos_label=1)
         precision_score = metrics.precision_score(val_y, val_pred, pos_label=1)
         f1_score = metrics.f1_score(val_y, val_pred, pos_label=1)
         auc.append(auc_score)
@@ -128,8 +129,9 @@ def get_lgb_model(train_x, train_y, random_seed):
                           )
     all_predict = np.argmax(lgb_model.predict(train_x, num_iteration=lgb_model.best_iteration), axis=1)
     y_pred = np.argmax(lgb_model.predict(test_x, num_iteration=lgb_model.best_iteration), axis=1)
-    phidx = (np.array(test_y) == 1).ravel()
-    lgb_model.attacked_models_acc = [(test_y.values.ravel()[phidx] == y_pred[phidx]).mean()]
+    # phidx = (np.array(test_y) == 1).ravel()
+    # lgb_model.attacked_models_acc = [(test_y.values.ravel()[phidx] == y_pred[phidx]).mean()]
+    lgb_model.attacked_models_acc = [metrics.precision_score(test_y, y_pred, pos_label=1)]
     auc_score = metrics.roc_auc_score(test_y, y_pred)
     recall_score = metrics.recall_score(test_y, y_pred, pos_label=1)
     precision_score = metrics.precision_score(test_y, y_pred, pos_label=1)
