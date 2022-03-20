@@ -140,8 +140,7 @@ if __name__ == '__main__':
             cmd.edge_flips = "true"
         if cmd.attacker_name not in ['sga']:
             cmd.edge_flips = "true"
-            cmd.run_sga = "false"
-            method_types = method_types[:1]
+            cmd.run_us = "false"
 
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])
