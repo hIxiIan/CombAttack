@@ -280,10 +280,17 @@ def get_attacker(args, graph):
         args.train_nodes = list(range(graph.node_label.shape[0]))
         surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
         surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
-        if args.us:
-            attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        if args.attacker_name == "nettack":
+            parms = list(surrogate_model.model.parameters())
+            W = parms[0].T
+            attacker = Nettack(graph, device=args.device, seed=args.seed).process(W)
+            attacker.logits = surrogate_model.predict(np.arange(attacker.num_nodes))
+            attacker.softmax_logits = surrogate_model.predict(np.arange(attacker.num_nodes), transform="softmax")
         else:
-            attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            if args.us:
+                attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            else:
+                attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
     return attacker
 
 
