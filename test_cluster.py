@@ -96,6 +96,7 @@ if __name__ == '__main__':
     parser.add_argument("--noise", default="false", type=str)
     parser.add_argument("--noise_logits", default="false", type=str)
     parser.add_argument("--scale", default=2, type=int)
+    parser.add_argument("-atn", "--attacker_name", default="nettack", type=str)  # sga
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -137,6 +138,11 @@ if __name__ == '__main__':
             cmd.edge_flips = "true"
         if "bc" in dataset and cmd.bmbc_mode == "true":
             cmd.edge_flips = "true"
+        if cmd.attacker_name not in ['sga']:
+            cmd.edge_flips = "true"
+            cmd.run_sga = "false"
+            method_types = method_types[:1]
+
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])
         _edges_prefix = edgesdir + os.sep + "_".join([cmd.dataset, curtime])

@@ -14,6 +14,7 @@ import os.path as osp
 from graphgallery.datasets import NPZDataset
 from sga import SCA, SCAPD
 from orisga import SGA, SGAPD
+from nettack import Nettack
 from time import time
 from args import ARGS
 from pd import get_lgb_model
@@ -242,23 +243,37 @@ def get_attacked_models(atked_types, args, graph):
 
 
 def get_attacker(args, graph):
-    if not args.blockchain or args.dataset in ["tedge", "trans2vec"] or ("bc" in args.dataset and args.bmbc_mode):
-        surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
+    if args.attacker_name == "nettack":
+        surrogate_model = gg.gallery.nodeclas.GCN(seed=1000).setup_graph(graph).build(acts=None)
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
-        results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
-        print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
-        if args.us:
-            attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        if gg.backend() == "tensorflow":
+            w1, w2 = surrogate_model.model.weights
+            W = w1 @ w2
         else:
-            attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            w1, w2 = surrogate_model.model.parameters()
+            W = (w2 @ w1).T
+        W = gf.tensoras(W)
+        attacker = Nettack(graph, device=args.device, seed=args.seed).process(W)
+        attacker.logits = surrogate_model.predict(np.arange(attacker.num_nodes))
+        attacker.softmax_logits = surrogate_model.predict(np.arange(attacker.num_nodes), transform="softmax")
     else:
-        args.train_nodes = list(range(graph.node_label.shape[0]))
-        surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
-        surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
-        if args.us:
-            attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+        if not args.blockchain or args.dataset in ["tedge", "trans2vec"] or ("bc" in args.dataset and args.bmbc_mode):
+            surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
+            surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
+            results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
+            print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+            if args.us:
+                attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            else:
+                attacker = SGA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
-            attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            args.train_nodes = list(range(graph.node_label.shape[0]))
+            surrogate_model = gg.gallery.nodeclas.SGCPDS(device=args.device, seed=1000).setup_graph(graph, K=1).build()
+            surrogate_model.fit(args.train_nodes, None, verbose=args.verbose, epochs=6)
+            if args.us:
+                attacker = SCAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
+            else:
+                attacker = SGAPD(graph, device=args.device, seed=args.seed).process(surrogate_model)
     return attacker
 
 
@@ -669,6 +684,7 @@ def testBlockACC(attacked_models, attacker, args, verbose=True, verbose_us=False
     original_predict, lgb_model = get_pd(attacked_model, args)
     print(lgb_model.attacked_models_acc[0])
     args.attacked_models_acc = lgb_model.attacked_models_acc
+    # get pd acc result
     # return {}, [[attacked_model.name, 0.0, 0.0, 0.0, 0.0, args.attacked_models_acc[0], 0.0, 0.0]]
 
     if args.is_phi:
@@ -820,12 +836,12 @@ if __name__ == '__main__':
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=50, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="tedge", type=str, help="dataset")
+    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
     parser.add_argument("-a", "--alpha", default=0.25, type=float)
-    parser.add_argument("-et", "--embed_type", default="tedge", type=str)
+    parser.add_argument("-et", "--embed_type", default="SGC2", type=str)
     parser.add_argument('-ip', '--is_phi', default="true", type=str)
     parser.add_argument('-atk', '--atk_model_type', default="SGC", type=str)
 
@@ -854,6 +870,7 @@ if __name__ == '__main__':
     parser.add_argument("--noise", default="false", type=str)
     parser.add_argument("--noise_logits", default="false", type=str)
     parser.add_argument("--scale", default=100, type=int)
+    parser.add_argument("-atn", "--attacker_name", default="nettack", type=str) # sga
     curtime = strftime("%Y_%m_%d_%H_%M_%S", localtime())
     cmd = parser.parse_args()
     cmd.curtime = curtime

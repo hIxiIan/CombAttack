@@ -38,7 +38,7 @@ class ARGS:
         self.verbose = cmd.verbose
         self.device = cmd.device if cmd.device in ["gpu", "cuda:0", "cuda:1"] and torch.cuda.is_available() else "cpu"
         self.dataset = cmd.dataset
-        self.us = False if cmd.subgraph_type in ['sga'] else True
+        self.us = False if cmd.subgraph_type in ['sga'] or cmd.attacker_name not in ['sga'] else True
         self.cluster = True if cmd.subgraph_type == "cluster" else False
         self.embed_type = cmd.embed_type
         self.is_phi = True if cmd.is_phi == "true" else False
@@ -50,6 +50,7 @@ class ARGS:
         self.tedge_type = cmd.tedge_type
         self.noise = True if cmd.noise == "true" else False
         self.noise_logits = True if cmd.noise_logits == "true" else False
+        self.attacker_name = cmd.attacker_name
 
         # attack
         self.subgraph_type = cmd.subgraph_type
