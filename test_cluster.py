@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument("-da", "--direct_attack", default="true", type=str, help="direct attack")
     parser.add_argument("-tn", "--target_nums", default=100, type=int, help="target nums")
 
-    parser.add_argument("--dataset", default="", type=str, help="dataset")
+    parser.add_argument("--dataset", default="cora", type=str, help="dataset")
     parser.add_argument("--n_us", action="store_true", help="run sga model")
     parser.add_argument("-p", default=7.0, type=float)
     parser.add_argument("-q", default=0.25, type=float)
@@ -96,7 +96,8 @@ if __name__ == '__main__':
     parser.add_argument("--noise", default="false", type=str)
     parser.add_argument("--noise_logits", default="false", type=str)
     parser.add_argument("--scale", default=2, type=int)
-    parser.add_argument("-atn", "--attacker_name", default="nettack", type=str)  # sga
+    parser.add_argument("-atn", "--attacker_name", default="sga", type=str)  # sga
+    parser.add_argument("-sm", "--surrogate_model", default="sgc", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
