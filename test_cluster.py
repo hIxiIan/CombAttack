@@ -98,6 +98,7 @@ if __name__ == '__main__':
     parser.add_argument("--scale", default=2, type=int)
     parser.add_argument("-atn", "--attacker_name", default="sga", type=str)  # sga
     parser.add_argument("-sm", "--surrogate_model", default="sgc", type=str)
+    parser.add_argument("-smcm", "--surrogate_model_acc_mode", default="false", type=str)
     cmd = parser.parse_args()
     cmd.hids = None
     cmd.acts = None
@@ -177,8 +178,8 @@ if __name__ == '__main__':
                         cmd.tedge_type = tedge_type
                         print('\ndataset: {}, times:{}, {}/{}; sga: {} attack atked_type: {}, tedge_type: {}'.format(
                             dataset, i, count, total, "sga", cmd.atk_model_type, tedge_type))
-                        key = '_'.join(['sga', tedge_type])
-                        do_run(res, key, 'sga', cmd, asr_filename, edges_filename, edge_dict, key)
+                        key = '_'.join([cmd.attacker_name, tedge_type])
+                        do_run(res, key, cmd.attacker_name, cmd, asr_filename, edges_filename, edge_dict, key)
                 else:
                     total = 1
                     cmd.atk_model_type = ','.join(atked_types_)

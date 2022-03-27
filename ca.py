@@ -272,6 +272,11 @@ def get_attacker(args, graph):
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
         results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
         print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+
+        if args.surrogate_model_acc_mode:
+            args.surrogate_model_acc__ = results.accuracy
+            print('get_attacker surrogate_model_acc_mode...')
+            return None
         if args.us:
             attacker = SCA(graph, device=args.device, seed=args.seed).process(surrogate_model)
         else:
@@ -799,6 +804,8 @@ def run(subgraph_type, cmd=None, p=2.0, q=0.25, alpha=0.25, verbose=True):
     args = ARGS(cmd=cmd, targets=targets, splits=splits, graph=graph)
     print(args.device)
     attacker = get_attacker(args, graph)
+    if attacker is None:
+        return {}, [["surrogate", 0.0, 0.0, 0.0, 0.0, args.surrogate_model_acc__, 0.0, 0.0]]
     if cmd.target_mode == "correct_sur_labels":
         gf.random_seed(cmd.seed, gg.backend())
         candidates = np.array(splits.test_nodes)
