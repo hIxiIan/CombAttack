@@ -52,7 +52,7 @@ class ARGS:
         self.noise_logits = True if cmd.noise_logits == "true" else False
         self.attacker_name = cmd.attacker_name
         self.surrogate_model = cmd.surrogate_model
-        self.surrogate_model_acc_mode = True if cmd.surrogate_model_acc_mode == "true" else False
+        self.surrogate_model_acc_mode = True if hasattr(cmd, "surrogate_model_acc_mode") and cmd.surrogate_model_acc_mode == "true" else False
 
         # attack
         self.subgraph_type = cmd.subgraph_type
