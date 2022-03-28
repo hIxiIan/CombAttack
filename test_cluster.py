@@ -146,6 +146,8 @@ if __name__ == '__main__':
         if cmd.surrogate_model_acc_mode == "true":
             cmd.run_us = "false"
             tedge_types_ = tedge_types_[:1]
+            if dataset == "trans2vec":
+                tedge_types_ = ['TBS+WBS']
             cmd.edge_flips = "true"
 
         cmd.dataset = dataset
