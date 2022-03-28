@@ -145,6 +145,8 @@ if __name__ == '__main__':
             cmd.run_us = "false"
         if cmd.surrogate_model_acc_mode == "true":
             cmd.run_us = "false"
+            tedge_types_ = tedge_types_[:1]
+            cmd.edge_flips = "true"
 
         cmd.dataset = dataset
         _asr_prefix = rootdir + os.sep + "_".join([cmd.dataset, curtime])

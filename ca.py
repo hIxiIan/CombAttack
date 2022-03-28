@@ -271,7 +271,7 @@ def get_attacker(args, graph):
         surrogate_model = gg.gallery.nodeclas.SGC(device=args.device, seed=1000).setup_graph(graph, K=2).build()
         surrogate_model.fit(args.splits.train_nodes, args.splits.val_nodes, verbose=args.verbose, epochs=200)
         results = surrogate_model.evaluate(args.splits.test_nodes, verbose=0)
-        print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy {results.accuracy:.2%}')
+        print(f'get_attacker sur Test loss {results.loss:.5}, Test accuracy results.accuracy:', results.accuracy)
 
         if args.surrogate_model_acc_mode:
             args.surrogate_model_acc__ = results.accuracy
