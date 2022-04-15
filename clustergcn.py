@@ -154,7 +154,6 @@ for dataset in datasets:
                 global_attack_perturbation_list.append(x[i])
                 # print(x[i])
 
-            print(global_attack_perturbation_list)
 
             if args.dataset == 'cora':
                 target_node_list = [1944, 2043, 2229, 856, 1597, 1251, 286, 408, 2352, 1223, 2474, 1530, 1410, 1170,
@@ -498,7 +497,7 @@ for dataset in datasets:
                 poi_cnt = 0
                 margin_decreases = []
                 for i in range(len(target_node_list)):
-                    print('{}/{}'.format(i, len(target_node_list)))
+                    print('{}/{}, target:{}'.format(i, len(target_node_list), target_node_list[i]))
                     target_node = target_node_list[i]
                     current_adv_links = global_attack_perturbation_list[i]
                     perturbed_adj = copy.deepcopy(adj)
@@ -558,9 +557,9 @@ for dataset in datasets:
                 graph.node_label = labels
                 print(data.root)
                 # gf.random_seed(args.seed, gg.backend())
-                # splits = data.split_nodes(random_state=15)
-                # print(splits.train_nodes)
-                # print(idx_train)
+                splits = data.split_nodes(random_state=args.seed)
+                print(splits.train_nodes)
+                print(idx_train)
 
                 device = "gpu" if torch.cuda.is_available() else "cpu"
                 device = "cpu"
@@ -575,13 +574,14 @@ for dataset in datasets:
                 # print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
 
                 original_output = surrogate_gcn.predict(np.arange(adj.shape[0]))
+                print(original_output)
                 original_output = gf.get('softmax')(original_output)
-
+                print(original_output)
                 eva_cnt = 0
                 poi_cnt = 0
                 margin_decreases = []
                 for i in range(len(target_node_list)):
-                    print('{}/{}'.format(i, len(target_node_list)))
+                    print('{}/{}, target:{}'.format(i, len(target_node_list), target_node_list[i]))
                     target_node = target_node_list[i]
                     current_adv_links = global_attack_perturbation_list[i]
                     perturbed_adj = copy.deepcopy(adj)
@@ -651,13 +651,13 @@ for dataset in datasets:
                 # model = ClusterGCN(device="cpu", seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
 
                 # Setup Surrogate model
-                surrogate_gcn = ClusterGCN(device=device, seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
+                surrogate_gcn = ClusterGCN(device=device, seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], lr=0.01)
                 surrogate_gcn.fit(idx_train, idx_val, verbose=1, epochs=200)
-                # _results = surrogate_gcn.evaluate(idx_test)
-                # print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
+                _results = surrogate_gcn.evaluate(idx_test)
+                print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
 
                 original_output = surrogate_gcn.predict(np.arange(adj.shape[0]))
-                original_output = gf.get('softmax')(original_output)
+                # original_output = gf.get('softmax')(original_output)
 
                 eva_cnt = 0
                 poi_cnt = 0
@@ -678,31 +678,154 @@ for dataset in datasets:
                     if args.is_eva == "true":
                         surrogate_gcn.setup_graph(tmp_graph, num_clusters=10, attr_transform="normalize_attr")
                         output = surrogate_gcn.predict(np.arange(perturbed_adj.shape[0]))
-                        output = gf.get('softmax')(original_output)
+                        # output = gf.get('softmax')(original_output)
                         acc_test = (output.argmax(1)[target_node] == labels[target_node])
                         eva_single_acc = acc_test.item()
                         eva_cnt += eva_single_acc
-
-                    if args.is_test == "true":
-                        original_output_target_node = original_output[target_node]
-                        perturbed_output_target_node = output[target_node]
-                        target_node_label = labels[target_node]
-                        margin_decrease = original_output_target_node[target_node_label] - perturbed_output_target_node[
-                            target_node_label]
-                        margin_decreases.append(margin_decrease)
-                        # print(margin_decreases)
 
                     # poi test
                     if args.is_poi == "true":
                         poi_model = ClusterGCN(device=device, seed=args.seed).setup_graph(tmp_graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
                         poi_model.fit(idx_train, idx_val, verbose=1, epochs=200)
                         output = poi_model.predict(np.arange(perturbed_adj.shape[0]))
-                        output = gf.get('softmax')(original_output)
                         acc_test = (output.argmax(1)[target_node] == labels[target_node])
 
                         poi_single_acc = acc_test.item()
                         poi_cnt += poi_single_acc
+            elif args.gnns == 'graphsage':
+                if args.is_test == "true":
+                    target_node_list = np.random.choice(target_node_list, args.test_nodes_nums, replace=False)
 
+                import graphgallery as gg
+                from graphgallery.datasets import NPZDataset
+                import graphgallery.functional as gf
+                from graphgallery.gallery.nodeclas import GraphSAGE
+
+                gg.set_backend("pytorch")
+                data = NPZDataset(args.dataset,
+                                  root="~/GraphData/datasets/",
+                                  verbose=False,
+                                  transform="standardize")
+                graph = data.graph
+                graph.adj_matrix = adj
+                graph.node_attr = features
+                graph.node_label = labels
+                print(data.root)
+                # gf.random_seed(args.seed, gg.backend())
+                # splits = data.split_nodes(random_state=15)
+                # print(splits.train_nodes)
+                # print(idx_train)
+
+                device = "gpu" if torch.cuda.is_available() else "cpu"
+                device = "cpu"
+                print(device)
+
+                # Setup Surrogate model
+                surrogate_gcn = GraphSAGE(device=device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr").build(hids=[16], acts=['relu'])
+                surrogate_gcn.fit(idx_train, idx_val, verbose=1, epochs=200)
+                _results = surrogate_gcn.evaluate(idx_test)
+                print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
+
+                original_output = surrogate_gcn.predict(np.arange(adj.shape[0]), transform="softmax")
+
+                eva_cnt = 0
+                poi_cnt = 0
+                margin_decreases = []
+                for i in range(len(target_node_list)):
+                    print('{}/{}'.format(i, len(target_node_list)))
+                    target_node = target_node_list[i]
+                    current_adv_links = global_attack_perturbation_list[i]
+                    perturbed_adj = copy.deepcopy(adj)
+                    for j in range(len(current_adv_links)):
+                        perturbed_adj[target_node, current_adv_links[j]] = 1 - perturbed_adj[
+                            target_node, current_adv_links[j]]
+                        perturbed_adj[current_adv_links[j], target_node] = 1 - perturbed_adj[
+                            current_adv_links[j], target_node]
+                    tmp_graph = graph.copy()
+                    tmp_graph.adj_matrix = perturbed_adj
+                    # evasion test
+                    if args.is_eva == "true":
+                        surrogate_gcn.setup_graph(tmp_graph, attr_transform="normalize_attr")
+                        output = surrogate_gcn.predict(np.arange(perturbed_adj.shape[0]), transform="softmax")
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+                        eva_single_acc = acc_test.item()
+                        eva_cnt += eva_single_acc
+
+                    # poi test
+                    if args.is_poi == "true":
+                        poi_model = GraphSAGE(device=device, seed=args.seed).setup_graph(graph, attr_transform="normalize_attr").build(hids=[16], acts=['relu'])
+                        poi_model.fit(idx_train, idx_val, verbose=1, epochs=200)
+                        output = poi_model.predict(np.arange(perturbed_adj.shape[0]), transform="softmax")
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+                        poi_single_acc = acc_test.item()
+                        poi_cnt += poi_single_acc
+            elif args.gnns == 'fastgcn':
+                if args.is_test == "true":
+                    target_node_list = np.random.choice(target_node_list, args.test_nodes_nums, replace=False)
+
+                import graphgallery as gg
+                from graphgallery.datasets import NPZDataset
+                import graphgallery.functional as gf
+                from graphgallery.gallery.nodeclas import FastGCN
+
+                gg.set_backend("pytorch")
+                data = NPZDataset(args.dataset,
+                                  root="~/GraphData/datasets/",
+                                  verbose=False,
+                                  transform="standardize")
+                graph = data.graph
+                graph.adj_matrix = adj
+                graph.node_attr = features
+                graph.node_label = labels
+                print(data.root)
+                # gf.random_seed(args.seed, gg.backend())
+                # splits = data.split_nodes(random_state=15)
+                # print(splits.train_nodes)
+                # print(idx_train)
+
+                device = "gpu" if torch.cuda.is_available() else "cpu"
+                device = "cpu"
+                print(device)
+
+                # Setup Surrogate model
+                surrogate_gcn = FastGCN(device=device, seed=args.seed).setup_graph(graph).build(hids=[16], acts=['relu'])
+                surrogate_gcn.fit(idx_train, idx_val, verbose=1, epochs=200)
+                _results = surrogate_gcn.evaluate(idx_test)
+                print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
+
+                original_output = surrogate_gcn.predict(np.arange(adj.shape[0]), transform="softmax")
+
+                eva_cnt = 0
+                poi_cnt = 0
+                margin_decreases = []
+                for i in range(len(target_node_list)):
+                    print('{}/{}'.format(i, len(target_node_list)))
+                    target_node = target_node_list[i]
+                    current_adv_links = global_attack_perturbation_list[i]
+                    perturbed_adj = copy.deepcopy(adj)
+                    for j in range(len(current_adv_links)):
+                        perturbed_adj[target_node, current_adv_links[j]] = 1 - perturbed_adj[
+                            target_node, current_adv_links[j]]
+                        perturbed_adj[current_adv_links[j], target_node] = 1 - perturbed_adj[
+                            current_adv_links[j], target_node]
+                    tmp_graph = graph.copy()
+                    tmp_graph.adj_matrix = perturbed_adj
+                    # evasion test
+                    if args.is_eva == "true":
+                        surrogate_gcn.setup_graph(tmp_graph, attr_transform="normalize_attr")
+                        output = surrogate_gcn.predict(np.arange(perturbed_adj.shape[0]), transform="softmax")
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+                        eva_single_acc = acc_test.item()
+                        eva_cnt += eva_single_acc
+
+                    # poi test
+                    if args.is_poi == "true":
+                        poi_model = FastGCN(device=device, seed=args.seed).setup_graph(graph).build(hids=[16], acts=['relu'])
+                        poi_model.fit(idx_train, idx_val, verbose=1, epochs=200)
+                        output = poi_model.predict(np.arange(perturbed_adj.shape[0]), transform="softmax")
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+                        poi_single_acc = acc_test.item()
+                        poi_cnt += poi_single_acc
             eva_asr = 0
             poi_asr = 0
             avg_decrease = 0
