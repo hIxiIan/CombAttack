@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 import numpy as np
 import torch.nn.functional as F
-from deeprobust.graph.defense import GCN
+
 from deeprobust.graph.utils import *
 from deeprobust.graph.data import Dataset, Dpr2Pyg, Pyg2Dpr
 from deeprobust.graph.data import PtbDataset, PrePtbDataset
@@ -478,6 +478,7 @@ for dataset in datasets:
                 torch.cuda.manual_seed(args.seed)
 
             if args.gnns == 'gcn':
+                from deeprobust.graph.defense import GCN
                 if args.is_test == "true":
                     target_node_list = np.random.choice(target_node_list, args.test_nodes_nums, replace=False)
 
@@ -537,6 +538,88 @@ for dataset in datasets:
 
                         poi_single_acc = acc_test.item()
                         poi_cnt += poi_single_acc
+            elif args.gnns == 'gfgcn':
+                if args.is_test == "true":
+                    target_node_list = np.random.choice(target_node_list, args.test_nodes_nums, replace=False)
+
+                import graphgallery as gg
+                from graphgallery.datasets import NPZDataset
+                import graphgallery.functional as gf
+                from graphgallery.gallery.nodeclas import GCN
+
+                gg.set_backend("pytorch")
+                data = NPZDataset(args.dataset,
+                                  root="~/GraphData/datasets/",
+                                  verbose=False,
+                                  transform="standardize")
+                graph = data.graph
+                graph.adj_matrix = adj
+                graph.node_attr = features
+                graph.node_label = labels
+                print(data.root)
+                # gf.random_seed(args.seed, gg.backend())
+                # splits = data.split_nodes(random_state=15)
+                # print(splits.train_nodes)
+                # print(idx_train)
+
+                device = "gpu" if torch.cuda.is_available() else "cpu"
+                device = "cpu"
+                print(device)
+                # Setup GCN Model
+                # model = ClusterGCN(device="cpu", seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
+
+                # Setup Surrogate model
+                surrogate_gcn = GCN(device=device, seed=args.seed).setup_graph(graph).build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
+                surrogate_gcn.fit(idx_train, idx_val, verbose=1, epochs=200)
+                # _results = surrogate_gcn.evaluate(idx_test)
+                # print(f'Test loss {_results.loss:.5}, Test accuracy {_results.accuracy:.2%}')
+
+                original_output = surrogate_gcn.predict(np.arange(adj.shape[0]))
+                original_output = gf.get('softmax')(original_output)
+
+                eva_cnt = 0
+                poi_cnt = 0
+                margin_decreases = []
+                for i in range(len(target_node_list)):
+                    print('{}/{}'.format(i, len(target_node_list)))
+                    target_node = target_node_list[i]
+                    current_adv_links = global_attack_perturbation_list[i]
+                    perturbed_adj = copy.deepcopy(adj)
+                    for j in range(len(current_adv_links)):
+                        perturbed_adj[target_node, current_adv_links[j]] = 1 - perturbed_adj[
+                            target_node, current_adv_links[j]]
+                        perturbed_adj[current_adv_links[j], target_node] = 1 - perturbed_adj[
+                            current_adv_links[j], target_node]
+                    tmp_graph = graph.copy()
+                    tmp_graph.adj_matrix = perturbed_adj
+                    # evasion test
+                    if args.is_eva == "true":
+                        surrogate_gcn.setup_graph(tmp_graph)
+                        output = surrogate_gcn.predict(np.arange(perturbed_adj.shape[0]))
+                        output = gf.get('softmax')(original_output)
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+                        eva_single_acc = acc_test.item()
+                        eva_cnt += eva_single_acc
+
+                    if args.is_test == "true":
+                        original_output_target_node = original_output[target_node]
+                        perturbed_output_target_node = output[target_node]
+                        target_node_label = labels[target_node]
+                        margin_decrease = original_output_target_node[target_node_label] - perturbed_output_target_node[
+                            target_node_label]
+                        margin_decreases.append(margin_decrease)
+                        # print(margin_decreases)
+
+                    # poi test
+                    if args.is_poi == "true":
+                        poi_model = GCN(device=device, seed=args.seed).setup_graph(graph).build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
+                        poi_model.fit(idx_train, idx_val, verbose=1, epochs=200)
+                        output = poi_model.predict(np.arange(perturbed_adj.shape[0]))
+                        output = gf.get('softmax')(original_output)
+                        acc_test = (output.argmax(1)[target_node] == labels[target_node])
+
+                        poi_single_acc = acc_test.item()
+                        poi_cnt += poi_single_acc
             elif args.gnns == 'clustergcn':
                 if args.is_test == "true":
                     target_node_list = np.random.choice(target_node_list, args.test_nodes_nums, replace=False)
@@ -552,6 +635,9 @@ for dataset in datasets:
                                   verbose=False,
                                   transform="standardize")
                 graph = data.graph
+                graph.adj_matrix = adj
+                graph.node_attr = features
+                graph.node_label = labels
                 print(data.root)
                 # gf.random_seed(args.seed, gg.backend())
                 # splits = data.split_nodes(random_state=15)
@@ -559,6 +645,8 @@ for dataset in datasets:
                 # print(idx_train)
 
                 device = "gpu" if torch.cuda.is_available() else "cpu"
+                device = "cpu"
+                print(device)
                 # Setup GCN Model
                 # model = ClusterGCN(device="cpu", seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
 
@@ -606,8 +694,7 @@ for dataset in datasets:
 
                     # poi test
                     if args.is_poi == "true":
-                        poi_model = ClusterGCN(device=device, seed=args.seed).setup_graph(graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
-                        poi_model.setup_graph(tmp_graph, num_clusters=10, attr_transform="normalize_attr")
+                        poi_model = ClusterGCN(device=device, seed=args.seed).setup_graph(tmp_graph, num_clusters=10, attr_transform="normalize_attr").build(hids=[16], acts=['relu'], dropout=0.5, lr=0.01)
                         poi_model.fit(idx_train, idx_val, verbose=1, epochs=200)
                         output = poi_model.predict(np.arange(perturbed_adj.shape[0]))
                         output = gf.get('softmax')(original_output)
